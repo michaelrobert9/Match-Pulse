@@ -1,0 +1,29 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+      # TODO: drop this branch once it's merged to main — kept here so the
+      # master site deploys automatically while main doesn't exist yet.
+      - claude/match-pulse-home-design-w65epj
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Static site, no build step — index.html is deployed as-is.
+      # firebase.json pins hosting to the "match-pulse-4560e" site (the
+      # project's default site), separate from Hockey's own named site
+      # ("match-pulse-hockey") in the same Firebase project.
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: match-pulse-4560e
