@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "match-pulse-4560e",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "README.md",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
