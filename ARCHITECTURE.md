@@ -29,17 +29,34 @@ by Firestore rules, not convention.
 
 ## 1. Regions — get these right
 
-| Resource | Region |
-|---|---|
-| Firestore | `africa-south1` |
-| Cloud Functions | **`europe-west1`** |
+| Resource | Region | Source |
+|---|---|---|
+| Firestore | `africa-south1` | project setting |
+| Cloud Functions | `europe-west1` | hockey's `src/firebase.js`, all 3 hosting rewrites, 13 function definitions |
 
-Functions are `europe-west1`, *not* `africa-south1`. Every callable must be created and
-consumed with that region or the call fails at runtime:
+**These are separate settings.** Firestore's `africa-south1` does not constrain Functions,
+and conflating the two is the easy mistake here — `africa-south1` is what the console shows
+most prominently, so it reads like *the* project region.
+
+⚠️ The `europe-west1` value is read from the hockey repo's code, which is what deploys, but
+it has **not** been verified against the live deployment from this session (no Firebase CLI
+or credentials). Confirm before relying on it:
+
+```bash
+firebase functions:list --project match-pulse-4560e
+```
+
+A mismatch fails at **call** time with an opaque error — never at build or deploy time — so
+it presents as a broken feature rather than a config error. It is therefore held in a single
+overridable constant in both places, not scattered:
 
 ```js
-const functions = getFunctions(app, 'europe-west1')
+// src/firebase.js       → VITE_FUNCTIONS_REGION
+// functions/index.js    → FUNCTIONS_REGION
 ```
+
+If the live region turns out to differ, changing those two env vars fixes the whole main
+site; each sport repo has one equivalent constant.
 
 ---
 

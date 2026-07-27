@@ -14,7 +14,11 @@ const crypto = require('crypto')
 admin.initializeApp()
 
 const db = admin.firestore()          // (default) — identity, orgs, entitlements
-const REGION = 'europe-west1'
+// Deploy region for every function here. Must match what the clients call with
+// (src/lib and each sport's getFunctions call) and the hosting rewrite below —
+// a mismatch fails at call time, not deploy time. Firestore's africa-south1 is a
+// SEPARATE setting and does not constrain this.
+const REGION = process.env.FUNCTIONS_REGION || 'europe-west1'
 
 // ── Sport registry ────────────────────────────────────────────────────────────
 // Mirrors src/lib/sports.js. This copy is the SECURITY BOUNDARY: it is the

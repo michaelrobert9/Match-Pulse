@@ -16,6 +16,10 @@ const firebaseConfig = {
 // locally this flag lets the UI say so plainly instead of failing at runtime.
 export const configured = !!firebaseConfig.apiKey
 
+// Confirm against the console (Build → Functions shows the region per function)
+// or `firebase functions:list`. Override with VITE_FUNCTIONS_REGION if it differs.
+export const FUNCTIONS_REGION = import.meta.env.VITE_FUNCTIONS_REGION || 'europe-west1'
+
 let app, identityDb, auth, functions
 
 export const googleProvider = new GoogleAuthProvider()
@@ -27,9 +31,11 @@ if (configured) {
   // lives in per-sport named databases that this site never touches.
   identityDb = getFirestore(app)
   auth       = getAuth(app)
-  // Functions are deployed to europe-west1 — africa-south1 is the Firestore
-  // region only. Getting this wrong fails at call time, not build time.
-  functions  = getFunctions(app, 'europe-west1')
+  // Functions region. NOT the same as the Firestore region: Firestore is
+  // africa-south1, Functions are europe-west1 (matching the hockey deployment).
+  // A mismatch fails at CALL time with an opaque error, never at build time, so
+  // it is overridable without a code change — see FUNCTIONS_REGION below.
+  functions  = getFunctions(app, FUNCTIONS_REGION)
 }
 
 export { identityDb, auth, functions }

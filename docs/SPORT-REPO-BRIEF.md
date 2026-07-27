@@ -26,6 +26,29 @@ The main site is the front door and the account system. It is **live-ready** and
 Also built: **PayFast purchase** (hosted checkout + ITN webhook) — see §7a.
 Still coming: contact form, legal pages.
 
+### ⛔ Rollout order — do not skip this
+
+The handoff has a hard dependency chain. If a sport starts redirecting sign-ups to
+`matchpulse.co.za/login` before that flow is confirmed working, **new users are stranded
+with no way back** — they land on a login page that cannot return them.
+
+Work in this order. Do not start a phase until the previous one is confirmed **live**, not
+merely merged:
+
+| Phase | Who | Gate before moving on |
+|---|---|---|
+| **1** | Main site | `/login`, `/signup`, `/auth/handoff` endpoints and both callables deployed and reachable |
+| **2** | Hockey | Handoff verified end-to-end **while keeping its own login as a fallback** |
+| **3** | Hockey | Only once phase 2 is proven, remove hockey's local login |
+| **4** | Netball · Rugby · Water Polo | Green-lit only after phase 2 |
+
+**Netball, Rugby, Water Polo: you are in phase 4.** Build your handoff route now, but do
+**not** remove or bypass any existing sign-in path, and do not point users at the main site
+for sign-in, until hockey has confirmed the round trip works. Ask before flipping it on.
+
+Hockey is the canary precisely because it has real structure to fall back on. The other
+three have less to lose but also less to catch a failure with.
+
 ### The one rule that governs everything
 
 > **Identity, organisation, plan and billing are central.
@@ -106,16 +129,36 @@ user clicks your sport
                                               └─ go to <path>
 ```
 
-### Step 1 — pin Functions to `europe-west1`
+### Step 1 — set the Functions region (CONFIRM IT FIRST)
 
-`africa-south1` is the **Firestore** region. Functions are `europe-west1`. Getting this wrong
-fails at call time, not build time:
+⚠️ **Verify this before you write anything.** A wrong region fails at *call* time with an
+opaque error, never at build or deploy time — so it looks like a broken handoff, not a
+config mistake. Confirm with either:
+
+```bash
+firebase functions:list --project match-pulse-4560e
+```
+
+or Firebase Console → **Build → Functions**, which shows the region per function.
+
+**The Functions region is NOT the Firestore region.** Firestore is `africa-south1`. That is
+a separate setting and does not constrain Functions. As of the hockey repo's code, Functions
+are `europe-west1` — it appears in `src/firebase.js`, all three hosting rewrites, and 13
+function definitions. But confirm against the live deployment rather than trusting this doc.
+
+Keep it in **one** constant so a correction is a one-line change:
 
 ```js
 // src/firebase.js
 import { getFunctions } from 'firebase/functions'
-export const functions = getFunctions(app, 'europe-west1')   // NOT africa-south1
+
+// Must match where the main site's functions are actually deployed.
+export const FUNCTIONS_REGION = import.meta.env.VITE_FUNCTIONS_REGION || 'europe-west1'
+export const functions = getFunctions(app, FUNCTIONS_REGION)
 ```
+
+If the console disagrees with `europe-west1`, **say so** — the main site's functions must
+move to match, and that is a platform-wide change, not a per-repo one.
 
 ### Step 2 — add the `/auth/handoff` route
 
@@ -371,11 +414,12 @@ You are the reference implementation, but you also carry work that has moved.
 
 ## 9. Checklist — every sport repo
 
-- [ ] Functions pinned to `europe-west1`
+- [ ] Functions region **verified against the live deployment**, held in one constant
+- [ ] Rollout phase confirmed (see ⛔ above) — phase 4 repos have explicit go-ahead
 - [ ] `/auth/handoff` route added, outside the auth guard
 - [ ] Hosting rewrite serves the SPA for `/auth/handoff`
 - [ ] Signed-out users redirect to the main site's `/login?sport=…&path=…`
-- [ ] No login / password / email / billing UI remains in the repo
+- [ ] No login / password / email / billing UI remains — **only after your phase allows it**
 - [ ] Rules gate on `request.auth.token.entitlement`, not a cross-database read
 - [ ] No client write to `entitlement` / `eventCredits` / `entitlementExpiresAt`
 - [ ] Sport profile stored in your own database, keyed by central UID
@@ -390,5 +434,9 @@ You are the reference implementation, but you also carry work that has moved.
 2. What auth you have today, and what you removed
 3. Your sport-profile schema and where it's stored
 4. Anywhere you read or write plan/entitlement state
-5. Anything in this brief that doesn't match what you actually find — the main site's
-   picture of your repo may be wrong, and it's better to say so than to build around it
+5. **The Functions region you actually observe** in the console or `functions:list`
+6. Anything in this brief that doesn't match what you actually find — the main site's
+   picture of your repo is inferred, not verified, and hockey has drifted most. A
+   contradiction here is a finding worth reporting, not an obstacle to work around.
+   Report it rather than quietly adapting: if this document is wrong, four repos are
+   about to be wrong the same way.
