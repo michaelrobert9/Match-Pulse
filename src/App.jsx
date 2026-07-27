@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Account from './pages/Account'
+import Portal from './pages/Portal'
 import { configured } from './firebase'
 
 // Shown instead of the app when the Firebase web config is missing, rather than
@@ -32,6 +33,12 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login"  element={configured ? <Login />  : <NotConfigured />} />
         <Route path="/signup" element={configured ? <Signup /> : <NotConfigured />} />
+        {/* PayFast return_url — where a buyer lands after paying. */}
+        <Route path="/portal" element={
+          <ProtectedRoute><Portal /></ProtectedRoute>
+        } />
+        {/* PayFast cancel_url — send them back to the pricing section. */}
+        <Route path="/plans" element={<Navigate to="/#plans" replace />} />
         <Route path="/account" element={
           <ProtectedRoute><Account /></ProtectedRoute>
         } />

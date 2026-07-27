@@ -205,5 +205,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+
+    // ── Payments (PayFast ITN audit trail) ────────────────────────────────────
+    // Every ITN is recorded here for reconciliation, including ones that could
+    // not be attributed to an account. Written only by the webhook via the Admin
+    // SDK; readable only by a platform admin, since it holds payer details.
+    match /payments/{id} {
+      allow read:  if isPlatformAdmin();
+      allow write: if false;
+    }
+
+    // ── Platform config ───────────────────────────────────────────────────────
+    // _meta/payfastConfig holds the PayFast passphrase. No client may read it.
+    match /_meta/{doc} {
+      allow read, write: if false;
+    }
+
   }
 }

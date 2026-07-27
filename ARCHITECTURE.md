@@ -4,8 +4,8 @@
 This document is the contract the four sport repos build against. If a sport repo needs
 to know how auth, accounts, orgs or plans work, the answer is here — not in that repo.
 
-Status: **auth handoff and central schema are decided** (below). The `organizations`
-migration is **planned but not executed** — see §5.
+Status: **built and deployable.** Auth handoff, account, and PayFast billing all live here.
+The platform has no active users, so nothing below is constrained by legacy data.
 
 ---
 
@@ -17,7 +17,7 @@ migration is **planned but not executed** — see §5.
 |---|---|---|
 | Auth / sign-in / password / email | Main site | Firebase Auth |
 | `users`, `userProfiles`, `people` | Main site | `(default)` |
-| `organizations` + entitlement | Main site | `(default)` *(after §5 migration)* |
+| `organizations` + entitlement | Main site | `(default)` |
 | Plan purchase, PayFast, ITN | Main site | `(default)` |
 | Competitions, fixtures, teams, matches | Each sport | `hockey`, `netball`, … |
 | Sport profile (position, squad, stats) | Each sport | `hockey`, `netball`, … |
@@ -137,7 +137,7 @@ people/{personId}       player identity, cross-sport, consent-gated
 Added by the main site:
 
 ```
-organizations/{orgId}                    ← migrating from `hockey` DB, see §5
+organizations/{orgId}                    ← MatchPulse-level, not sport-specific
   name, slug, logoUrl, primaryColor, type
   sports               : ['hockey','netball']   ← which codes this org runs
   entitlement, eventCredits, entitlementExpiresAt   ← Admin-SDK only
@@ -188,54 +188,54 @@ The main site's `Portal` already polls for this settling window after a PayFast 
 
 ---
 
-## 5. `organizations` migration — PLANNED, NOT RUN
+## 5. Billing — PayFast, main site only
 
-### Current state — the target is not empty
+Purchase happens **here and only here**. No sport repo may implement, duplicate or
+re-point any part of it.
 
-`(default)` **was** the hockey database. When hockey moved to its own named database, the
-old collections were left behind and merely walled off: the rules file dropped their match
-blocks and `firestore.default.indexes.json` was emptied to `{"indexes": []}`. **Dropping
-rules does not delete data** — Firestore requires an explicit recursive delete.
+### How it works
 
-So the picture is:
+The checkout is a **PayFast hosted payment page** — a "pay now" link. We do not build or
+sign a payment payload; the only server-side code is the webhook that hears the result.
 
-| | `(default)` | `hockey` |
-|---|---|---|
-| `organizations` | **stale ghost copy**, same doc IDs, frozen at the split date, unreachable by clients (default-deny) | **authoritative**, taking live writes |
-| org billing (`entitlement`, `eventCredits`) | stale | **live** — `consumeEventCredit` / `fetchOrgEntitlement` both target hockey |
-| `competitions`, `matches`, `teams`, `players` | orphaned leftovers | authoritative |
+```
+Plans CTA (signed in)
+  └─ payment.payfast.io/eng/process?cmd=_paynow&…&m_payment_id=<uid>__<plan>__<ts>
+       │  buyer pays on PayFast's page
+       ├─ return_url  → matchpulse.co.za/portal   (polls until the plan lands)
+       ├─ cancel_url  → matchpulse.co.za/plans
+       └─ notify_url  → matchpulse.co.za/payfast/itn   ← the only thing that grants a plan
+```
 
-Two consequences that dictate the plan:
+**`m_payment_id` is the one thing we add to a plain button.** Hosted links accept extra
+query params and PayFast echoes them back on the ITN, which is what lets the webhook
+attribute a payment to an account. Without it PayFast has no idea which MatchPulse user
+paid, and every purchase needs activating by hand. This is why a signed-out visitor
+clicking a paid plan is sent to sign up first.
 
-- **`hockey` is authoritative for orgs, including billing.** The refresh must overwrite the
-  stale target wholesale — the opposite of the usual "never clobber billing" instinct,
-  which only becomes correct *after* cutover.
-- **Never dual-read preferring `(default)` before the refresh.** It would silently serve
-  months-old org and entitlement data. Reads must prefer `hockey` until cutover.
+### The webhook (`payfastITN`)
 
-Run `scripts/audit-default-db.mjs` first — it is read-only and reports exactly what
-orphaned data is present and how stale.
+1. **Idempotency first.** PayFast retries until it gets a 200, so the payment is claimed in
+   a transaction against `payments/{pf_payment_id}`. A retry loses and exits — otherwise
+   credits stack and subscriptions extend twice.
+2. **Authenticity.** Signature check when `_meta/payfastConfig.passphrase` is set; otherwise
+   the payload is posted back to PayFast's `/eng/query/validate`. An unverified endpoint
+   that grants paid plans is an open door.
+3. **Attribute** via `m_payment_id`, falling back to a unique email match. Ambiguous is
+   never guessed — it is flagged `needsManualReview` for a human.
+4. **Grant.** Pro extends from the later of now and any remaining term, so an early renewal
+   adds a year instead of discarding the remainder. Plus increments `eventCredits`.
 
-### Sequence
+Every ITN is recorded in `payments/{id}` — admin-read, client-write-never — including ones
+that could not be attributed. That collection is the reconciliation record.
 
-The platform has **no active users and no accounts created since the split**, so the
-phased dual-write dance is unnecessary. Straight cutover:
+### Dependency worth knowing
 
-1. `node scripts/audit-default-db.mjs` — see what is actually there.
-2. `node scripts/migrate-orgs-to-default.mjs --commit` — refresh `(default)` from
-   `hockey`, IDs preserved, billing included.
-3. Deploy the `organizations` rules (already in `firestore.rules`).
-4. Hockey switches org reads **and** writes to `(default)` — one change, no dual-write.
-5. Delete `hockey/organizations` and the orphaned pre-split collections in `(default)`.
-
-Step 4 is a **hockey-repo change** and belongs to the hockey chat. Export a backup before
-step 5 out of ordinary caution, not because anything irreplaceable is at stake.
-
-### Constraint
-
-This session has no Firebase credentials and no Firebase CLI, so **I cannot execute any of
-this.** Both scripts have to be run by someone who can authenticate against
-`match-pulse-4560e`. Both default to read-only / dry-run.
+`syncUserClaims` (deployed from the **hockey** repo) mirrors entitlement onto Auth custom
+claims. The ITN updates the user document; that trigger is what carries it to the token the
+sport subdomains actually gate on. **Hockey must keep deploying it** until it is moved here
+in one coordinated change — Cloud Function names are unique per project, so it cannot be
+declared in two codebases at once.
 
 ---
 
@@ -243,21 +243,24 @@ this.** Both scripts have to be run by someone who can authenticate against
 
 Raised for the hockey chat — **not** to be fixed from this repo.
 
-1. **`organizations` in the wrong database.** §5. Blocker.
+1. **`organizations` lives in the `hockey` database.** It is MatchPulse-level and belongs
+   in `(default)`. With no users there is nothing to migrate — hockey simply switches its
+   org reads and writes to the `(default)` handle.
 2. **Hockey positions written to the central identity doc.** `Profile.jsx` writes
    `position` (`goalkeeper|defence|midfield|forward`) into `identityDb users/{uid}`.
    Netball's `GS/GA/WA/C/WD/GD/GK` would overwrite the same field. Must move to
    `hockeyProfiles/{uid}` before a second sport ships.
-3. **PayFast config in the hockey DB.** `_meta/payfastConfig` is read via `dbHockey`, and
-   the admin billing UI (`BillingSettings.jsx`) uses the hockey handle. Billing is
-   main-site-owned; this must move to `(default)`.
+3. **PayFast is now on the main site (§5).** Hockey should remove its payment buttons,
+   `initPayFastPayment` (dead code — `Plans.jsx` never called it), `payfastITN`, the
+   `/payfast/itn` rewrite, and the `_meta/payfastConfig` read. Send users to
+   `matchpulse.co.za/#plans` instead. **Keep `syncUserClaims`.**
 4. **`orgRoles` is writable by any signed-in user** (rules permit a cache-only write to
    *any* user's `orgRoles`). Documented as non-authoritative, and per-sport rules check
    staff subcollections — but `canScore` derives from it, so it is a UI-level escalation.
    Hardening item.
-5. **`firestore.default.rules` lives in and deploys from the hockey repo**, while the main
-   site owns that schema. Two repos must never deploy rules to the same database — pick
-   one owner. Recommendation: move the file here, remove it from hockey's CI.
+5. **`firestore.default.rules` deploys from the hockey repo**, while the main site owns
+   that schema. Two repos must never deploy one ruleset. This repo's `firestore.rules` is
+   a strict superset — remove the Firestore step from hockey's CI, then enable it here.
 
 ---
 

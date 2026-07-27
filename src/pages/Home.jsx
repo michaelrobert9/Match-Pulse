@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS, displayHost } from '../lib/sports'
+import { paymentUrl } from '../lib/payfast'
 import { gotoSport, loginThenSport } from '../lib/handoff'
 
 function useReveal() {
@@ -62,6 +63,22 @@ function SportCard({ sport, user }) {
       </div>
     </a>
   )
+}
+
+
+// Paid-plan CTA. A payment has to carry the buyer's uid (see lib/payfast.js), so
+// anyone not signed in creates an account first — otherwise PayFast takes the
+// money and the ITN has no idea whose plan to activate.
+function PlanCta({ plan, user, className, children }) {
+  const navigate = useNavigate()
+
+  function start(e) {
+    e.preventDefault()
+    if (!user) { navigate(`/signup?plan=${plan}`); return }
+    window.location.assign(paymentUrl(plan, { uid: user.uid, email: user.email }))
+  }
+
+  return <a className={className} href="#plans" onClick={start}>{children}</a>
 }
 
 export default function Home() {
@@ -238,7 +255,7 @@ export default function Home() {
                 <li>Unlimited teams</li>
                 <li>Unlimited fixtures</li>
               </ul>
-              <Link className="cta primary" to={user ? '/account' : '/signup?plan=event'}>Run an event</Link>
+              <PlanCta plan="event" user={user} className="cta primary">Run an event</PlanCta>
             </div>
 
             <div className="tier reveal">
@@ -253,7 +270,7 @@ export default function Home() {
                 <li>Unlimited teams</li>
                 <li>Unlimited fixtures, all year</li>
               </ul>
-              <Link className="cta dark" to={user ? '/account' : '/signup?plan=pro'}>Go Pro</Link>
+              <PlanCta plan="pro" user={user} className="cta dark">Go Pro</PlanCta>
             </div>
           </div>
 

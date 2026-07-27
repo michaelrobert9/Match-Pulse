@@ -18,12 +18,13 @@ The main site is the front door and the account system. It is **live-ready** and
 |---|---|
 | Sign-up, sign-in, Google sign-in, password reset | main site |
 | Account page — change name, email, password | main site |
-| Plan display (Free / Plus / Pro) | main site |
+| Plan display **and purchase** (Free / Plus R2,000 / Pro R15,000) | main site |
 | **Auth handoff into your sport** | `createHandoffTicket` / `redeemHandoffTicket` |
 | Central Firestore schema + security rules | `(default)` database |
 | Sport hub linking to all four sports | main site |
 
-Coming shortly: PayFast purchase, contact form, legal pages.
+Also built: **PayFast purchase** (hosted checkout + ITN webhook) — see §7a.
+Still coming: contact form, legal pages.
 
 ### The one rule that governs everything
 
@@ -126,7 +127,7 @@ import { signInWithCustomToken } from 'firebase/auth'
 import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '../firebase'
 
-const MAIN_SITE = 'https://match-pulse-4560e.web.app'   // swap for matchpulse.co.za when DNS lands
+const MAIN_SITE = 'https://matchpulse.co.za'
 
 export default function AuthHandoff() {
   const [error, setError] = useState('')
@@ -191,7 +192,7 @@ Anywhere you'd previously have shown your own login screen:
 
 ```js
 // src/lib/auth-redirect.js
-const MAIN_SITE = 'https://match-pulse-4560e.web.app'
+const MAIN_SITE = 'https://matchpulse.co.za'
 const SPORT     = 'hockey'   // your sport key
 
 export function goSignIn(path = window.location.pathname) {
@@ -290,6 +291,17 @@ billing fields**.
 
 ---
 
+## 7a. Billing — you have nothing to do
+
+Purchase is a PayFast hosted checkout on the main site; a webhook at
+`matchpulse.co.za/payfast/itn` grants the plan and `syncUserClaims` carries it onto the
+Auth token. By the time a user reaches you, their entitlement claim is already correct.
+
+Your only job is to **read the claim** (§5) and link pricing CTAs to
+`https://matchpulse.co.za/#plans`. Do not implement, duplicate or re-point any part of it.
+
+---
+
 ## 7. Reuse these patterns from hockey
 
 Hockey is the most mature app. These parts are sport-agnostic — port rather than reinvent:
@@ -329,18 +341,26 @@ You are the reference implementation, but you also carry work that has moved.
 3. **Stop deploying `firestore.default.rules`.** The main site now owns the `(default)`
    ruleset and has a strict superset of yours. Two repos deploying one ruleset means
    whichever runs last wins. Remove the Firestore rules step from your CI workflow.
-4. **Do not touch PayFast yet.** You currently own `initPayFastPayment`, `payfastITN`, and
-   `_meta/payfastConfig` (in the hockey DB). This is migrating to the main site. **Report
-   what's there and wait** — do not move it unilaterally.
-5. **List every read/write of plan or tier state** so the billing cutover is a known set of
-   edits, not a search.
-6. **`organizations` is moving to `(default)`.** Migration scripts are written on the main
-   site and not yet run. When they are, switch your org reads *and* writes to the
-   `identityDb` handle. Document IDs are preserved, so `ownerOrgId` references keep working.
+4. **Remove PayFast entirely — it is built and live on the main site.** Delete:
+   - the payment buttons / `PAYFAST_LINKS` in `Plans.jsx`
+   - `initPayFastPayment` (dead code — `Plans.jsx` never called it)
+   - `payfastITN` and the `/payfast/itn` rewrite in `firebase.json`
+   - the `_meta/payfastConfig` read and the PayFast half of `BillingSettings.jsx`
+
+   Replace every pricing CTA with a link to `https://matchpulse.co.za/#plans`.
+
+   ⚠️ **Keep `syncUserClaims`.** It is the only thing carrying entitlement onto the Auth
+   token, and the main site's webhook depends on it. Cloud Function names are unique per
+   project, so the main site cannot declare it while you still do. Do not remove it until
+   a coordinated switchover.
+5. **`organizations` belongs in `(default)`.** It is MatchPulse-level, not sport-specific.
+   There are no users, so there is nothing to migrate — just switch your org reads and
+   writes from the hockey handle to the `identityDb` handle.
 
 ### 🥅 Netball · 🏉 Rugby · 🤽 Water Polo — greenfield, build it right
 
-1. **Do not build any account, login or billing UI.** Implement the handoff (§4) from day one.
+1. **Do not build any account, login or billing UI.** Implement the handoff (§4) from day
+   one. For pricing, link to `https://matchpulse.co.za/#plans`.
 2. **Build your sport profile locally** — `<sport>Profiles/{uid}` in your own database, keyed
    by the central UID. Design the schema around what's genuinely specific to your sport.
 3. **Read org and plan state; never write it** (§5, §6).

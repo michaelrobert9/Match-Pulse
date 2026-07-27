@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { sportByKey } from '../lib/sports'
 import { gotoSport } from '../lib/handoff'
+import { paymentUrl } from '../lib/payfast'
 
 function friendlyError(code) {
   switch (code) {
@@ -26,7 +27,14 @@ export default function Signup() {
   const navigate = useNavigate()
   const sport = sportByKey(params.get('sport'))
 
-  async function onward() {
+  // Someone who clicked a paid plan lands here first, because a payment must
+  // carry a uid to be attributable. Now that they have one, send them to pay.
+  async function onward(cred) {
+    const plan = params.get('plan')
+    if (plan === 'event' || plan === 'pro') {
+      window.location.assign(paymentUrl(plan, { uid: cred.user.uid, email: cred.user.email }))
+      return
+    }
     if (sport) {
       try { await gotoSport(sport); return } catch { /* fall through */ }
     }
@@ -38,8 +46,8 @@ export default function Signup() {
     if (busy) return
     setBusy(true); setError('')
     try {
-      await signUp(email.trim(), password, name.trim())
-      await onward()
+      const cred = await signUp(email.trim(), password, name.trim())
+      await onward(cred)
     } catch (err) {
       setError(friendlyError(err?.code))
       setBusy(false)
@@ -49,8 +57,8 @@ export default function Signup() {
   async function google() {
     setBusy(true); setError('')
     try {
-      await signInWithGoogle()
-      await onward()
+      const cred = await signInWithGoogle()
+      await onward(cred)
     } catch (err) {
       setError(friendlyError(err?.code))
       setBusy(false)
