@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-      # TODO: drop this branch once it's merged to main — kept here so the
-      # master site deploys automatically while main doesn't exist yet.
+      # TODO: drop this once the branch is merged to main.
       - claude/match-pulse-home-design-w65epj
   workflow_dispatch:
 
@@ -16,10 +15,35 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Static site, no build step — index.html is deployed as-is.
-      # firebase.json pins hosting to the "match-pulse-4560e" site (the
-      # project's default site), separate from Hockey's own named site
-      # ("match-pulse-hockey") in the same Firebase project.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A missing web API key builds a valid-but-DEAD bundle: src/firebase.js
+      # sets `configured = !!apiKey`, so the site would deploy successfully and
+      # then refuse every sign-in. Fail loudly here instead of shipping that.
+      - name: Verify Firebase secrets are present
+        run: |
+          if [ -z "${{ secrets.VITE_FIREBASE_API_KEY }}" ]; then
+            echo "::error::VITE_FIREBASE_API_KEY is missing — refusing to ship a Firebase-less bundle. Add the VITE_FIREBASE_* secrets under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY:             ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN:         ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID:          ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET:      ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID:              ${{ secrets.VITE_FIREBASE_APP_ID }}
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -27,3 +51,10 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: match-pulse-4560e
+
+      # NOTE: Firestore rules are deliberately NOT deployed from here yet.
+      # `firestore.default.rules` is still deployed by the Hockey repo's CI to
+      # the same (default) database, and two repos deploying one ruleset means
+      # whichever runs last wins. firestore.rules in this repo is a strict
+      # SUPERSET of hockey's, so it is safe to adopt — but remove the Firestore
+      # step from hockey's workflow first, then enable it here.

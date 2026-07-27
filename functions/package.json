@@ -1,0 +1,17 @@
+{
+  "name": "matchpulse-main-functions",
+  "description": "Cloud Functions for the MatchPulse main site",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "logs": "firebase functions:log",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

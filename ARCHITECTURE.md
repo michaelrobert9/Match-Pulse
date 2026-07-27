@@ -216,30 +216,20 @@ Two consequences that dictate the plan:
 Run `scripts/audit-default-db.mjs` first — it is read-only and reports exactly what
 orphaned data is present and how stale.
 
-### Sequence (dual-write, safe for a live product)
+### Sequence
 
-1. **Refresh.** `migrate-orgs-to-default.mjs --commit` — ID-preserving copy,
-   `hockey` → `(default)`, billing included. Source untouched.
-2. **Rules.** Add an `organizations` match block to the `(default)` ruleset. Billing fields
-   Admin-SDK-only; name/logo writable by org staff.
-3. **Dual-write.** Hockey writes every org mutation to **both** databases. Orgs change
-   rarely, so the extra write is negligible. This is what stops the target drifting again.
-4. **Soak + verify parity.** Re-run the script in dry-run; it should report every org as
-   `already current`.
-5. **Flip reads.** Hockey reads `(default)`.
-6. **Drop the hockey write.** `(default)` is now authoritative.
-7. **Retire.** `hockey/organizations` goes read-only, then is deleted.
+The platform has **no active users and no accounts created since the split**, so the
+phased dual-write dance is unnecessary. Straight cutover:
 
-Steps 3, 5 and 6 are **hockey-repo changes** and belong to the hockey chat. This repo owns
-the target schema, the rules, and the two scripts.
+1. `node scripts/audit-default-db.mjs` — see what is actually there.
+2. `node scripts/migrate-orgs-to-default.mjs --commit` — refresh `(default)` from
+   `hockey`, IDs preserved, billing included.
+3. Deploy the `organizations` rules (already in `firestore.rules`).
+4. Hockey switches org reads **and** writes to `(default)` — one change, no dual-write.
+5. Delete `hockey/organizations` and the orphaned pre-split collections in `(default)`.
 
-### Orphaned data cleanup — separate decision
-
-The pre-split `competitions` / `matches` / `teams` / `players` sitting in `(default)` are
-invisible and harmless, but they are real storage and a live footgun: the moment anyone
-adds a match block for one of those collection names to the `(default)` ruleset, months-old
-data becomes readable again. Audit, **export a backup**, then recursive-delete. Not urgent,
-but do it before the ruleset grows.
+Step 4 is a **hockey-repo change** and belongs to the hockey chat. Export a backup before
+step 5 out of ordinary caution, not because anything irreplaceable is at stake.
 
 ### Constraint
 

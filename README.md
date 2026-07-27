@@ -1,42 +1,79 @@
-# MatchPulse — master site
+# MatchPulse — main site
 
-The public front door for MatchPulse: the master home page whose main job is to route
-visitors to each **sport platform** — Hockey, Netball, Rugby and Water Polo — and to sell
-the product.
+The front door for MatchPulse: the hub that routes people to each **sport platform**
+(Hockey, Netball, Rugby, Water Polo), sells the product, and owns **account, plan and
+billing** for the whole platform.
 
-This first pass is a **design concept**: a single, self-contained `index.html` (no build
-step) that extends the shared MatchPulse design system read from the Hockey app
-(`DESIGN_SYSTEM.md`, `WhyMatchPulse.css`, `Plans.css`). Open it in a browser to preview.
+Firebase project `match-pulse-4560e`, hosting site `match-pulse-4560e`.
+Architecture contract for all five repos: **[`ARCHITECTURE.md`](./ARCHITECTURE.md)**.
 
-## What the home page does
+## Scope
 
-1. **Connects the sports (primary focus)** — a "Choose your sport" hub, high on the page,
-   with a card per sport linking out to its subdomain
-   (`hockey.` · `netball.` · `rugby.` · `waterpolo.matchpulse.co.za`). Each card carries
-   that sport's own identity colour, echoing the logo's coloured-pill lockups.
-2. **Sells the platform** — how it works, feature grid, and the full plans table
-   (Free · Plus R2,000 · Pro R15,000).
-3. **Carries the essentials** — Contact section and footer links for Terms, Privacy,
-   Cookies and Acceptable Use.
+This site owns — and is the *only* place on the platform that owns:
 
-## Design language (inherited, not invented)
+- Sign-up, sign-in, password and email changes
+- Plan display and (shortly) purchase + billing
+- The `(default)` Firestore schema: `users`, `userProfiles`, `people`, `organizations`
+- The auth handoff that signs a user into a sport subdomain
 
-- **Light theme**, soft paper canvas, single reading rhythm.
-- **MatchPulse wordmark**: "Match" in slate navy, "Pulse" in brand emerald.
-- **Brand emerald** `#1FB573` / `#0E7A4D` for action; **live red** `#E5484D` reserved for
-  live only; ink `#0B1220`.
-- Type: **Space Grotesk** (display) · **Inter** (body) · **Roboto** (tabular figures).
-- Sport identity colours: Hockey emerald · Netball violet · Rugby green · Water Polo blue.
+It deliberately owns **no** sport-specific profile UI. Position, club and squad live on
+each sport's own site, because every sport records them differently.
 
-## Easy things to change
+## Running it
 
-- **Sports & subdomains** — edit the cards in the `#sports` section (one `<a class="sport">`
-  per sport; set its `--hue` and href).
-- **Prices / plan copy** — the `#plans` section mirrors the Hockey app's `Plans.jsx`.
-- **Contact addresses** — placeholders (`hello@` / `billing@matchpulse.co.za`) in `#contact`.
+```bash
+npm install
+cp .env.example .env      # fill in the VITE_FIREBASE_* values
+npm run dev
+```
 
-## Next steps (pending technical details)
+Without `VITE_FIREBASE_API_KEY` the app builds and the marketing page renders, but auth
+screens show "Not configured yet" rather than failing at runtime.
 
-- Confirm the four sports, their subdomains and which are live now.
-- Decide the stack for the master site (static, or React/Vite/Tailwind to match the apps).
-- Wire the contact form and port the legal documents from the Hockey repo.
+## Layout
+
+```
+src/
+  pages/      Home (marketing + sports hub), Login, Signup, Account
+  components/ Nav, Footer, ProtectedRoute
+  contexts/   AuthContext — identity + read-only plan state
+  lib/        sports.js (the sport registry), handoff.js (auth handoff)
+  firebase.js (default) database, Functions pinned to europe-west1
+functions/    createHandoffTicket, redeemHandoffTicket
+scripts/      audit-default-db.mjs, migrate-orgs-to-default.mjs
+firestore.rules  (default) database rules — superset of hockey's
+```
+
+## Adding a sport
+
+Edit **both**, or the handoff breaks:
+
+1. `src/lib/sports.js` — drives the hub cards
+2. `functions/index.js` → `SPORT_HOSTS` — the redirect **allowlist**, a security boundary
+
+## Deploys
+
+CI deploys hosting on push (`.github/workflows/firebase-deploy.yml`). Requires these
+repo secrets:
+
+| Secret | Purpose |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | deploy credential |
+| `VITE_FIREBASE_API_KEY` | **build fails without it**, by design |
+| `VITE_FIREBASE_AUTH_DOMAIN` · `..._PROJECT_ID` · `..._STORAGE_BUCKET` · `..._MESSAGING_SENDER_ID` · `..._APP_ID` | web config |
+
+Functions and rules deploy from a machine with the Firebase CLI:
+
+```bash
+firebase deploy --only functions --project match-pulse-4560e
+```
+
+Firestore rules are **not** deployed from this repo yet — hockey's CI still deploys the
+same `(default)` ruleset. Remove it there first. See `ARCHITECTURE.md` §6.
+
+## Not done yet
+
+- PayFast purchase (exists in the hockey repo; migrating here — `ARCHITECTURE.md` §6)
+- Contact form backend
+- Legal document pages
+- `organizations` migration — scripts are written, not run (§5)
