@@ -190,27 +190,62 @@ The main site's `Portal` already polls for this settling window after a PayFast 
 
 ## 5. `organizations` migration — PLANNED, NOT RUN
 
-**Current state:** `organizations` lives in the **`hockey`** database and carries the
-entitlement fields. Netball, rugby and water polo therefore cannot see an organiser's org
-at all. This blocks multi-sport.
+### Current state — the target is not empty
 
-**Constraint I cannot work around:** this session has no Firebase credentials and no
-Firebase CLI, so **I cannot execute the data migration.** The script below has to be run
-by someone who can authenticate against `match-pulse-4560e`. Hockey is live with real
-customers — this is not a big-bang change.
+`(default)` **was** the hockey database. When hockey moved to its own named database, the
+old collections were left behind and merely walled off: the rules file dropped their match
+blocks and `firestore.default.indexes.json` was emptied to `{"indexes": []}`. **Dropping
+rules does not delete data** — Firestore requires an explicit recursive delete.
 
-### Expand → migrate → contract
+So the picture is:
 
-1. **Expand.** Create central `organizations` in `(default)` + rules. Hockey **dual-reads**
-   (prefer `(default)`, fall back to `hockey`). No write path changes. Ship, soak.
-2. **Backfill.** Admin-SDK script copies `hockey/organizations/*` → `(default)`,
-   **preserving document IDs**. This is what makes the migration safe: every reference is
-   by `ownerOrgId`, so preserved IDs mean no reference rewriting anywhere.
-3. **Cutover.** Hockey switches writes to `(default)`. Staff subcollections move with it.
-4. **Contract.** After a soak period, `hockey/organizations` goes read-only, then is removed.
+| | `(default)` | `hockey` |
+|---|---|---|
+| `organizations` | **stale ghost copy**, same doc IDs, frozen at the split date, unreachable by clients (default-deny) | **authoritative**, taking live writes |
+| org billing (`entitlement`, `eventCredits`) | stale | **live** — `consumeEventCredit` / `fetchOrgEntitlement` both target hockey |
+| `competitions`, `matches`, `teams`, `players` | orphaned leftovers | authoritative |
 
-Steps 1, 3 and 4 are **hockey-repo changes** and belong to the hockey chat, not here.
-This repo owns the target schema, the rules, and the backfill script.
+Two consequences that dictate the plan:
+
+- **`hockey` is authoritative for orgs, including billing.** The refresh must overwrite the
+  stale target wholesale — the opposite of the usual "never clobber billing" instinct,
+  which only becomes correct *after* cutover.
+- **Never dual-read preferring `(default)` before the refresh.** It would silently serve
+  months-old org and entitlement data. Reads must prefer `hockey` until cutover.
+
+Run `scripts/audit-default-db.mjs` first — it is read-only and reports exactly what
+orphaned data is present and how stale.
+
+### Sequence (dual-write, safe for a live product)
+
+1. **Refresh.** `migrate-orgs-to-default.mjs --commit` — ID-preserving copy,
+   `hockey` → `(default)`, billing included. Source untouched.
+2. **Rules.** Add an `organizations` match block to the `(default)` ruleset. Billing fields
+   Admin-SDK-only; name/logo writable by org staff.
+3. **Dual-write.** Hockey writes every org mutation to **both** databases. Orgs change
+   rarely, so the extra write is negligible. This is what stops the target drifting again.
+4. **Soak + verify parity.** Re-run the script in dry-run; it should report every org as
+   `already current`.
+5. **Flip reads.** Hockey reads `(default)`.
+6. **Drop the hockey write.** `(default)` is now authoritative.
+7. **Retire.** `hockey/organizations` goes read-only, then is deleted.
+
+Steps 3, 5 and 6 are **hockey-repo changes** and belong to the hockey chat. This repo owns
+the target schema, the rules, and the two scripts.
+
+### Orphaned data cleanup — separate decision
+
+The pre-split `competitions` / `matches` / `teams` / `players` sitting in `(default)` are
+invisible and harmless, but they are real storage and a live footgun: the moment anyone
+adds a match block for one of those collection names to the `(default)` ruleset, months-old
+data becomes readable again. Audit, **export a backup**, then recursive-delete. Not urgent,
+but do it before the ruleset grows.
+
+### Constraint
+
+This session has no Firebase credentials and no Firebase CLI, so **I cannot execute any of
+this.** Both scripts have to be run by someone who can authenticate against
+`match-pulse-4560e`. Both default to read-only / dry-run.
 
 ---
 
