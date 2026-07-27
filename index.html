@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MatchPulse — Live school &amp; club sport</title>
   <meta name="description" content="MatchPulse is the home of school and club sport. Pick your sport — hockey, netball, rugby or water polo — to create fixtures, score live and publish results the moment the whistle goes." />
-  <meta name="theme-color" content="#1FB573" />
+  <meta name="theme-color" content="#059669" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="MatchPulse — Live school &amp; club sport" />
@@ -32,10 +32,10 @@
       --paper:      #FBFBFC;
       --canvas:     #F8FAFC;
       --card:       #FFFFFF;
-      --pulse:      #1FB573;   /* brand emerald (action)                        */
-      --pulse-ink:  #0E7A4D;
-      --pulse-word: #16A672;   /* wordmark "Pulse" emerald                      */
-      --pulse-tint: rgba(31,181,115,.10);
+      --pulse:      #059669;   /* brand emerald — emerald-600, canonical         */
+      --pulse-ink:  #047857;   /* emerald-700 — text on tint                    */
+      --pulse-word: #059669;   /* wordmark "Pulse" emerald                      */
+      --pulse-tint: rgba(5,150,105,.10);
       --live:       #E5484D;   /* live only — never decorative                  */
       --radius:     16px;
       --maxw:       1120px;
@@ -66,8 +66,8 @@
 
     /* ── Buttons ─────────────────────────────────────────────────────────── */
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; padding: 13px 24px; border-radius: 980px; cursor: pointer; border: 1px solid transparent; transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s; white-space: nowrap; }
-    .btn-primary { background: var(--pulse); color: #fff; box-shadow: 0 6px 20px rgba(31,181,115,.32); }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(31,181,115,.42); }
+    .btn-primary { background: var(--pulse); color: #fff; box-shadow: 0 6px 20px rgba(5,150,105,.32); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(5,150,105,.42); }
     .btn-dark { background: var(--ink); color: #fff; }
     .btn-dark:hover { transform: translateY(-2px); background: #1a2436; }
     .btn-ghost { background: var(--card); color: var(--ink); border-color: var(--line); }
@@ -87,7 +87,7 @@
 
     /* ── Hero + sports (primary focus, above the fold) ───────────────────── */
     .hero { padding: 68px 0 20px; text-align: center; position: relative; overflow: hidden; }
-    .hero::before { content: ""; position: absolute; inset: -20% 0 auto 0; height: 460px; z-index: 0; background: radial-gradient(58% 100% at 50% 0%, rgba(31,181,115,.10), transparent 70%); pointer-events: none; }
+    .hero::before { content: ""; position: absolute; inset: -20% 0 auto 0; height: 460px; z-index: 0; background: radial-gradient(58% 100% at 50% 0%, rgba(5,150,105,.10), transparent 70%); pointer-events: none; }
     .hero .wrap { position: relative; z-index: 1; }
     .hero h1 { font-size: clamp(38px, 6.6vw, 68px); line-height: 1.03; letter-spacing: -.038em; font-weight: 700; max-width: 18ch; margin: 20px auto 0; text-wrap: balance; }
     .hero h1 .accent { color: var(--pulse-ink); }
@@ -178,7 +178,7 @@
     .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; align-items: stretch; }
     .tier { display: flex; flex-direction: column; background: var(--card); border: 1.5px solid var(--line); border-radius: 20px; padding: 30px 26px 28px; position: relative; transition: transform .25s var(--ease), box-shadow .25s var(--ease); }
     .tier:hover { transform: translateY(-4px); box-shadow: 0 16px 40px -16px rgba(11,18,32,.14); }
-    .tier.featured { border-color: var(--pulse); box-shadow: 0 0 0 1px var(--pulse), 0 20px 48px -20px rgba(31,181,115,.25); }
+    .tier.featured { border-color: var(--pulse); box-shadow: 0 0 0 1px var(--pulse), 0 20px 48px -20px rgba(5,150,105,.25); }
     @media (min-width: 1024px) { .tier.featured { transform: translateY(-10px); } .tier.featured:hover { transform: translateY(-14px); } }
     .tier-badge { align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 980px; background: var(--pulse); color: #fff; margin-bottom: 18px; }
     .tier .eyebrow2 { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate); }
@@ -191,11 +191,11 @@
     .tier hr { border: none; border-top: 1px solid var(--line); margin: 0 0 20px; }
     .tier ul { list-style: none; padding: 0; margin: 0 0 28px; display: flex; flex-direction: column; gap: 10px; }
     .tier li { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: flex-start; gap: 10px; line-height: 1.4; }
-    .tier li::before { content: ""; width: 18px; height: 18px; flex: none; margin-top: 1px; border-radius: 50%; background: var(--pulse-tint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%230E7A4D' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center; }
+    .tier li::before { content: ""; width: 18px; height: 18px; flex: none; margin-top: 1px; border-radius: 50%; background: var(--pulse-tint) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center; }
     .tier .cta { margin-top: auto; display: block; width: 100%; text-align: center; min-height: 48px; padding: 13px 20px; border-radius: 980px; font-size: 15px; font-weight: 700; transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s; }
     .tier .cta:hover { transform: translateY(-2px); }
-    .cta.primary { background: var(--pulse); color: #fff; box-shadow: 0 6px 20px rgba(31,181,115,.3); }
-    .cta.primary:hover { box-shadow: 0 10px 28px rgba(31,181,115,.4); }
+    .cta.primary { background: var(--pulse); color: #fff; box-shadow: 0 6px 20px rgba(5,150,105,.3); }
+    .cta.primary:hover { box-shadow: 0 10px 28px rgba(5,150,105,.4); }
     .cta.dark { background: var(--ink); color: #fff; }
     .cta.dark:hover { background: #1a2436; }
 
@@ -203,7 +203,7 @@
     .feat-group h4 { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
     .feat-group ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
     .feat-group li { font-size: 14px; color: var(--slate); line-height: 1.4; display: flex; gap: 9px; align-items: flex-start; }
-    .feat-group li::before { content: ""; width: 16px; height: 16px; flex: none; margin-top: 1px; border-radius: 50%; background: rgba(31,181,115,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%230E7A4D' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center; }
+    .feat-group li::before { content: ""; width: 16px; height: 16px; flex: none; margin-top: 1px; border-radius: 50%; background: rgba(5,150,105,.1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center; }
 
     /* ── Contact ─────────────────────────────────────────────────────────── */
     .contact-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; margin-top: 46px; align-items: start; }
@@ -324,7 +324,7 @@
 
         <div class="netstrip" aria-label="Live across MatchPulse">
           <span class="netchip">
-            <span class="code"><span class="swatch" style="background:#0E7A4D"></span>Hockey</span>
+            <span class="code"><span class="swatch" style="background:#059669"></span>Hockey</span>
             <span class="vs">Rustenburg</span><span class="tnum sc">4</span><span class="vs">–</span><span class="tnum sc">2</span><span class="vs">Herschel</span>
             <span class="livepill"><i></i>Live</span>
           </span>
@@ -348,7 +348,7 @@
 
         <div class="sports">
           <!-- Hockey -->
-          <a class="sport reveal" style="--hue:#0E7A4D" href="https://match-pulse-hockey.web.app">
+          <a class="sport reveal" style="--hue:#059669" href="https://match-pulse-hockey.web.app">
             <span class="sport-pill">Hockey</span>
             <h3>Hockey</h3>
             <p>Goals, cards and quarters, with full team and player records.</p>
