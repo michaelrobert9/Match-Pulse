@@ -1,0 +1,225 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Identity database (default) ───────────────────────────────────────────
+    // Holds the SHARED identity used across every MatchPulse sport and the main
+    // site: users (auth/roles), userProfiles (public-safe subset) and people
+    // (player profiles). Sport content (matches, competitions, teams, players,
+    // organisations, …) lives in per-sport databases (e.g. `hockey`) with their
+    // own rulesets. Rules cannot read across databases, so platform-admin
+    // authority here also honours the `platformAdmin` custom claim the per-sport
+    // databases rely on.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Prefers the platformAdmin custom claim (the authority the per-sport
+    // databases use); falls back to the users doc, which lives in THIS database.
+    function isPlatformAdmin() {
+      return isSignedIn()
+        && (request.auth.token.get('platformAdmin', false) == true
+            || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('platformAdmin', false) == true));
+    }
+
+    // ── People (player profiles) ──────────────────────────────────────────────
+    // Controlled by its owner (people.ownerUid) or a parent/guardian
+    // (uid in people.guardianUids). Delegated managers (uid in people.managerUids)
+    // may edit the profile but never the control fields. Career-stat fields are
+    // written by the stats engine via the Admin SDK (which bypasses these rules),
+    // so there is NO client career-stat write path here.
+
+    function controlsPerson(p) {
+      return isSignedIn() && (
+        p.get('ownerUid', '') == request.auth.uid
+        || request.auth.uid in p.get('guardianUids', [])
+      );
+    }
+
+    function managesPerson(p) {
+      return isSignedIn() && request.auth.uid in p.get('managerUids', []);
+    }
+
+    function personControlFieldsUnchanged() {
+      return request.resource.data.get('ownerUid', '') == resource.data.get('ownerUid', '')
+        && request.resource.data.get('guardianUids', []) == resource.data.get('guardianUids', [])
+        && request.resource.data.get('managerUids', []) == resource.data.get('managerUids', []);
+    }
+
+    // The consent record stamped at creation is immutable (only a platform admin
+    // may bypass this).
+    function consentFieldsUnchanged() {
+      return request.resource.data.get('consentGiven', false) == resource.data.get('consentGiven', false)
+        && request.resource.data.get('consentTextVersion', '') == resource.data.get('consentTextVersion', '')
+        && request.resource.data.get('consentTimestamp', null) == resource.data.get('consentTimestamp', null)
+        && request.resource.data.get('consentByUid', '') == resource.data.get('consentByUid', '');
+    }
+
+    match /people/{id} {
+      allow read: if true;
+
+      // Create: platform admin; or a user creating a profile they will control —
+      // a player (self as ownerUid), a parent (self in guardianUids) or a manager
+      // (self in managerUids) — with an immutable consent record (given, versioned,
+      // by self). Orgs/coaches cannot mint an uncontrolled profile.
+      allow create: if isPlatformAdmin()
+        || (isSignedIn()
+            && request.resource.data.get('consentGiven', false) == true
+            && request.resource.data.get('consentByUid', '') == request.auth.uid
+            && request.resource.data.get('consentTextVersion', '') != ''
+            && (
+              (request.resource.data.keys().hasAny(['ownerUid'])
+                && request.resource.data.ownerUid == request.auth.uid)
+              || (request.resource.data.keys().hasAny(['guardianUids'])
+                && request.auth.uid in request.resource.data.guardianUids)
+              || (request.resource.data.keys().hasAny(['managerUids'])
+                && request.auth.uid in request.resource.data.managerUids)));
+
+      // Update: platform admin; owner/guardian (full control, incl. transfer +
+      // manager grants); a delegated manager (everything EXCEPT the control
+      // fields); or a self-service CLAIM of an unclaimed profile (no owner, no
+      // guardians) making self the owner (player) or sole guardian (parent).
+      allow update: if isPlatformAdmin()
+        || (controlsPerson(resource.data) && consentFieldsUnchanged())
+        || (managesPerson(resource.data) && personControlFieldsUnchanged() && consentFieldsUnchanged())
+        || (isSignedIn()
+            && resource.data.get('ownerUid', null) == null
+            && resource.data.get('guardianUids', []).size() == 0
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['ownerUid', 'guardianUids', 'updatedAt', 'updatedBy'])
+            && (
+                 (request.resource.data.get('ownerUid', null) == request.auth.uid
+                   && request.resource.data.get('guardianUids', []).size() == 0)
+                 || (request.resource.data.get('ownerUid', null) == null
+                   && request.resource.data.get('guardianUids', []) == [request.auth.uid])
+               ));
+
+      allow delete: if isPlatformAdmin() || controlsPerson(resource.data);
+    }
+
+    // ── User profiles (public-safe subset) ────────────────────────────────────
+    match /userProfiles/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == uid;
+      allow update: if (isSignedIn() && request.auth.uid == uid) || isPlatformAdmin();
+      allow delete: if isPlatformAdmin();
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // Full profile with privileged fields (platformAdmin, permissionOverrides,
+    // orgRoles, competitionRoles, entitlement). Self-writes cannot touch
+    // platformAdmin/permissionOverrides or self-grant entitlement; those are
+    // platform-admin / Admin-SDK (PayFast ITN) only.
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid || isPlatformAdmin();
+
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('platformAdmin', false) == false
+        && request.resource.data.get('permissionOverrides', {}) == {}
+        && request.resource.data.get('entitlement', 'none') == 'none'
+        && request.resource.data.get('eventCredits', 0) == 0
+        && request.resource.data.get('entitlementExpiresAt', null) == null;
+
+      // Self-update: cannot change admin/override flags or self-grant entitlement.
+      // eventCredits may only DECREASE (consuming a credit) — never increase.
+      allow update: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.get('platformAdmin', false) == resource.data.get('platformAdmin', false)
+        && request.resource.data.get('permissionOverrides', {}) == resource.data.get('permissionOverrides', {})
+        && request.resource.data.get('entitlement', 'none') == resource.data.get('entitlement', 'none')
+        && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null)
+        && request.resource.data.get('eventCredits', 0) <= resource.data.get('eventCredits', 0);
+
+      // Mirror maintenance: an org owner / competition admin updates an appointee's
+      // orgRoles / competitionRoles cache. These are NEVER an authority source
+      // (the per-sport databases read their staff subcollections), so a scoped
+      // cache-only write by another signed-in user is acceptable.
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orgRoles']);
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competitionRoles']);
+
+      // Master Admins may write any user document.
+      allow write: if isPlatformAdmin();
+    }
+
+    // ── Organisations ─────────────────────────────────────────────────────────
+    // MatchPulse-level, NOT sport-specific: one org runs competitions across any
+    // number of sports, so the record and its plan live here in (default) and
+    // every sport database references it by ID.
+    //
+    // Billing fields (entitlement, eventCredits, entitlementExpiresAt) are
+    // written ONLY by the Admin SDK — the PayFast ITN and credit consumption.
+    // No client path may set or change them, which is what keeps a compromised
+    // or buggy sport client from granting itself a plan.
+
+    function orgBillingUnchanged() {
+      return request.resource.data.get('entitlement', 'none') == resource.data.get('entitlement', 'none')
+        && request.resource.data.get('eventCredits', 0) == resource.data.get('eventCredits', 0)
+        && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null);
+    }
+
+    function isOrgStaff(orgId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid));
+    }
+
+    function isOrgOwner(orgId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid))
+        && get(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid))
+             .data.get('role', '') == 'owner';
+    }
+
+    match /organizations/{orgId} {
+      // Org pages are public across every sport site.
+      allow read: if true;
+
+      // Self-service creation: the creator must start with no entitlement.
+      allow create: if isPlatformAdmin()
+        || (isSignedIn()
+            && request.resource.data.get('entitlement', 'none') == 'none'
+            && request.resource.data.get('eventCredits', 0) == 0
+            && request.resource.data.get('entitlementExpiresAt', null) == null);
+
+      // Staff edit the org's own details; billing stays untouchable.
+      allow update: if isPlatformAdmin()
+        || (isOrgStaff(orgId) && orgBillingUnchanged());
+
+      allow delete: if isPlatformAdmin() || isOrgOwner(orgId);
+
+      match /staff/{uid} {
+        allow read:  if isSignedIn();
+        allow write: if isPlatformAdmin() || isOrgOwner(orgId);
+      }
+    }
+
+    // ── Auth handoff tickets ──────────────────────────────────────────────────
+    // Single-use, 60-second tickets minted by createHandoffTicket and burned by
+    // redeemHandoffTicket, both Admin SDK. There is deliberately NO client
+    // access of any kind: a readable ticket collection would defeat the point.
+    match /authHandoffs/{id} {
+      allow read, write: if false;
+    }
+
+
+    // ── Payments (PayFast ITN audit trail) ────────────────────────────────────
+    // Every ITN is recorded here for reconciliation, including ones that could
+    // not be attributed to an account. Written only by the webhook via the Admin
+    // SDK; readable only by a platform admin, since it holds payer details.
+    match /payments/{id} {
+      allow read:  if isPlatformAdmin();
+      allow write: if false;
+    }
+
+    // ── Platform config ───────────────────────────────────────────────────────
+    // _meta/payfastConfig holds the PayFast passphrase. No client may read it.
+    match /_meta/{doc} {
+      allow read, write: if false;
+    }
+
+  }
+}
