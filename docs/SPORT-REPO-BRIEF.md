@@ -89,7 +89,23 @@ One rule applied consistently, not per-method special cases. If your implementat
 differently for Google vs. email+password beyond the provider-specific error code, that's a
 sign the rule isn't actually unified — flag it.
 
-### 2c. Still true, unchanged
+### 2c. Google sign-in — authorize each origin (platform config, raised by netball)
+
+Direct per-origin sign-in has a requirement the ticket handoff hid: for Google sign-in to
+work on an origin, that origin must be in the Firebase project's **Authorized domains**
+(Console → Authentication → Settings → Authorized domains).
+
+- `.web.app` and `.firebaseapp.com` hosts are authorized automatically. **Custom subdomains
+  are not** — `hockey.matchpulse.co.za` and friends must each be added by hand, once, when
+  DNS is wired. `matchpulse.co.za` itself too.
+- Keep `authDomain` at the shared project default (`match-pulse-4560e.firebaseapp.com`) in
+  every app's config. Do **not** set it per-subdomain — the OAuth handshake is hosted there
+  for every origin.
+- This is one project-wide console list, so it's a platform-owner task, not per-repo code.
+  But if Google sign-in misbehaves on a subdomain while email+password works, an unauthorized
+  domain is the first thing to check.
+
+### 2d. Still true, unchanged
 
 - No account settings, password/email change, or billing UI in any sport repo — link out to
   `matchpulse.co.za/account`. It's now a genuine "manage your account" link, not a sign-in
@@ -132,8 +148,13 @@ that writes them is deployed and firing, `request.auth.token.entitlement` is und
 claims-based rules fail **closed** — no one creates a competition, paying customers included.
 
 **This now lives on the main site** (`functions/index.js`), alongside the billing writes it
-mirrors, plus a one-time `backfillUserClaims` to stamp existing users. It deploys with the
-main site's functions.
+mirrors, plus a one-time `backfillUserClaims` to stamp existing users.
+
+⚠️ **Built ≠ deployed.** Until the main site's functions are deployed and `backfillUserClaims`
+is run once, the `entitlement` claim is still undefined and this blocker is still live for
+every repo — netball is right about that. Deploying it (and running the backfill) is now the
+platform's critical-path item, ahead of everything else. Nothing here is unblocked in
+practice until then.
 
 - **Do NOT declare `syncUserClaims` in your repo.** Cloud Function names are unique per
   project — a second definition collides at deploy. If hockey still declares it, hockey drops

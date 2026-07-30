@@ -102,6 +102,17 @@ explicit ordered fallback — IndexedDB → localStorage → sessionStorage → 
 the popup resolver explicitly (initializeAuth doesn't install one). Every sport repo should
 copy that shape; see `src/firebase.js`.
 
+### Google sign-in — authorize every origin (platform config)
+
+Direct per-origin sign-in has a requirement the handoff hid: an origin can only run Google
+sign-in if it is in the project's **Authorized domains** (Console → Authentication →
+Settings). `.web.app` / `.firebaseapp.com` hosts are authorized automatically; **custom
+subdomains are not** — each of `matchpulse.co.za`, `hockey.matchpulse.co.za`, … must be added
+by hand when DNS is wired. Every app keeps `authDomain` at the shared default
+(`match-pulse-4560e.firebaseapp.com`); the OAuth handshake is hosted there for all origins.
+This is one project-wide console list, owned by the platform, not per-repo code. (Raised by
+netball.)
+
 ### Known limitation
 
 - **Sign-out is per-origin.** Signing out of one origin does not sign out the others. For a
