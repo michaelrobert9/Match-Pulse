@@ -1,9 +1,7 @@
-// The sport registry — the single source of truth for which codes exist, where
-// they live, and what colour identifies them.
-//
-// This list is mirrored server-side in functions/index.js (SPORT_HOSTS). Both
-// must agree: the client uses it to render the hub, the server uses it as the
-// redirect allowlist. Adding a sport means editing both.
+// The sport registry — the single source of truth for which sports exist, where
+// they live, and what colour identifies them. Drives the hub cards and the
+// footer links. Each card links straight to that sport's own origin, where the
+// user signs in; there is no server-side mirror to keep in step.
 //
 // `host` is the deployed origin. Swap to the custom subdomain
 // (hockey.matchpulse.co.za, …) once DNS is wired — nothing else changes.

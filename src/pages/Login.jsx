@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { sportByKey } from '../lib/sports'
-import { gotoSport } from '../lib/handoff'
 
 // Firebase surfaces auth failures as codes. Say what went wrong and what to do
 // about it — never echo the raw code at someone trying to sign in.
@@ -31,15 +29,11 @@ export default function Login() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
 
-  const sport = sportByKey(params.get('sport'))
-  const next  = params.get('next') || '/account'
+  // This login is for the main site itself — managing your account and buying a
+  // plan. Signing into a sport happens on that sport's own site, not here.
+  const next = params.get('next') || '/account'
 
-  // After sign-in: bounce onward to a sport if that's what they came for,
-  // otherwise honour ?next=.
-  async function onward() {
-    if (sport) {
-      try { await gotoSport(sport, params.get('path') || '/'); return } catch { /* fall through */ }
-    }
+  function onward() {
     navigate(next, { replace: true })
   }
 
@@ -83,11 +77,7 @@ export default function Login() {
       <div className="auth-card">
         <p className="auth-eyebrow">Sign in</p>
         <h1 className="auth-title">Welcome back.</h1>
-        <p className="auth-sub">
-          {sport
-            ? <>Sign in to continue to <strong>{sport.name}</strong>.</>
-            : 'One account for every MatchPulse sport.'}
-        </p>
+        <p className="auth-sub">One account for every MatchPulse sport.</p>
 
         {sentTo && (
           <div className="notice notice-ok">
@@ -123,7 +113,7 @@ export default function Login() {
         </button>
 
         <p className="auth-foot">
-          New here? <Link to={`/signup${sport ? `?sport=${sport.key}` : ''}`}>Create an account</Link>
+          New here? <Link to="/signup">Create an account</Link>
         </p>
       </div>
     </div>

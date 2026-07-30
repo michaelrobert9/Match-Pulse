@@ -4,8 +4,9 @@
 This document is the contract the four sport repos build against. If a sport repo needs
 to know how auth, accounts, orgs or plans work, the answer is here — not in that repo.
 
-Status: **built and deployable.** Auth handoff, account, and PayFast billing all live here.
-The platform has no active users, so nothing below is constrained by legacy data.
+Status: **built and deployable.** Direct per-origin sign-in (the ticket handoff is removed —
+§2), account, PayFast billing, and `syncUserClaims` all live here. The platform has no active
+users, so nothing below is constrained by legacy data.
 
 ---
 
@@ -60,76 +61,52 @@ site; each sport repo has one equivalent constant.
 
 ---
 
-## 2. Auth handoff — DECIDED: one-time ticket → custom token
+## 2. Auth — direct sign-in per origin (the ticket handoff is DEAD)
 
-### The problem
+### What was tried and why it's gone
 
-Firebase Auth persists its session in IndexedDB **scoped to the origin**.
-`matchpulse.co.za` and `hockey.matchpulse.co.za` are different origins, so signing in on
-one does **not** sign you in on the other — same Firebase project or not.
+The first design had the main site mint a single-use ticket and redirect the user into a
+sport, which exchanged it for a custom token. It is **removed**. An installed iOS
+home-screen web app has its own storage container, separate from Safari, and iOS will not
+route a redirect from an external origin back into the installed app: the main site's login
+opens in Safari, and the session it creates is invisible to the app that sent the user out.
+No client-side fix exists — it's an iOS platform limitation. Any flow that requires *leaving
+a subdomain to sign in and coming back* is unreliable on iOS, so the whole shape is retired.
 
-### Why not a shared cookie
+### The model
 
-The Firebase **client** SDK does not read cookies for auth state; session cookies are a
-server-rendered pattern. These are static SPAs talking to Firestore directly from the
-browser, so getting `request.auth` populated for Firestore rules requires
-`signInWithCustomToken` regardless. A cookie is strictly more infrastructure for the same
-endpoint, and the older iframe/`authDomain` session-sharing trick is degraded by
-third-party-cookie deprecation. Rejected.
+> **Every origin — the main site and each sport — runs its own Firebase Auth sign-in
+> directly, against the shared Auth project. No redirect to log in, no ticket.**
 
-### The mechanism
+The handoff existed to work around per-origin session state. Direct sign-in never had that
+problem: each origin gets its own valid session for the same underlying account the moment
+it signs in against the shared project. Firebase Auth already does this — it's not new work.
 
-The URL carries a **60-second, single-use ticket** — never a credential.
+- **One account, one UID, every method.** Email+password and Google must both resolve the
+  same identity to the same UID on every subdomain. The provider is only how someone proves
+  who they are on a visit; it never determines which account they land in. Sign-up must treat
+  "account already exists" (`auth/email-already-in-use`, or the Google equivalent) as "switch
+  to sign-in," never as an error that mints a second account.
+- **What the main site still solely owns:** identity fields, password, email change, plan,
+  billing. Sports link to `matchpulse.co.za/account` for those — a real "manage account"
+  link now, not a sign-in redirect.
+- **What moved:** only *where the login form lives* — now per origin. Data ownership is
+  unchanged.
 
-```
-Main site                                    Sport subdomain
-─────────                                    ───────────────
-user clicks "Hockey"
-  │
-  ├─ createHandoffTicket({ sport })          [callable, AUTH REQUIRED]
-  │    stores sha256(ticket) in
-  │    (default) /authHandoffs/{id}
-  │    { uid, sport, expiresAt:+60s, usedAt:null }
-  │    returns { url }
-  │
-  └─ redirect ──────────────────────────────▶ /auth/handoff#t=<ticket>
-                                                │
-                                                ├─ redeemHandoffTicket({ ticket })
-                                                │    [callable, NO AUTH]
-                                                │    verifies hash, unused, unexpired
-                                                │    marks usedAt (atomic)
-                                                │    returns createCustomToken(uid)
-                                                │
-                                                ├─ signInWithCustomToken(token)
-                                                ├─ history.replaceState — strip fragment
-                                                └─ navigate to intended path
-```
+### Auth persistence — a real bug, fix it everywhere
 
-**Non-negotiables:**
+`getAuth()` can silently settle on **in-memory** persistence (e.g. IndexedDB blocked in some
+private-mode or installed-PWA contexts), which drops the session on the next navigation and
+reads exactly like "signed in, then signed out." The main site uses `initializeAuth` with an
+explicit ordered fallback — IndexedDB → localStorage → sessionStorage → memory — and passes
+the popup resolver explicitly (initializeAuth doesn't install one). Every sport repo should
+copy that shape; see `src/firebase.js`.
 
-- The ticket goes in the **URL fragment** (`#t=`), never a query param — fragments are not
-  sent to servers and do not appear in `Referer` headers or access logs.
-- TTL 60s, single-use, stored **hashed**. A leaked URL is dead in a minute and dead after
-  first use.
-- `authHandoffs` is **Admin-SDK-only** — no client read or write path at all.
+### Known limitation
 
-### Reverse direction (signed out, landing on a sport directly)
-
-```
-hockey.matchpulse.co.za/foo  (signed out)
-  → https://matchpulse.co.za/login?return=https://hockey.matchpulse.co.za/foo
-  → after sign-in, main site mints a ticket and redirects back
-```
-
-**`return` MUST be validated against a hard-coded allowlist of sport hosts.** An
-unvalidated `return` is an open redirect. The allowlist lives on the main site only.
-
-### Known limitations (accept and document, don't paper over)
-
-- **Sign-out is per-origin.** Signing out of hockey does not sign out the main site. For a
-  true global sign-out, call `revokeRefreshTokens(uid)` server-side and have each app
-  handle the resulting token error.
-- **Claims lag by up to an hour.** See §4.
+- **Sign-out is per-origin.** Signing out of one origin does not sign out the others. For a
+  true global sign-out, call `revokeRefreshTokens(uid)` server-side and have each app handle
+  the resulting token error.
 
 ---
 
@@ -159,8 +136,6 @@ organizations/{orgId}                    ← MatchPulse-level, not sport-specifi
   sports               : ['hockey','netball']   ← which codes this org runs
   entitlement, eventCredits, entitlementExpiresAt   ← Admin-SDK only
 organizations/{orgId}/staff/{uid}        ← membership, the authority source
-
-authHandoffs/{id}                        ← Admin-SDK only, no client access
 ```
 
 ### What each sport repo owns
@@ -177,25 +152,58 @@ see §6, finding 2, for why this is already causing a collision.
 
 ---
 
-## 4. Entitlement — custom claims, not cross-DB reads
+## 4. Entitlement AND org roles — custom claims, not cross-DB reads
 
-Firestore rules **cannot read across databases**. The solution is already built and
-shipped in `functions/index.js`: `syncUserClaims` mirrors `platformAdmin`, `entitlement`,
-`entitlementExpiresAt` and `eventCredits` onto the user's Auth **custom claims** on every
-`users/{uid}` write.
+Firestore rules **cannot read across databases**. A sport's rules run against that sport's
+database and cannot resolve a read into `(default)`. So everything a sport's rules need to
+know about a user's central state is mirrored onto the Auth **custom claims**, which travel
+with the user to every origin. This is done by `syncUserClaims` in `functions/index.js` on
+every `users/{uid}` write.
 
-Claims travel with the user, not the origin. So any sport app can gate on:
+> **Correction to the earlier brief:** this function was described as "already in the hockey
+> repo." Per netball's audit it was not effectively present, and without it every
+> claims-based rule fails **closed** — no one, paying customers included, can create a
+> competition. It is now **built on the main site**, next to the billing writes it mirrors,
+> with a one-time `backfillUserClaims`. Exactly one deployment may declare it (function names
+> are unique per project); if hockey still declares it, hockey drops its copy in the same
+> deploy.
+
+The claim carries two things:
 
 ```js
 // rules, in ANY database
-allow create: if request.auth.token.get('entitlement', 'none') == 'pro';
+request.auth.token.entitlement            // 'none' | 'event' | 'pro'
+request.auth.token.platformAdmin          // bool
+request.auth.token.orgRoles               // { [orgId]: 'owner' | 'staff' | … }
 ```
 
-**Sport repos: use the claim. Do not read `users/{uid}` for entitlement, and never write
-an entitlement field.**
+### Org roles ride on the claim too — the §4b decision
 
-**The one gotcha:** claims are baked into the ID token at mint time and refresh roughly
-hourly. After a purchase, force a refresh:
+Org membership (`organizations/{orgId}/staff/{uid}`) lives in `(default)`, so a sport's rules
+can't read it directly. **Decision: mirror org roles onto the token, not into each sport's
+database.** `syncUserClaims` derives a compact `orgRoles` claim from the user's central
+`orgRoles`, and sport rules read it with no cross-DB read and no per-sport `staff` mirror to
+keep in sync:
+
+```js
+allow write: if request.auth.token.orgRoles[orgId] in ['owner', 'staff'];
+```
+
+Chosen over mirroring `staff` into every sport DB because it reuses the claims machinery
+entitlement already requires, keeps one authority source, and adds no fan-out. Tradeoffs,
+stated plainly:
+- **~1h lag** (or until `getIdToken(true)`) — a just-appointed org admin waits for the token
+  to refresh. Fine for role changes; force a refresh if it must be instant.
+- **1000-byte claim cap.** A user in an unusual number of orgs overflows; `syncUserClaims`
+  then drops the map and sets `orgRolesOverflow: true` rather than failing, and those rules
+  fail closed for that rare user (safe). If a sport expects users in dozens of orgs, that's
+  the signal to revisit.
+
+**Sport repos: use the claims. Never read `users/{uid}` for entitlement, and never write an
+entitlement field.**
+
+**The gotcha:** claims are baked into the ID token at mint time and refresh roughly hourly.
+After a purchase or a role change, force a refresh:
 
 ```js
 await auth.currentUser.getIdToken(true)
@@ -248,11 +256,11 @@ that could not be attributed. That collection is the reconciliation record.
 
 ### Dependency worth knowing
 
-`syncUserClaims` (deployed from the **hockey** repo) mirrors entitlement onto Auth custom
-claims. The ITN updates the user document; that trigger is what carries it to the token the
-sport subdomains actually gate on. **Hockey must keep deploying it** until it is moved here
-in one coordinated change — Cloud Function names are unique per project, so it cannot be
-declared in two codebases at once.
+`syncUserClaims` (now in **this** repo — §4) mirrors entitlement onto Auth custom claims.
+The ITN updates the user document; that trigger carries it to the token the sport subdomains
+gate on. So the ITN and the trigger are co-located here, and neither works without the other.
+Cloud Function names are unique per project — if hockey still declares `syncUserClaims`, it
+drops its copy in the same deploy that ships this one.
 
 ---
 
@@ -270,7 +278,8 @@ Raised for the hockey chat — **not** to be fixed from this repo.
 3. **PayFast is now on the main site (§5).** Hockey should remove its payment buttons,
    `initPayFastPayment` (dead code — `Plans.jsx` never called it), `payfastITN`, the
    `/payfast/itn` rewrite, and the `_meta/payfastConfig` read. Send users to
-   `matchpulse.co.za/#plans` instead. **Keep `syncUserClaims`.**
+   `matchpulse.co.za/#plans` instead. **`syncUserClaims` now lives here — hockey drops its
+   copy in the same deploy that ships the main site's (§4).**
 4. **`orgRoles` is writable by any signed-in user** (rules permit a cache-only write to
    *any* user's `orgRoles`). Documented as non-authoritative, and per-sport rules check
    staff subcollections — but `canScore` derives from it, so it is a UI-level escalation.

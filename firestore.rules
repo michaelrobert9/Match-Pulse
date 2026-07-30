@@ -197,13 +197,6 @@ service cloud.firestore {
       }
     }
 
-    // ── Auth handoff tickets ──────────────────────────────────────────────────
-    // Single-use, 60-second tickets minted by createHandoffTicket and burned by
-    // redeemHandoffTicket, both Admin SDK. There is deliberately NO client
-    // access of any kind: a readable ticket collection would defeat the point.
-    match /authHandoffs/{id} {
-      allow read, write: if false;
-    }
 
 
     // ── Payments (PayFast ITN audit trail) ────────────────────────────────────

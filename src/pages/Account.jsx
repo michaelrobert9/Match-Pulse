@@ -11,7 +11,6 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useAuth } from '../contexts/AuthContext'
 import { auth, identityDb } from '../firebase'
 import { SPORTS } from '../lib/sports'
-import { gotoSport } from '../lib/handoff'
 
 // Firebase requires a recent sign-in before changing an email or password. When
 // it asks, we collect the current password and retry rather than dead-ending.
@@ -165,25 +164,25 @@ export default function Account() {
         {/* ── Sports ────────────────────────────────────────────────────── */}
         <Panel
           title="Your sports"
-          description="Open a sport and you’ll arrive already signed in."
+          description="Open a sport to sign in there and manage your teams."
         >
           <div className="acct-sports">
             {SPORTS.map(s => (
-              <button
+              <a
                 key={s.key}
                 className="acct-sport"
                 style={{ '--hue': s.hue }}
-                onClick={() => gotoSport(s).catch(() => window.location.assign(s.host))}
+                href={s.host}
               >
                 <span className="acct-sport-dot" />
                 {s.name}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </button>
+              </a>
             ))}
           </div>
           <p className="acct-fine">
-            Your playing details — position, club and squad — live on each sport’s own site,
-            because every sport records them differently.
+            You sign in on each sport’s own site. Your playing details — position, club and
+            squad — live there too, because every sport records them differently.
           </p>
         </Panel>
 

@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { sportByKey } from '../lib/sports'
-import { gotoSport } from '../lib/handoff'
 import { paymentUrl } from '../lib/payfast'
 
 function friendlyError(code) {
@@ -25,18 +23,14 @@ export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth()
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const sport = sportByKey(params.get('sport'))
 
   // Someone who clicked a paid plan lands here first, because a payment must
   // carry a uid to be attributable. Now that they have one, send them to pay.
-  async function onward(cred) {
+  function onward(cred) {
     const plan = params.get('plan')
     if (plan === 'event' || plan === 'pro') {
       window.location.assign(paymentUrl(plan, { uid: cred.user.uid, email: cred.user.email }))
       return
-    }
-    if (sport) {
-      try { await gotoSport(sport); return } catch { /* fall through */ }
     }
     navigate('/account', { replace: true })
   }
@@ -105,7 +99,7 @@ export default function Signup() {
         </button>
 
         <p className="auth-foot">
-          Already have an account? <Link to={`/login${sport ? `?sport=${sport.key}` : ''}`}>Sign in</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </div>
     </div>

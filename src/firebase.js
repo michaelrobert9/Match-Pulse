@@ -1,6 +1,14 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+  browserPopupRedirectResolver,
+  GoogleAuthProvider,
+} from 'firebase/auth'
 import { getFunctions } from 'firebase/functions'
 
 const firebaseConfig = {
@@ -18,6 +26,8 @@ export const configured = !!firebaseConfig.apiKey
 
 // Confirm against the console (Build → Functions shows the region per function)
 // or `firebase functions:list`. Override with VITE_FUNCTIONS_REGION if it differs.
+// This is NOT the Firestore region (africa-south1) — a mismatch fails at call
+// time, not build time.
 export const FUNCTIONS_REGION = import.meta.env.VITE_FUNCTIONS_REGION || 'europe-west1'
 
 let app, identityDb, auth, functions
@@ -30,12 +40,26 @@ if (configured) {
   // (users, userProfiles, people) plus org/plan/entitlement. Sport content
   // lives in per-sport named databases that this site never touches.
   identityDb = getFirestore(app)
-  auth       = getAuth(app)
-  // Functions region. NOT the same as the Firestore region: Firestore is
-  // africa-south1, Functions are europe-west1 (matching the hockey deployment).
-  // A mismatch fails at CALL time with an opaque error, never at build time, so
-  // it is overridable without a code change — see FUNCTIONS_REGION below.
-  functions  = getFunctions(app, FUNCTIONS_REGION)
+
+  // Explicit persistence fallback chain (netball's finding, applied platform-wide).
+  // getAuth() can silently settle on in-memory persistence — e.g. when IndexedDB
+  // is blocked, as in some private-mode or installed-PWA contexts — which drops
+  // the session on the next navigation and reads exactly like "signed in, then
+  // signed out." initializeAuth with an ordered list degrades deliberately
+  // instead: IndexedDB → localStorage → sessionStorage → memory. The popup
+  // resolver is passed explicitly because initializeAuth (unlike getAuth) does
+  // not install one, and Google sign-in uses a popup.
+  auth = initializeAuth(app, {
+    persistence: [
+      indexedDBLocalPersistence,
+      browserLocalPersistence,
+      browserSessionPersistence,
+      inMemoryPersistence,
+    ],
+    popupRedirectResolver: browserPopupRedirectResolver,
+  })
+
+  functions = getFunctions(app, FUNCTIONS_REGION)
 }
 
 export { identityDb, auth, functions }

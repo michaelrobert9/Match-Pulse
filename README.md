@@ -11,10 +11,14 @@ Architecture contract for all five repos: **[`ARCHITECTURE.md`](./ARCHITECTURE.m
 
 This site owns — and is the *only* place on the platform that owns:
 
-- Sign-up, sign-in, password and email changes
-- Plan display and (shortly) purchase + billing
+- Account settings: name, email and password changes
+- Plan display, PayFast purchase, and the ITN webhook that grants plans
 - The `(default)` Firestore schema: `users`, `userProfiles`, `people`, `organizations`
-- The auth handoff that signs a user into a sport subdomain
+- `syncUserClaims` — mirrors plan + org roles onto the Auth token every sport reads
+
+Sign-in itself is **not** centralised: each origin (this site and every sport) runs its own
+Firebase Auth sign-in directly, because an iOS home-screen app can't receive a cross-origin
+auth redirect. See `ARCHITECTURE.md` §2.
 
 It deliberately owns **no** sport-specific profile UI. Position, club and squad live on
 each sport's own site, because every sport records them differently.
@@ -34,22 +38,19 @@ screens show "Not configured yet" rather than failing at runtime.
 
 ```
 src/
-  pages/      Home (marketing + sports hub), Login, Signup, Account
+  pages/      Home (marketing + sports hub), Login, Signup, Account, Portal
   components/ Nav, Footer, ProtectedRoute
   contexts/   AuthContext — identity + read-only plan state
-  lib/        sports.js (the sport registry), handoff.js (auth handoff)
-  firebase.js (default) database, Functions pinned to europe-west1
-functions/    createHandoffTicket, redeemHandoffTicket
-scripts/      audit-default-db.mjs, migrate-orgs-to-default.mjs
+  lib/        sports.js (the sport registry), payfast.js (hosted checkout URLs)
+  firebase.js (default) database; explicit auth-persistence chain; Functions region
+functions/    syncUserClaims (+ backfill), payfastITN
 firestore.rules  (default) database rules — superset of hockey's
 ```
 
 ## Adding a sport
 
-Edit **both**, or the handoff breaks:
-
-1. `src/lib/sports.js` — drives the hub cards
-2. `functions/index.js` → `SPORT_HOSTS` — the redirect **allowlist**, a security boundary
+Edit `src/lib/sports.js` — it drives the hub cards and the footer links. Sport cards link
+straight to that sport's own site; there is no handoff to keep in sync.
 
 ## Deploys
 
@@ -73,7 +74,7 @@ same `(default)` ruleset. Remove it there first. See `ARCHITECTURE.md` §6.
 
 ## Not done yet
 
-- PayFast purchase (exists in the hockey repo; migrating here — `ARCHITECTURE.md` §6)
 - Contact form backend
 - Legal document pages
-- `organizations` migration — scripts are written, not run (§5)
+- Deploy `syncUserClaims` + run `backfillUserClaims` once (blocks entitlement gating
+  everywhere until it fires — `ARCHITECTURE.md` §4)
