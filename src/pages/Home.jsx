@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS, displayHost } from '../lib/sports'
 import { paymentUrl } from '../lib/payfast'
-import { gotoSport, loginThenSport } from '../lib/handoff'
 
 function useReveal() {
   useEffect(() => {
@@ -25,41 +24,19 @@ const Arrow = () => (
   </svg>
 )
 
-// A sport card. Signed in → mint a handoff ticket and go authenticated.
-// Signed out → straight to the public site (it's readable without an account).
-function SportCard({ sport, user }) {
-  const [busy, setBusy] = useState(false)
-  const navigate = useNavigate()
-
-  async function open(e) {
-    if (!user) return                       // let the plain link through
-    e.preventDefault()
-    setBusy(true)
-    try {
-      await gotoSport(sport)
-    } catch {
-      // Handoff failed — fall back to the public site rather than dead-ending.
-      window.location.assign(sport.host)
-    }
-  }
-
+// A sport card links straight to that sport's own site, where the user signs in
+// (or is already signed in). Each sport runs its own auth on its own origin —
+// there is no cross-origin handoff, because iOS home-screen apps can't receive
+// one. The main site just points the way.
+function SportCard({ sport }) {
   return (
-    <a
-      className="sport reveal"
-      style={{ '--hue': sport.hue }}
-      href={sport.host}
-      onClick={open}
-      aria-busy={busy}
-    >
+    <a className="sport reveal" style={{ '--hue': sport.hue }} href={sport.host}>
       <span className="sport-pill">{sport.name}</span>
       <h3>{sport.name}</h3>
       <p>{sport.blurb}</p>
       <div className="sport-foot">
         <span className="sport-domain">{displayHost(sport)}</span>
-        <span className="sport-go">
-          {busy ? 'Signing you in…' : user ? 'Enter' : 'Visit'}
-          {!busy && <Arrow />}
-        </span>
+        <span className="sport-go">Enter<Arrow /></span>
       </div>
     </a>
   )
@@ -125,7 +102,7 @@ export default function Home() {
           </div>
 
           <div className="sports">
-            {SPORTS.map(s => <SportCard key={s.key} sport={s} user={user} />)}
+            {SPORTS.map(s => <SportCard key={s.key} sport={s} />)}
           </div>
 
           <p className="sports-note">

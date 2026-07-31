@@ -1,442 +1,249 @@
-# MatchPulse — Brief for the Sport Repos
+# MatchPulse — Brief for the Sport Repos (v2 — supersedes the handoff-ticket design)
 
 **From:** the main site (`Match-Pulse`, Firebase project `match-pulse-4560e`)
 **To:** Hockey · Netball · Rugby · Water Polo
-**Status:** the main site is built and the auth contract is final. You are unblocked.
+**Status:** the redirect-based auth handoff (`createHandoffTicket` / `redeemHandoffTicket`)
+is **abandoned**. It does not work in an installed iOS home-screen app and cannot be made
+to. This document replaces it. Paste this whole document into the chat for each sport repo.
 
-Paste this whole document into the chat for each sport repo. It is self-contained —
-you do not need to see the main-site repo to act on it.
-
----
-
-## 1. What the main site is, and what it now does
-
-MatchPulse is one brand, one Firebase project (`match-pulse-4560e`), five deployments.
-The main site is the front door and the account system. It is **live-ready** and owns:
-
-| Built and working | Where |
-|---|---|
-| Sign-up, sign-in, Google sign-in, password reset | main site |
-| Account page — change name, email, password | main site |
-| Plan display **and purchase** (Free / Plus R2,000 / Pro R15,000) | main site |
-| **Auth handoff into your sport** | `createHandoffTicket` / `redeemHandoffTicket` |
-| Central Firestore schema + security rules | `(default)` database |
-| Sport hub linking to all four sports | main site |
-
-Also built: **PayFast purchase** (hosted checkout + ITN webhook) — see §7a.
-Still coming: contact form, legal pages.
-
-### ⛔ Rollout order — do not skip this
-
-The handoff has a hard dependency chain. If a sport starts redirecting sign-ups to
-`matchpulse.co.za/login` before that flow is confirmed working, **new users are stranded
-with no way back** — they land on a login page that cannot return them.
-
-Work in this order. Do not start a phase until the previous one is confirmed **live**, not
-merely merged:
-
-| Phase | Who | Gate before moving on |
-|---|---|---|
-| **1** | Main site | `/login`, `/signup`, `/auth/handoff` endpoints and both callables deployed and reachable |
-| **2** | Hockey | Handoff verified end-to-end **while keeping its own login as a fallback** |
-| **3** | Hockey | Only once phase 2 is proven, remove hockey's local login |
-| **4** | Netball · Rugby · Water Polo | Green-lit only after phase 2 |
-
-**Netball, Rugby, Water Polo: you are in phase 4.** Build your handoff route now, but do
-**not** remove or bypass any existing sign-in path, and do not point users at the main site
-for sign-in, until hockey has confirmed the round trip works. Ask before flipping it on.
-
-Hockey is the canary precisely because it has real structure to fall back on. The other
-three have less to lose but also less to catch a failure with.
-
-### The one rule that governs everything
-
-> **Identity, organisation, plan and billing are central.
-> Everything sport-specific belongs to your sport.**
-
-You **read** central data. You **never write** plan or billing fields — Firestore rules
-will reject it, not just convention.
+**Main-site side is done:** the handoff functions are removed, and the two blocking items
+in §4 are addressed on the main site (`syncUserClaims` is now built and deployable here;
+the org-auth decision is made — §4). See §4 for what that means for you.
 
 ---
 
-## 2. What you must NOT build
+## 0. Why the previous design is dead
 
-Delete it if it exists in your repo. These live on the main site and nowhere else:
+Netball confirmed it on-device: an iOS home-screen web app has its own storage container,
+separate from Safari, and iOS will not route a redirect from an external origin back into an
+installed app. The main site's login page opens in Safari, not in the installed app, so the
+session that gets created is invisible to the app that sent the user there. There is no
+client-side fix — this is an iOS platform limitation, not a bug in the ticket mechanism.
 
-- ❌ Sign-up / login / logout screens of your own
-- ❌ Password change, password reset, email change UI
-- ❌ Plan purchase, PayFast, pricing checkout, billing history
-- ❌ Any write to `entitlement`, `eventCredits`, `entitlementExpiresAt`
-- ❌ Account settings pages
+That kills the whole shape of the previous design: **any flow that requires leaving a
+subdomain to sign in, then coming back, is unreliable on iOS.** So we're not fixing the
+redirect — we're removing it.
 
-When a user needs any of these, **send them to the main site**:
+---
+
+## 1. The new model
+
+> **Every subdomain runs its own sign-in and sign-up UI, directly, on its own origin.
+> There is no redirect to the main site to log in, and no ticket.
+> The main site remains the sole source of truth for account data — but subdomains
+> talk to that account directly, not by bouncing the user through a browser tab.**
+
+Concretely:
+
+- Each sport app calls Firebase Auth (`signInWithEmailAndPassword`,
+  `createUserWithEmailAndPassword`, Google sign-in, password reset) **directly, on its own
+  origin**, against the same shared Firebase Auth project (`match-pulse-4560e`). This isn't a
+  new capability — it's what Firebase Auth already does. The ticket handoff existed to work
+  around a problem (per-origin session state) that direct sign-in never had: each origin gets
+  its own valid session for the same underlying account the moment it signs in against the
+  shared project.
+- **The account-linking mechanism is identical regardless of how someone signs in.** Whether
+  email+password or Google, the result is one rule: one person, one MatchPulse account, one
+  UID, no matter which subdomain or method they used. The provider is just how they prove who
+  they are on a given visit — it has no bearing on which account they land in. If someone
+  signed up on hockey with Google and later opens rugby and signs in with the same Google
+  account, that must resolve to the same UID, exactly as the email+password case does. Don't
+  build or reason about these as two flows with two guarantees — there's one guarantee, and
+  every sign-in method honours it the same way.
+- **What still lives centrally, unchanged:** account identity (name, email), password,
+  plan/entitlement, billing. The main site is where you change your email, change your
+  password, see your plan, and buy or upgrade. A subdomain does not build its own account
+  settings, password-change, or billing UI — those still send the user to
+  `matchpulse.co.za/account`. What's different is **signing in** — that now happens locally,
+  per subdomain, never via redirect.
+- **What still lives per-sport, unchanged:** sport-specific profile (position, squad number,
+  club, sport stats/preferences), all sport content (competitions, fixtures, matches, teams).
+
+So the only thing that moved is *where the login form lives*. Everything about who owns what
+data is unchanged from before.
+
+---
+
+## 2. What each subdomain must build
+
+### 2a. Sign-in — build this locally, don't redirect
+
+A normal Firebase Auth login form (email/password, and Google if you support it) on your own
+origin, calling the SDK directly. No ticket, no fragment, no `/auth/handoff` route — delete
+that route if you built it.
+
+### 2b. Sign-up — handle "account already exists" the same way for every method
+
+This is the part that needs care, and it applies identically no matter the method:
+
+1. Try to create the account normally, with whichever method they chose.
+2. If Firebase Auth reports the account already exists — `auth/email-already-in-use` for
+   email+password, or the equivalent account-exists signal for Google — **do not treat this
+   as an error.** It means they already have a MatchPulse account, from this sport or
+   another. Switch them to sign-in, with a message like "You already have an account — sign
+   in instead." Don't let a second, separate account get created against the same identity.
+3. Whether the account is brand new or already existed, once they're signed in on your
+   subdomain, that's the same central account — proceed as normal.
+
+One rule applied consistently, not per-method special cases. If your implementation branches
+differently for Google vs. email+password beyond the provider-specific error code, that's a
+sign the rule isn't actually unified — flag it.
+
+### 2c. Google sign-in — authorize each origin (platform config, raised by netball)
+
+Direct per-origin sign-in has a requirement the ticket handoff hid: for Google sign-in to
+work on an origin, that origin must be in the Firebase project's **Authorized domains**
+(Console → Authentication → Settings → Authorized domains).
+
+- `.web.app` and `.firebaseapp.com` hosts are authorized automatically. **Custom subdomains
+  are not** — `hockey.matchpulse.co.za` and friends must each be added by hand, once, when
+  DNS is wired. `matchpulse.co.za` itself too.
+- Keep `authDomain` at the shared project default (`match-pulse-4560e.firebaseapp.com`) in
+  every app's config. Do **not** set it per-subdomain — the OAuth handshake is hosted there
+  for every origin.
+- This is one project-wide console list, so it's a platform-owner task, not per-repo code.
+  But if Google sign-in misbehaves on a subdomain while email+password works, an unauthorized
+  domain is the first thing to check.
+
+### 2d. Still true, unchanged
+
+- No account settings, password/email change, or billing UI in any sport repo — link out to
+  `matchpulse.co.za/account`. It's now a genuine "manage your account" link, not a sign-in
+  redirect.
+- No writes to `entitlement`, `eventCredits`, `entitlementExpiresAt` — read-only, via custom
+  claims (§4).
+- Sport-specific profile (`<sport>Profiles/{uid}`) stays local to your database, keyed by
+  the shared UID.
+- `organizations/{orgId}` stays central in `(default)`, not sport-specific.
+
+---
+
+## 3. Verify these before you ship — don't assume
+
+1. **Confirm cross-subdomain login resolves to one account, for every sign-in method.** Sign
+   up on one sport's dev environment, then sign in on another's with the same identity — same
+   email+password, and separately the same Google account — and confirm both land on the same
+   UID (`auth.currentUser.uid`, not just that login succeeded). Test every method the same
+   way. If any repo still has leftover ticket-handoff code that scopes auth state oddly, this
+   is where it shows up.
+2. **Auth persistence.** Netball found the SDK can silently default to in-memory persistence,
+   which drops the session on next navigation and looks identical to "signed in, then signed
+   out." The fix — an explicit persistence fallback chain (IndexedDB → localStorage →
+   sessionStorage → memory), and not letting an IndexedDB refusal take down app init — is
+   worth copying into all four repos regardless of the auth redesign. **The main site already
+   applies it** (`src/firebase.js`, `initializeAuth` with an ordered `persistence` list); copy
+   that shape.
+
+---
+
+## 4. The two blocking findings — main-site status
+
+Both were raised by netball. Here's where each stands now.
+
+### 4a. `syncUserClaims` — BUILT ON THE MAIN SITE, deploy pending
+
+Custom claims (`entitlement`, `platformAdmin`, `orgRoles`) are the only way sport-side
+Firestore rules can gate on central state without a cross-database read. Until the function
+that writes them is deployed and firing, `request.auth.token.entitlement` is undefined and
+claims-based rules fail **closed** — no one creates a competition, paying customers included.
+
+**This now lives on the main site** (`functions/index.js`), alongside the billing writes it
+mirrors, plus a one-time `backfillUserClaims` to stamp existing users.
+
+⚠️ **Built ≠ deployed.** Until the main site's functions are deployed and `backfillUserClaims`
+is run once, the `entitlement` claim is still undefined and this blocker is still live for
+every repo — netball is right about that. Deploying it (and running the backfill) is now the
+platform's critical-path item, ahead of everything else. Nothing here is unblocked in
+practice until then.
+
+- **Do NOT declare `syncUserClaims` in your repo.** Cloud Function names are unique per
+  project — a second definition collides at deploy. If hockey still declares it, hockey drops
+  it in the same deploy that ships the main site's copy. There is exactly one, and it's ours.
+- Once it's deployed, gate your rules on the claim:
+  ```js
+  function entitlement()   { return request.auth.token.get('entitlement', 'none'); }      // 'none'|'event'|'pro'
+  function isPlatformAdmin(){ return request.auth != null && request.auth.token.get('platformAdmin', false) == true; }
+  ```
+- Client-side, after a plan change, force a token refresh or the claim lags ~1h:
+  ```js
+  await auth.currentUser.getIdToken(true)
+  ```
+
+### 4b. Org-scoped authorization across the database split — DECISION MADE
+
+The problem: checks like `isOrgMember` / `isOrgOwner` read
+`organizations/{orgId}/staff/{uid}` from `(default)`, but your rules evaluate against your
+own database and can't read across. Every org-scoped check currently denies.
+
+**Decision: mirror org roles onto the Auth token, not into each sport's database.**
+`syncUserClaims` now includes a compact `orgRoles` claim — `{ [orgId]: role }` — derived from
+the user's central `orgRoles`. Your rules read it with no cross-database read and no per-sport
+`staff` mirror to keep in sync:
 
 ```js
-// Wherever you'd have shown an account/billing screen:
-window.location.assign(`${MAIN_SITE}/account`)
+function orgRole(orgId) { return request.auth.token.orgRoles[orgId]; }
+allow write: if orgRole(orgId) in ['owner', 'staff'];
 ```
+
+Why this over mirroring `staff` into every sport DB: it reuses the claims machinery already
+required for entitlement (4a), keeps one authority source, and adds no fan-out sync. The
+tradeoffs, stated plainly:
+- **Claims lag ~1h** (or until `getIdToken(true)`). A just-appointed org admin may wait for
+  the token to refresh. Acceptable for role changes; force a refresh if you need it instant.
+- **1000-byte claim cap.** A user in a very large number of orgs would overflow; the function
+  drops the map and sets `orgRolesOverflow: true` rather than failing. Those rules then fail
+  closed for that rare user (safe). If your sport expects users in dozens of orgs, tell the
+  main site — that's the signal to revisit.
+
+If you disagree with this call, say so now — it's load-bearing for four repos.
 
 ---
 
-## 3. What you DO own
+## 5. Per-repo tasks
 
-- ✅ Everything about your sport: competitions, fixtures, matches, teams, standings
-- ✅ **Your sport's profile** — position, squad number, club affiliation, preferences,
-  sport stats. Schema, UI and writes are all yours.
-- ✅ Reading central identity and plan state to know who's signed in and what they can do
+### 🏑 Hockey
 
-Your sport profile lives in **your own** database, keyed by the central UID:
+1. Replace local login with direct Firebase Auth sign-in (§2) — largely what hockey had
+   before the handoff detour, so closer to a revert than new work. Confirm what's actually
+   there first.
+2. Add the sign-up "already exists" handling (§2b) if missing.
+3. **Drop `syncUserClaims` from the hockey repo** in the same deploy the main site's copy
+   ships (§4a). Two definitions collide.
+4. Still outstanding, unrelated to auth: move `position` out of the shared `users/{uid}` doc
+   into `hockeyProfiles/{uid}`; stop deploying `firestore.default.rules` (the main site owns
+   that ruleset and has a strict superset); remove PayFast entirely (main site's is live) —
+   payment buttons, `initPayFastPayment`, `payfastITN`, the `/payfast/itn` rewrite,
+   `_meta/payfastConfig`; move `organizations` reads/writes to the `(default)` handle.
 
-```
-<your-sport> database:
-  competitions/, matches/, teams/, fixtures/
-  <sport>Profiles/{uid}       ← position, squad no., club, sport preferences
-```
+### 🥅 Netball
 
-**Never write a sport-specific field into `users/{uid}`.** That document is shared by every
-sport. Hockey currently writes `position` there — hockey positions
-(`goalkeeper|defence|midfield|forward`) and netball positions (`GS|GA|WA|C|WD|GD|GK`) would
-silently overwrite each other on the same field. See §8.
+You found the problem and shipped the mitigation — thank you.
+1. Replace the "detect installed-iOS, stop redirecting, offer Copy Link" mitigation with the
+   real fix: local sign-in (§2). The mitigation was correct triage; unneeded once there's no
+   redirect to break.
+2. Keep your auth-persistence fix (§3.2) — it's independent of this change.
 
----
+### 🏉 Rugby · 🤽 Water Polo
 
-## 4. Auth handoff — implement this
-
-### Why it's needed
-
-Firebase Auth persists its session in IndexedDB **scoped to the origin**. The main site and
-your sport are different origins, so a user signed in there is **not** signed in with you.
-Same Firebase project or not.
-
-A shared cookie does not solve this: the Firebase *client* SDK doesn't read cookies for auth
-state, so you'd still need `signInWithCustomToken` to get `request.auth` for Firestore. The
-handoff below is the decided mechanism.
-
-### How it works
-
-The main site mints a **single-use, 60-second ticket**, stored hashed, and sends the user to
-you with it in the **URL fragment** (fragments never reach servers or `Referer` headers). You
-exchange the ticket for a Firebase custom token and sign in.
-
-```
-Main site                                  Your sport app
-─────────                                  ──────────────
-user clicks your sport
-  └─ redirect ────────────────────────────▶ /auth/handoff#t=<ticket>&p=<path>
-                                              ├─ redeemHandoffTicket({ ticket })
-                                              ├─ signInWithCustomToken(token)
-                                              ├─ strip the fragment
-                                              └─ go to <path>
-```
-
-### Step 1 — set the Functions region (CONFIRM IT FIRST)
-
-⚠️ **Verify this before you write anything.** A wrong region fails at *call* time with an
-opaque error, never at build or deploy time — so it looks like a broken handoff, not a
-config mistake. Confirm with either:
-
-```bash
-firebase functions:list --project match-pulse-4560e
-```
-
-or Firebase Console → **Build → Functions**, which shows the region per function.
-
-**The Functions region is NOT the Firestore region.** Firestore is `africa-south1`. That is
-a separate setting and does not constrain Functions. As of the hockey repo's code, Functions
-are `europe-west1` — it appears in `src/firebase.js`, all three hosting rewrites, and 13
-function definitions. But confirm against the live deployment rather than trusting this doc.
-
-Keep it in **one** constant so a correction is a one-line change:
-
-```js
-// src/firebase.js
-import { getFunctions } from 'firebase/functions'
-
-// Must match where the main site's functions are actually deployed.
-export const FUNCTIONS_REGION = import.meta.env.VITE_FUNCTIONS_REGION || 'europe-west1'
-export const functions = getFunctions(app, FUNCTIONS_REGION)
-```
-
-If the console disagrees with `europe-west1`, **say so** — the main site's functions must
-move to match, and that is a platform-wide change, not a per-repo one.
-
-### Step 2 — add the `/auth/handoff` route
-
-```jsx
-// src/pages/AuthHandoff.jsx
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { signInWithCustomToken } from 'firebase/auth'
-import { httpsCallable } from 'firebase/functions'
-import { auth, functions } from '../firebase'
-
-const MAIN_SITE = 'https://matchpulse.co.za'
-
-export default function AuthHandoff() {
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
-  const ran = useRef(false)          // StrictMode double-invokes effects; the
-                                     // ticket is single-use, so guard it.
-
-  useEffect(() => {
-    if (ran.current) return
-    ran.current = true
-
-    ;(async () => {
-      // Read the fragment, then clear it from history immediately.
-      const frag   = new URLSearchParams(window.location.hash.slice(1))
-      const ticket = frag.get('t')
-      const path   = frag.get('p') || '/'
-      window.history.replaceState(null, '', window.location.pathname)
-
-      if (!ticket) { setError('This sign-in link is incomplete.'); return }
-
-      try {
-        const redeem = httpsCallable(functions, 'redeemHandoffTicket')
-        const { data } = await redeem({ ticket })
-        await signInWithCustomToken(auth, data.token)
-        navigate(path, { replace: true })
-      } catch (err) {
-        // Tickets expire after 60s and work exactly once.
-        setError(
-          err?.code === 'functions/deadline-exceeded'
-            ? 'That sign-in link expired. Please try again.'
-            : 'That sign-in link is no longer valid. Please sign in again.'
-        )
-      }
-    })()
-  }, [navigate])
-
-  if (error) {
-    return (
-      <div style={{ display: 'grid', placeItems: 'center', minHeight: '60vh', padding: 24, textAlign: 'center' }}>
-        <div>
-          <p>{error}</p>
-          <a href={`${MAIN_SITE}/login?sport=<your-sport-key>`}>Sign in again</a>
-        </div>
-      </div>
-    )
-  }
-  return <div style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>Signing you in…</div>
-}
-```
-
-Register it, and make sure it is **not** behind your auth guard:
-
-```jsx
-<Route path="/auth/handoff" element={<AuthHandoff />} />
-```
-
-Your sport key is one of: `hockey` · `netball` · `rugby` · `waterpolo`.
-
-### Step 3 — send signed-out users to the main site
-
-Anywhere you'd previously have shown your own login screen:
-
-```js
-// src/lib/auth-redirect.js
-const MAIN_SITE = 'https://matchpulse.co.za'
-const SPORT     = 'hockey'   // your sport key
-
-export function goSignIn(path = window.location.pathname) {
-  const q = new URLSearchParams({ sport: SPORT, path })
-  window.location.assign(`${MAIN_SITE}/login?${q}`)
-}
-```
-
-The main site signs them in, then bounces them straight back to you, authenticated, on
-the path they asked for.
-
-### Step 4 — Firebase Hosting rewrite
-
-SPA routing must serve `index.html` for `/auth/handoff`:
-
-```json
-"rewrites": [{ "source": "**", "destination": "/index.html" }]
-```
-
-If you use a catch-all Cloud Function renderer instead (hockey does), make sure
-`/auth/handoff` reaches the SPA shell.
-
-### Known limitations — expected, don't work around them
-
-- **Sign-out is per-origin.** Signing out of your sport does not sign out the main site.
-- **Tickets are single-use and expire in 60 seconds.** A refresh of the handoff URL will
-  fail — that's correct. Send the user back to sign in.
+1. Build sign-in and sign-up locally (§2), including "already exists" (§2b). No legacy handoff
+   code to remove — greenfield, so build it right the first time rather than porting the
+   ticket mechanism and un-porting it.
+2. Confirm cross-subdomain account linking (§3.1) before considering it done — for every
+   sign-in method, not just one.
 
 ---
 
-## 5. Entitlement — read the custom claim, never the document
+## 6. Report back
 
-Firestore rules **cannot read across databases**. So plan state is mirrored onto each user's
-Auth token as **custom claims** by a Cloud Function (`syncUserClaims`) whenever their
-`users/{uid}` record changes.
-
-Claims travel with the user, not the origin — so they're already on the token after handoff.
-
-**In your security rules, in your own database:**
-
-```js
-function entitlement() {
-  return request.auth.token.get('entitlement', 'none');   // 'none' | 'event' | 'pro'
-}
-function isPlatformAdmin() {
-  return request.auth != null && request.auth.token.get('platformAdmin', false) == true;
-}
-
-// Example: only paid tiers may create a competition
-allow create: if isPlatformAdmin() || entitlement() in ['event', 'pro'];
-```
-
-**In your client:**
-
-```js
-const token = await auth.currentUser.getIdTokenResult()
-const tier  = token.claims.entitlement ?? 'none'
-```
-
-Available claims: `entitlement`, `entitlementExpiresAt` (ms), `eventCredits`, `platformAdmin`.
-
-**The gotcha:** claims are baked into the token at mint time and refresh about hourly. After a
-purchase, force a refresh or the buyer is locked out of what they just paid for:
-
-```js
-await auth.currentUser.getIdToken(true)
-```
-
----
-
-## 6. The central schema you may read
-
-In the **`(default)`** database — get a second Firestore handle for it:
-
-```js
-import { getFirestore } from 'firebase/firestore'
-export const db         = initializeFirestore(app, {...}, '<your-sport>')  // your content
-export const identityDb = getFirestore(app)                               // (default) — central
-```
-
-```
-users/{uid}              identity + billing. READ your own only. Never write billing fields.
-userProfiles/{uid}       public-safe subset — displayName, photoURL, email
-people/{personId}        cross-sport player identity, consent-gated
-organizations/{orgId}    THE org record — MatchPulse-level, not sport-specific
-  └─ staff/{uid}         membership; the authority source for who may act for an org
-```
-
-### Organisations are central, not yours
-
-An organiser running hockey *and* netball has **one** org. The record lives in `(default)`
-and every sport references it by ID (`ownerOrgId`). Do not create your own org collection.
-
-Rules already enforce: staff may edit an org's own details; **no client may touch its
-billing fields**.
-
----
-
-## 7a. Billing — you have nothing to do
-
-Purchase is a PayFast hosted checkout on the main site; a webhook at
-`matchpulse.co.za/payfast/itn` grants the plan and `syncUserClaims` carries it onto the
-Auth token. By the time a user reaches you, their entitlement claim is already correct.
-
-Your only job is to **read the claim** (§5) and link pricing CTAs to
-`https://matchpulse.co.za/#plans`. Do not implement, duplicate or re-point any part of it.
-
----
-
-## 7. Reuse these patterns from hockey
-
-Hockey is the most mature app. These parts are sport-agnostic — port rather than reinvent:
-
-- Fixture lifecycle and status model
-- Stats-engine-on-read
-- Walkover / withdrawal handling
-- The `ownerOrgId` split between competition ownership and team participation
-- Card/status colour semantics: **live is red, and red only ever means live**
-
-Brand tokens — canonical, main-site-owned:
-
-```
---pulse       #059669   emerald-600  brand / primary action
---pulse-ink   #047857   emerald-700  text on emerald tint
---live        #E5484D                LIVE ONLY, never decorative
---ink         #0B1220                primary text, dark panels
-```
-
-Superseded, do not use: `#1FB573`, `#0E7A4D`, `#16A672`, `#089769`.
-Type: Space Grotesk (display) · Inter (body) · Roboto (tabular figures).
-
----
-
-## 8. Per-repo tasks
-
-### 🏑 Hockey — the most to unwind
-
-You are the reference implementation, but you also carry work that has moved.
-
-1. **Add the auth handoff** (§4). You have your own login today — keep it working until
-   the handoff is verified, then remove it and redirect to the main site instead.
-2. **Move `position` out of `users/{uid}`.** `Profile.jsx` writes hockey positions into the
-   shared central identity doc. Move to `hockeyProfiles/{uid}` in the hockey database, keyed
-   by the same UID. **Do this before netball ships** or the two sports overwrite each other.
-   Keep the hockey profile *UI* — only the storage location is wrong.
-3. **Stop deploying `firestore.default.rules`.** The main site now owns the `(default)`
-   ruleset and has a strict superset of yours. Two repos deploying one ruleset means
-   whichever runs last wins. Remove the Firestore rules step from your CI workflow.
-4. **Remove PayFast entirely — it is built and live on the main site.** Delete:
-   - the payment buttons / `PAYFAST_LINKS` in `Plans.jsx`
-   - `initPayFastPayment` (dead code — `Plans.jsx` never called it)
-   - `payfastITN` and the `/payfast/itn` rewrite in `firebase.json`
-   - the `_meta/payfastConfig` read and the PayFast half of `BillingSettings.jsx`
-
-   Replace every pricing CTA with a link to `https://matchpulse.co.za/#plans`.
-
-   ⚠️ **Keep `syncUserClaims`.** It is the only thing carrying entitlement onto the Auth
-   token, and the main site's webhook depends on it. Cloud Function names are unique per
-   project, so the main site cannot declare it while you still do. Do not remove it until
-   a coordinated switchover.
-5. **`organizations` belongs in `(default)`.** It is MatchPulse-level, not sport-specific.
-   There are no users, so there is nothing to migrate — just switch your org reads and
-   writes from the hockey handle to the `identityDb` handle.
-
-### 🥅 Netball · 🏉 Rugby · 🤽 Water Polo — greenfield, build it right
-
-1. **Do not build any account, login or billing UI.** Implement the handoff (§4) from day
-   one. For pricing, link to `https://matchpulse.co.za/#plans`.
-2. **Build your sport profile locally** — `<sport>Profiles/{uid}` in your own database, keyed
-   by the central UID. Design the schema around what's genuinely specific to your sport.
-3. **Read org and plan state; never write it** (§5, §6).
-4. **Port hockey's sport-agnostic patterns** (§7) rather than reinventing them.
-5. Confirm your Firestore database name and hosting site, and report them back.
-
----
-
-## 9. Checklist — every sport repo
-
-- [ ] Functions region **verified against the live deployment**, held in one constant
-- [ ] Rollout phase confirmed (see ⛔ above) — phase 4 repos have explicit go-ahead
-- [ ] `/auth/handoff` route added, outside the auth guard
-- [ ] Hosting rewrite serves the SPA for `/auth/handoff`
-- [ ] Signed-out users redirect to the main site's `/login?sport=…&path=…`
-- [ ] No login / password / email / billing UI remains — **only after your phase allows it**
-- [ ] Rules gate on `request.auth.token.entitlement`, not a cross-database read
-- [ ] No client write to `entitlement` / `eventCredits` / `entitlementExpiresAt`
-- [ ] Sport profile stored in your own database, keyed by central UID
-- [ ] Nothing sport-specific written into `users/{uid}`
-- [ ] Brand tokens updated to emerald-600 `#059669`
-
----
-
-## 10. Report back
-
-1. Your Firestore database name and hosting site/URL
-2. What auth you have today, and what you removed
-3. Your sport-profile schema and where it's stored
-4. Anywhere you read or write plan/entitlement state
-5. **The Functions region you actually observe** in the console or `functions:list`
-6. Anything in this brief that doesn't match what you actually find — the main site's
-   picture of your repo is inferred, not verified, and hockey has drifted most. A
-   contradiction here is a finding worth reporting, not an obstacle to work around.
-   Report it rather than quietly adapting: if this document is wrong, four repos are
-   about to be wrong the same way.
+1. Confirmation that signing up with an identity that already has an account on another
+   subdomain resolves to the same account (§3.1) — tested for every sign-in method you
+   support, stating what you actually tested rather than "should work."
+2. What your sign-up flow does today on "account already exists", per method.
+3. Any leftover ticket-handoff code (`/auth/handoff`, `createHandoffTicket` /
+   `redeemHandoffTicket` calls, handoff redirects) — flag it for removal even if this
+   document doesn't name your specific leftover.
+4. Your observed **Functions region** (`firebase functions:list` or the console) — the main
+   site's functions must match it. As of the code it's `europe-west1`, but confirm.
+5. Anything in this brief that doesn't match what you find. Report it rather than quietly
+   working around it — this is the second major revision to this contract, and a wrong
+   assumption here has already cost one iOS-shaped rewrite.
