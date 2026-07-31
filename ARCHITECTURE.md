@@ -200,6 +200,19 @@ keep in sync:
 allow write: if request.auth.token.orgRoles[orgId] in ['owner', 'staff'];
 ```
 
+**Kept in step by `syncOrgRoleClaim`** (main site, added after rugby flagged that the claim
+was only as good as its source). Staff membership is the authority; a write to
+`organizations/{orgId}/staff/{uid}` fans into `users/{uid}.orgRoles`, which `syncUserClaims`
+then carries onto the token. So the chain is `staff → users.orgRoles → claim`, staff stays
+the single source of truth, and `syncOrgRoleClaim` is now the **only** writer of
+`users.orgRoles` — the old client cache-write rule is removed.
+
+**Sequencing for the sport repos (this is the trap rugby caught):** moving `organizations`
+to `(default)` and switching org-auth to the claim are ONE change, not two. A sport that
+moves the org doc while its rules still `get(.../staff/...)` from its own DB denies every
+organiser action. Switch the rules to read `request.auth.token.orgRoles[orgId]` FIRST (works
+regardless of where the org doc lives), then the org record can live centrally.
+
 Chosen over mirroring `staff` into every sport DB because it reuses the claims machinery
 entitlement already requires, keeps one authority source, and adds no fan-out. Tradeoffs,
 stated plainly:
@@ -291,17 +304,40 @@ Raised for the hockey chat — **not** to be fixed from this repo.
    `/payfast/itn` rewrite, and the `_meta/payfastConfig` read. Send users to
    `matchpulse.co.za/#plans` instead. **`syncUserClaims` now lives here — hockey drops its
    copy in the same deploy that ships the main site's (§4).**
-4. **`orgRoles` is writable by any signed-in user** (rules permit a cache-only write to
-   *any* user's `orgRoles`). Documented as non-authoritative, and per-sport rules check
-   staff subcollections — but `canScore` derives from it, so it is a UI-level escalation.
-   Hardening item.
+4. **`orgRoles` client cache-write — RESOLVED.** `syncOrgRoleClaim` (§4) is now the sole
+   writer of `users.orgRoles`, derived from the authoritative staff subcollection, and the
+   client cache-write rule is removed. This also closes the old escalation (any signed-in
+   user could rewrite anyone's `orgRoles`).
 5. **`firestore.default.rules` deploys from the hockey repo**, while the main site owns
    that schema. Two repos must never deploy one ruleset. This repo's `firestore.rules` is
    a strict superset — remove the Firestore step from hockey's CI, then enable it here.
+6. **Function names & codebases must be unique per sport (raised by rugby).** All five apps
+   share one project, and function names are globally unique within it. A hockey clone that
+   deploys `recomputeCompetitionStatsOnFinal`, `dailyFixtureSweep`, etc. under the same names
+   collides with hockey. Every sport must prefix its functions (`rugbyRecompute…`) and use a
+   distinct `codebase` in `firebase.json` (`"codebase": "rugby"`). Launch-blocking for clones.
 
 ---
 
-## 7. Brand tokens — canonical
+## 7. Decisions from the sport-repo reports (netball, rugby)
+
+- **Account-doc bootstrap (rugby finding C).** Who creates `users/{uid}`? A user's first-ever
+  sign-in may be on a *sport*, not the main site, so the create must not depend on the main
+  site. **Decision: every app bootstraps a minimal, merge-safe identity shell on first
+  sign-in** — identity fields only, never plan/billing (rules reject those on create). This
+  is idempotent and race-free; an `onCreate` Auth trigger was rejected because it races a
+  client that reads the doc immediately after sign-up. The main site does exactly this in
+  `AuthContext`; sports keep theirs.
+- **Invite flow (rugby finding E) — OPEN, needs its own decision.** The invite → signup →
+  accept journey (`AcceptInvite`, the `invites` collection, `sendInviteEmail`) is unspecified
+  under the split. It's really org-role management, so it belongs with whoever owns org/staff
+  admin UI — undecided. Flagged, not solved. Do not build per-repo invite-accept logic until
+  this is settled.
+- **Google authorized domains (netball).** See §2 — platform-owned console config.
+
+---
+
+## 8. Brand tokens — canonical
 
 The main site owns these. Three different greens were in circulation; **emerald-600 is
 canonical**:

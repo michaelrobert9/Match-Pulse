@@ -133,12 +133,14 @@ service cloud.firestore {
         && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null)
         && request.resource.data.get('eventCredits', 0) <= resource.data.get('eventCredits', 0);
 
-      // Mirror maintenance: an org owner / competition admin updates an appointee's
-      // orgRoles / competitionRoles cache. These are NEVER an authority source
-      // (the per-sport databases read their staff subcollections), so a scoped
-      // cache-only write by another signed-in user is acceptable.
-      allow update: if isSignedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orgRoles']);
+      // orgRoles is now maintained ONLY by the syncOrgRoleClaim function (Admin
+      // SDK, derived from the authoritative staff subcollection). The old
+      // client cache-write path is removed — it let any signed-in user rewrite
+      // any user's orgRoles, and it is now both redundant and a drift risk.
+      //
+      // competitionRoles has no server mirror yet, so its scoped cache-write
+      // stays until one exists. It is a non-authoritative cache — sport rules
+      // never treat it as authority.
       allow update: if isSignedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['competitionRoles']);
 

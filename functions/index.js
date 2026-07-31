@@ -108,6 +108,39 @@ exports.syncUserClaims = onDocumentWritten(
   }
 )
 
+// ── syncOrgRoleClaim ──────────────────────────────────────────────────────────
+// The other half of the §4b org-auth decision (raised by rugby): deciding to
+// gate sport rules on an orgRoles CLAIM is only correct if the claim actually
+// tracks membership. Membership authority is organizations/{orgId}/staff/{uid}
+// in (default), which sport rules cannot read across the database boundary — so
+// we mirror it onto the token in two single-purpose hops:
+//
+//   staff/{uid} write  →  [this]  →  users/{uid}.orgRoles[orgId]  →  syncUserClaims  →  claim
+//
+// staff stays the single source of truth; this is the ONLY writer of orgRoles
+// (the old client-side cache-write path is thereby retired — see firestore.rules).
+// No loop: this writes the user doc, syncUserClaims only writes the token.
+exports.syncOrgRoleClaim = onDocumentWritten(
+  { document: 'organizations/{orgId}/staff/{uid}', region: REGION },
+  async (event) => {
+    const { orgId, uid } = event.params
+    const after = event.data?.after?.data()
+    const userRef = db.doc(`users/${uid}`)
+    try {
+      if (after) {
+        const role = after.role ?? 'staff'
+        // merge deep-merges the map, so other orgs' entries are preserved.
+        await userRef.set({ orgRoles: { [orgId]: role } }, { merge: true })
+      } else {
+        // Membership revoked. update() no-ops harmlessly if the doc is gone.
+        await userRef.update({ [`orgRoles.${orgId}`]: admin.firestore.FieldValue.delete() })
+      }
+    } catch (err) {
+      logger.warn('Could not sync org role', { orgId, uid, message: err.message })
+    }
+  }
+)
+
 // One-time backfill: stamp claims onto every existing user so the token path
 // works immediately, without waiting for each user's doc to next change. Guarded
 // by a key; run once from a browser, confirm the count, then leave it. It only
