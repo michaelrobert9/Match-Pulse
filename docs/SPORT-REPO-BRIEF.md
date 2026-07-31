@@ -105,7 +105,23 @@ work on an origin, that origin must be in the Firebase project's **Authorized do
   But if Google sign-in misbehaves on a subdomain while email+password works, an unauthorized
   domain is the first thing to check.
 
-### 2d. Still true, unchanged
+### 2d. Account-doc bootstrap — DECIDED (rugby finding C)
+
+With local sign-up, something has to create the central `users/{uid}` doc. A user's
+first-ever sign-in may be on *your* sport, not the main site, so this can't depend on the
+main site. **Decision: every app bootstraps a minimal, merge-safe identity shell on first
+sign-in** — identity fields only, never plan/billing (rules reject those on create). It's
+idempotent and race-free. Keep yours; don't wait for a main-site `onCreate` trigger (there
+isn't one — it would race a client reading the doc right after sign-up).
+
+### 2e. Invites — OPEN, don't build it yet (rugby finding E)
+
+The invite → signup → accept journey (`AcceptInvite`, the `invites` collection,
+`sendInviteEmail`) is unspecified under the split. It's really org-role management, so it
+waits on who owns org/staff admin. **Flag any invite code you have; don't wire an
+invite-accept path until this is decided.**
+
+### 2f. Still true, unchanged
 
 - No account settings, password/email change, or billing UI in any sport repo — link out to
   `matchpulse.co.za/account`. It's now a genuine "manage your account" link, not a sign-in
@@ -175,27 +191,50 @@ The problem: checks like `isOrgMember` / `isOrgOwner` read
 `organizations/{orgId}/staff/{uid}` from `(default)`, but your rules evaluate against your
 own database and can't read across. Every org-scoped check currently denies.
 
-**Decision: mirror org roles onto the Auth token, not into each sport's database.**
-`syncUserClaims` now includes a compact `orgRoles` claim — `{ [orgId]: role }` — derived from
-the user's central `orgRoles`. Your rules read it with no cross-database read and no per-sport
-`staff` mirror to keep in sync:
+**Decision made AND fully built: mirror org roles onto the Auth token.** Two main-site
+functions now do it end-to-end, so the claim actually tracks membership (rugby correctly
+noted the earlier half-decision was only as good as its source):
+
+- `syncOrgRoleClaim` — a write to `organizations/{orgId}/staff/{uid}` fans into
+  `users/{uid}.orgRoles`. Staff stays the single authority; this is now the ONLY writer of
+  `orgRoles` (the client cache-write rule is removed).
+- `syncUserClaims` — carries `users.orgRoles` onto the token as the `orgRoles` claim.
+
+Your rules read the claim, with no cross-database read and no `staff` mirror to maintain:
 
 ```js
-function orgRole(orgId) { return request.auth.token.orgRoles[orgId]; }
-allow write: if orgRole(orgId) in ['owner', 'staff'];
+allow write: if request.auth.token.orgRoles[orgId] in ['owner', 'staff'];
 ```
 
-Why this over mirroring `staff` into every sport DB: it reuses the claims machinery already
-required for entitlement (4a), keeps one authority source, and adds no fan-out sync. The
-tradeoffs, stated plainly:
-- **Claims lag ~1h** (or until `getIdToken(true)`). A just-appointed org admin may wait for
-  the token to refresh. Acceptable for role changes; force a refresh if you need it instant.
-- **1000-byte claim cap.** A user in a very large number of orgs would overflow; the function
-  drops the map and sets `orgRolesOverflow: true` rather than failing. Those rules then fail
+⚠️ **Sequencing — this is the trap rugby caught.** Moving `organizations` to `(default)` and
+switching org-auth to the claim are ONE change, not two. If you move the org doc while your
+rules still `get(.../staff/...)` from your own DB, every organiser action denies. **Switch
+your rules to read `request.auth.token.orgRoles[orgId]` first** (works wherever the org doc
+lives), then the org record can live centrally.
+
+Why claims over mirroring `staff` into every sport DB: reuses the machinery entitlement
+already needs (4a), one authority source, no fan-out. Tradeoffs:
+- **Claims lag ~1h** (or until `getIdToken(true)`). A just-appointed org admin waits for the
+  token to refresh. Fine for role changes; force a refresh if it must be instant.
+- **1000-byte claim cap.** A user in a very large number of orgs overflows; the function
+  drops the map and sets `orgRolesOverflow: true` rather than failing, and those rules fail
   closed for that rare user (safe). If your sport expects users in dozens of orgs, tell the
-  main site — that's the signal to revisit.
+  main site.
 
 If you disagree with this call, say so now — it's load-bearing for four repos.
+
+### 4c. Function names & codebases must be unique per sport (raised by rugby) — LAUNCH-BLOCKING
+
+All five apps share one Firebase project, and **function names are globally unique within
+it.** A hockey clone that deploys `recomputeCompetitionStatsOnFinal`, `dailyFixtureSweep`,
+`sitemap`, `renderer`, … under the same names **overwrites or collides with hockey's**. Every
+sport must:
+
+- prefix its own functions — `rugbyRecompute…`, `netballSitemap`, …
+- use a distinct `codebase` in `firebase.json`: `"codebase": "rugby"` (etc.)
+
+This applies to every function a sport deploys, not just anything auth-related. Rugby, being
+a hockey clone, is the highest risk here — check this before your first deploy.
 
 ---
 
