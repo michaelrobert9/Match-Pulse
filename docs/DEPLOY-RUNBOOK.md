@@ -3,15 +3,17 @@
 **Project:** `match-pulse-4560e` · **Functions region:** `europe-west1` (see preflight §0.4) ·
 **Firestore:** `(default)` in `africa-south1`
 
-This is the platform's critical-path deploy. It is **not** a from-scratch deploy — two Cloud
-Functions the main site now owns (`syncUserClaims` and `payfastITN`) are **already live and
-owned by the hockey codebase**. So this is a **handoff of live functions**, and the order
-matters. Do it in one sitting, ideally a low-traffic window.
+This is the platform's critical-path deploy. It is **not** a from-scratch deploy — **three**
+Cloud Functions the main site now owns (`syncUserClaims`, `backfillUserClaims`, and
+`payfastITN`) are **already live and owned by the hockey codebase** (hockey confirmed all
+three, including `backfillUserClaims`). So this is a **handoff of live functions**, and the
+order matters. Do it in one sitting, ideally a low-traffic window. `syncOrgRoleClaim` is the
+only genuinely new function.
 
 ## Why order matters (read before running anything)
 
-- **Function names are globally unique per project.** `syncUserClaims` and `payfastITN` exist
-  once. Hockey deployed them against brief v1; they're firing now.
+- **Function names are globally unique per project.** `syncUserClaims`, `backfillUserClaims`,
+  and `payfastITN` exist once. Hockey deployed them against brief v1; they're firing now.
 - **A `firebase deploy --only functions` prunes any function absent from the codebase it
   deploys.** If hockey drops those two and redeploys *before* the main site owns them, the
   deploy **deletes the live functions** → every claims-gated rule across all four sports fails
@@ -64,35 +66,38 @@ something else, set `FUNCTIONS_REGION` to match **before** deploying, and fix th
 0.5 **Have hockey's cutover commit ready but unpushed/undeployed.** It must, in one change:
 - set hockey's `firebase.json` to a distinct `"codebase": "hockey"` and **sport-prefix** its
   own functions (§4c of the brief);
-- **remove** hockey's `syncUserClaims` and `payfastITN` declarations, the `/payfast/itn`
+- **remove** hockey's `syncUserClaims`, `backfillUserClaims`, and `payfastITN` declarations, the `/payfast/itn`
   hosting rewrite, and `_meta/payfastConfig` usage;
 - **stop deploying `firestore.default.rules`** (the main site owns that ruleset).
 Do **not** deploy it until §4.
 
 ---
 
-## 1. Deploy the main site's NON-colliding functions first
+## 1. Deploy the main site's ONE genuinely-new function first
 
-`syncOrgRoleClaim` and `backfillUserClaims` are new names hockey doesn't have — they deploy
-clean, no conflict, no gap:
+`syncOrgRoleClaim` is the only name hockey doesn't have — it deploys clean, no conflict, no
+gap. (Note: under the v3.1 local-first org-auth decision no sport gates on the `orgRoles`
+claim, so this function is currently inert — deploying it is harmless and keeps the option
+open, but it is not on any auth path.)
 ```bash
 firebase deploy \
-  --only functions:main:syncOrgRoleClaim,functions:main:backfillUserClaims \
+  --only functions:main:syncOrgRoleClaim \
   --project match-pulse-4560e
 ```
-Verify both appear in `firebase functions:list` under codebase `main`, region `europe-west1`.
+Verify it appears in `firebase functions:list` under codebase `main`, region `europe-west1`.
 
 ---
 
-## 2. Hand over the two shared names (`syncUserClaims`, `payfastITN`)
+## 2. Hand over the three shared names (`syncUserClaims`, `backfillUserClaims`, `payfastITN`)
 
-These are owned by hockey's codebase and must move to `main`. Try the in-place reassignment
-first (no gap); fall back to delete-then-redeploy only if the CLI refuses the move.
+All three are owned by hockey's codebase and must move to `main`. Try the in-place
+reassignment first (no gap); fall back to delete-then-redeploy only if the CLI refuses the
+move.
 
 **2a. In-place move (preferred, gap-free):**
 ```bash
 firebase deploy \
-  --only functions:main:syncUserClaims,functions:main:payfastITN \
+  --only functions:main:syncUserClaims,functions:main:backfillUserClaims,functions:main:payfastITN \
   --project match-pulse-4560e --force
 ```
 `--force` accepts the codebase reassignment non-interactively. Firebase updates the functions
@@ -101,9 +106,9 @@ in place with the main-site code and re-labels them to codebase `main` — no de
 **2b. Fallback (only if 2a errors that the functions belong to another codebase):**
 ```bash
 # tight window — do these two commands back to back
-firebase functions:delete syncUserClaims payfastITN --project match-pulse-4560e --force
+firebase functions:delete syncUserClaims backfillUserClaims payfastITN --project match-pulse-4560e --force
 firebase deploy \
-  --only functions:main:syncUserClaims,functions:main:payfastITN \
+  --only functions:main:syncUserClaims,functions:main:backfillUserClaims,functions:main:payfastITN \
   --project match-pulse-4560e
 ```
 The gap is the seconds between the two commands. Existing tokens keep their claims (~1h), so
@@ -140,8 +145,8 @@ firebase deploy --only functions:hockey --project match-pulse-4560e
 firebase deploy --only hosting --project <hockey-hosting-site>   # drops /payfast/itn rewrite
 ```
 ⚠️ **Do not** run a bare `firebase deploy --only functions` from hockey while its firebase.json
-still lacks the `hockey` codebase or still declares the two shared functions — that reprunes
-them. The distinct codebase + removed declarations must be in the deployed commit.
+still lacks the `hockey` codebase or still declares any of the three shared functions — that
+reprunes them. The distinct codebase + removed declarations must be in the deployed commit.
 
 ---
 
@@ -191,9 +196,10 @@ These are the human-only items; the deploy above doesn't cover them.
 4. **GitHub secrets** — `FIREBASE_SERVICE_ACCOUNT` + the six `VITE_FIREBASE_*` so CI can build
    and deploy hosting (build fails without `VITE_FIREBASE_API_KEY`, by design).
 5. **Default branch** — set the repo default to `main` if not already.
-6. **Answer hockey's EFT-activation question** (brief §4d): if the main site now owns manual/EFT
-   activation, tell hockey so it can delete the entitlement-writing code left in
-   `BillingSettings`.
+6. **Manual/EFT activation** (brief §4d): the main site does **not** own it yet — only the
+   automated `payfastITN` writes entitlement centrally. Decide: build a central admin-gated
+   activation path, or declare the platform PayFast-only. Until then, hockey **keeps** its
+   `BillingSettings` entitlement-writing code (do not tell it to delete).
 
 ---
 

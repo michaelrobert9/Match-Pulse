@@ -35,6 +35,35 @@ reports, and corrects four things v2 got wrong:
    org move is deferred behind the §4b claim-switch for everyone — §5 corrected. *(Hockey
    finding.)*
 
+### v3.1 amendment — after the second round of reports (hockey · water polo · rugby · netball)
+
+Two platform decisions and one runbook fix, forced by the reports:
+
+- **§4b org-auth is now LOCAL-FIRST; the central `orgRoles` claim is shelved.** Hockey,
+  Rugby, and Netball all independently reported their org roles are **team-scoped**
+  (`{role, teamId}`), and the main-site code confirms it: `normaliseGrant` / `orgRolesClaim`
+  in `functions/index.js` collapse a grant to a bare string role and **discard `teamId`**. A
+  flat `orgRoles[orgId] in ['owner','staff']` claim silently destroys team scope. So the v2/v3
+  "mirror roles onto the token" decision is **reversed for now**: every sport keeps org-auth
+  **local** (reads its own `staff` subcollection), **`organizations` does not move to
+  `(default)`**, and nobody gates on the `orgRoles` claim. `syncOrgRoleClaim` may stay deployed
+  (harmless, keeps the option open) but is not on any sport's auth path. This is the working
+  interim state everyone was already in — it is now the standing decision until there is a
+  concrete cross-sport-org requirement, at which point the claim must be redesigned to carry
+  team scope. See §4b.
+- **§4d answered: the main site does NOT yet own manual/EFT activation.** Only automated
+  PayFast ITN writes entitlement centrally — there is no admin/manual activation UI or
+  function. So any sport (hockey) holding EFT/manual entitlement-write code **keeps holding
+  it, does not delete**. Building central manual/EFT activation (or deciding the platform is
+  PayFast-only) is a main-site open item. See §4d.
+- **Runbook fix:** hockey reports `backfillUserClaims` is **also** live in its codebase. So the
+  §4a handoff covers **three** shared names — `syncUserClaims`, `backfillUserClaims`,
+  `payfastITN` — not two. Only `syncOrgRoleClaim` is genuinely new. `docs/DEPLOY-RUNBOOK.md`
+  is corrected accordingly.
+- **§6.4 region CONFIRMED:** hockey's earlier live Cloud Shell deploy printed
+  `backfillUserClaims(europe-west1)` and the `europe-west1-…cloudfunctions.net` URL — the live
+  deployment reporting its own region. **`europe-west1` is confirmed**, not just source.
+
 ---
 
 ## 0. Why the previous design is dead
@@ -251,15 +280,31 @@ short: the main site takes over the `syncUserClaims` name first (same-name overw
   await auth.currentUser.getIdToken(true)
   ```
 
-### 4b. Org-scoped authorization across the database split — DECISION MADE
+### 4b. Org-scoped authorization across the database split — REVERSED to LOCAL-FIRST (v3.1)
 
-The problem: checks like `isOrgMember` / `isOrgOwner` read
-`organizations/{orgId}/staff/{uid}` from `(default)`, but your rules evaluate against your
-own database and can't read across. Every org-scoped check would deny across a split.
+> **Standing decision (v3.1): keep org-auth LOCAL. Do not move `organizations` to `(default)`.
+> Do not gate on the `orgRoles` claim.** Read your own `staff` subcollection, in your own DB,
+> exactly as you do today. The central-claim design below is **shelved** — kept on record
+> because it may return in a team-scope-aware form, but it is **not** the current contract.
 
-**Decision made AND fully built: mirror org roles onto the Auth token.** Two main-site
-functions now do it end-to-end, so the claim actually tracks membership (rugby correctly
-noted the earlier half-decision was only as good as its source):
+**Why it was reversed.** Hockey (~25 rule sites), Rugby (`capabilities.js`,
+`functions/index.js:474`), and Netball all reported the same thing: their org roles are
+**team-scoped** — `orgRoles[orgId]` is `{ role, teamId }`, distinguishing org-wide grants from
+team-scoped ones (e.g. a Team Scorer). The main-site claim writer can't represent that: in
+`functions/index.js`, `normaliseGrant` reduces a grant to a bare string role and **throws
+`teamId` away**, and `orgRolesClaim` emits a flat `{ orgId: role }` map. Gating on that claim
+would **silently collapse team scope** and change every team-scoped sport's semantics. Rugby
+also noted a main-site `syncOrgRoleClaim` reading `(default)` staff would never even see roles
+that are scoped to a sport's own teams. Three independent repos plus the code agree — so the
+claim, as built, is the wrong mechanism for team-scoped sports.
+
+**What this means for you:** nothing changes from where you already are. Orgs stay local, staff
+reads stay local, no rule rewrite. Netball is the one exception — a prior session moved its
+orgs central per v2, so netball **reverts** orgs to local to rejoin this state (§5).
+
+The shelved design, for the record — **mirror org roles onto the Auth token.** Two main-site
+functions were built for it (they still exist; `syncOrgRoleClaim` is inert unless a sport opts
+in, which none should right now):
 
 - `syncOrgRoleClaim` — a write to `organizations/{orgId}/staff/{uid}` fans into
   `users/{uid}.orgRoles`. Staff stays the single authority; this is now the ONLY writer of
@@ -272,28 +317,14 @@ Your rules read the claim, with no cross-database read and no `staff` mirror to 
 allow write: if request.auth.token.orgRoles[orgId] in ['owner', 'staff'];
 ```
 
-⚠️ **Sequencing — this is the trap rugby caught, and hockey re-confirmed.** Moving
-`organizations` to `(default)` and switching org-auth to the claim are ONE change, not two.
-If you move the org doc while your rules still `get(.../staff/...)` from your own DB, every
-organiser action denies. **Switch your rules to read `request.auth.token.orgRoles[orgId]`
-first** (works wherever the org doc lives), *then* the org record can live centrally.
+If the claim mechanism is ever revived, it must (a) carry team scope in the claim value, not a
+bare string, and (b) account for team-scoped roles being sport-specific, which a main-site
+function reading `(default)` staff cannot see. Until someone designs that, this stays shelved.
 
-Hockey reported **~25 rule sites** gate on `organizations/{id}/staff` in its ruleset, and
-correctly left `organizations` local rather than move it and deny every org write. Water Polo
-reported the same posture — orgs left local, checks resolving fine *because* they haven't
-moved. That is the intended state until the claim-switch lands. **Do not move `organizations`
-until your rules read the claim.**
-
-Why claims over mirroring `staff` into every sport DB: reuses the machinery entitlement
-already needs (4a), one authority source, no fan-out. Tradeoffs:
-- **Claims lag ~1h** (or until `getIdToken(true)`). A just-appointed org admin waits for the
-  token to refresh. Fine for role changes; force a refresh if it must be instant.
-- **1000-byte claim cap.** A user in a very large number of orgs overflows; the function
-  drops the map and sets `orgRolesOverflow: true` rather than failing, and those rules fail
-  closed for that rare user (safe). If your sport expects users in dozens of orgs, tell the
-  main site.
-
-If you disagree with this call, say so now — it's load-bearing for four repos.
+**The endorsed state (what hockey and water polo already did, correctly):** orgs local, staff
+reads local, org-scoped checks resolving against your own `staff` subcollection. Hockey's ~25
+rule sites and water polo's local `staff` reads are exactly right. **Do not move
+`organizations`. Do not gate on the `orgRoles` claim.** This is settled, not interim-pending.
 
 ### 4c. Function names & codebases must be unique per sport (raised by rugby) — LAUNCH-BLOCKING
 
@@ -312,13 +343,24 @@ deploy. The distinct `codebase` id is also what makes the §4a handoff safe: onc
 functions live under `codebase: "hockey"`, a hockey deploy can't prune the main-site-owned
 `syncUserClaims`.
 
-### 4d. EFT / manual activation — OPEN QUESTION back to the main site (hockey finding)
+### 4d. EFT / manual activation — ANSWERED: main site does NOT own it yet (v3.1)
 
 Hockey still carries entitlement-writing code in `BillingSettings` (the manual/EFT activation
-path) and asked: **does the main site handle EFT activation yet?** If the main site now owns
-manual activation end-to-end, hockey (and any clone) deletes those entitlement-writing
-sections — sports must never write `entitlement` (§2f). **Main-site answer needed.** Until it's
-answered, do not delete billing-write code blindly; flag it and hold, as hockey did.
+path) and asked: **does the main site handle EFT activation yet?**
+
+**Answer: no.** The main site's only central entitlement writer is `payfastITN` — the automated
+PayFast webhook (`functions/index.js`). There is **no** admin/manual/EFT activation UI or
+function on the main site; the main-site client only *reads* entitlement. So there is nothing
+central to hand manual activation off to yet.
+
+- **Hockey (and any clone with manual-activation code): keep holding it. Do NOT delete.**
+  Deleting now removes the platform's only path to activate an EFT/bank-transfer customer.
+- **Main-site open item:** either build central manual/EFT activation (an admin-gated
+  entitlement write, mirrored by `syncUserClaims` like PayFast is), or decide the platform is
+  **PayFast-only** and EFT is not offered — in which case hockey's EFT path is retired as a
+  discontinued feature, not migrated. This is a product decision for the platform owner.
+- The rule that sports never write `entitlement` (§2f) still holds for *new* code; the hockey
+  hold is a temporary exception until the main site closes this gap.
 
 ---
 
@@ -394,11 +436,11 @@ followed v1. So:
 3. Any leftover ticket-handoff code (`/auth/handoff`, `createHandoffTicket` /
    `redeemHandoffTicket` calls, handoff redirects, renderer handoff entry) — flag it for
    removal even if this document doesn't name your specific leftover.
-4. Your observed **Functions region** (`firebase functions:list` or the console) — the main
-   site's functions must match it. As of the code it's `europe-west1`, but **still unconfirmed
-   against the live deployment** — hockey and water polo both could not run
-   `firebase functions:list` (no CLI auth in their workspaces). Whoever has console/CLI access
-   must confirm.
+4. Your observed **Functions region** — **CONFIRMED `europe-west1`** (v3.1). Hockey's earlier
+   live Cloud Shell deploy printed `backfillUserClaims(europe-west1)` and the
+   `europe-west1-…cloudfunctions.net` URL — the live deployment reporting its own region, not
+   just source. Water polo's code agrees. No further confirmation needed unless a deploy shows
+   otherwise.
 5. Whether your functions carry a sport prefix + distinct `codebase` (§4c) — a yes/no, before
    first deploy.
 6. Anything in this brief that doesn't match what you find. Report it rather than quietly
@@ -409,18 +451,23 @@ followed v1. So:
 
 ## 7. Where each repo stands (from reports so far)
 
-| Repo | Handoff removed | Local sign-in/up + §2b | Persistence fix | Clone of hockey? | Notes it raised |
-|---|---|---|---|---|---|
-| 🏑 Hockey | ✅ reported | ✅ reported | ✅ reported | (original) | `syncUserClaims` LIVE here (§4a handoff); §5-vs-§4b org contradiction; §4d EFT question; §2g setting |
-| 🥅 Netball | mitigation → needs local (§5) | partial | ✅ (originated it) | yes | found the iOS killer + persistence bug |
-| 🏉 Rugby | ⬜ pending fresh report | ⬜ pending | ⬜ pending | **yes** | org-role half-decision; §4c collision risk |
-| 🤽 Water Polo | ✅ reported, grep-clean | ✅ reported (uniform) | ✅ retained | **yes** | greenfield label wrong; orgs left local; region unverified |
+Updated after the second round of reports. "PR" = the sport's working PR.
 
-**Cross-cutting, still open and owned by the main site / platform owner:**
-- Deploy the main-site functions and run `backfillUserClaims` once — the platform's
-  critical-path item (`docs/DEPLOY-RUNBOOK.md`). Until it's done as a clean handoff,
-  everything downstream is on hockey's live copy.
-- Turn ON "one account per email address" (§2g) and add Authorized domains (§2c) in the
-  console.
-- Answer hockey's EFT-activation question (§4d).
-- Confirm the Functions region against the live deployment (§6.4).
+| Repo | Handoff removed | Local sign-in/up + §2b | Persistence fix | §4c prefix+codebase | Clone? | Open, awaiting steer |
+|---|---|---|---|---|---|---|
+| 🏑 Hockey | ✅ (PR #165) | ✅ | ✅ | keeps `default` until handoff | (original) | handoff gated on main-site deploy; §4d hold; org-auth stays local (§4b) |
+| 🥅 Netball | ✅ (PR #9) | ✅ (§2d+§2b shipped) | ✅ (originated it) | ⬜ Finding C — to prefix | yes | revert orgs to local (Finding A); §4c prefix+callables |
+| 🏉 Rugby | ✅ reported | ✅ | ⬜ to confirm | ⬜ to do | **yes** | Finding B users-doc DB-split fix; keep org-auth local (Finding A) |
+| 🤽 Water Polo | ✅ grep-clean | ✅ (uniform) | ✅ retained | ✅ (PR #13, codebase `waterpolo`) | **yes** | invites hold? named-DB functions handle fix? |
+
+**Cross-cutting, owned by the main site / platform owner:**
+- **Critical path — run the deploy** (`docs/DEPLOY-RUNBOOK.md`): hand `syncUserClaims`,
+  `backfillUserClaims`, `payfastITN` over to codebase `main`, run the backfill. Until then the
+  entitlement claim runs on **hockey's** live copy — working, but hockey can't complete its
+  cutover and nothing is truly handed off.
+- **§4d:** decide manual/EFT activation — build it centrally or declare PayFast-only. Hockey
+  holds its EFT code until this lands.
+- Turn ON "one account per email address" (§2g); add Authorized domains (§2c) in the console.
+- **§4b is decided (local-first);** relay it so netball reverts and rugby/hockey stop waiting
+  on a claim shape.
+- Region confirmed `europe-west1` (§6.4) — no action.
