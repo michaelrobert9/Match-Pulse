@@ -6,14 +6,15 @@ const SECTIONS = [
   { href: '/#sports',  label: 'Sports' },
   { href: '/#how',     label: 'How it works' },
   { href: '/#why',     label: 'Features' },
-  { href: '/#plans',   label: 'Plans' },
+  { href: '/products', label: 'Plans' },
   { href: '/#contact', label: 'Contact' },
 ]
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false)
   const [open,     setOpen]     = useState(false)
-  const { user, loading }       = useAuth()
+  const { user, profile, loading } = useAuth()
+  const isAdmin                    = profile?.platformAdmin === true
   const location                = useLocation()
 
   useEffect(() => {
@@ -41,7 +42,10 @@ export default function Nav() {
 
         <div className="nav-cta">
           {loading ? null : user ? (
-            <Link className="btn btn-primary btn-sm" to="/account">My account</Link>
+            <>
+              {isAdmin && <Link className="btn btn-ghost btn-sm" to="/admin">Admin</Link>}
+              <Link className="btn btn-primary btn-sm" to="/account">My account</Link>
+            </>
           ) : (
             <>
               <Link className="btn btn-ghost btn-sm" to="/login">Sign in</Link>
@@ -65,9 +69,14 @@ export default function Nav() {
         <div id="mnav">
           <div className="wrap">
             {SECTIONS.map(s => <a key={s.href} href={s.href}>{s.label}</a>)}
-            {user
-              ? <Link to="/account">My account</Link>
-              : <><Link to="/login">Sign in</Link><Link to="/signup">Start free</Link></>}
+            {user ? (
+              <>
+                {isAdmin && <Link to="/admin">Admin</Link>}
+                <Link to="/account">My account</Link>
+              </>
+            ) : (
+              <><Link to="/login">Sign in</Link><Link to="/signup">Start free</Link></>
+            )}
           </div>
         </div>
       )}

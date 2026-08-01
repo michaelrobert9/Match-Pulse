@@ -7,7 +7,10 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Account from './pages/Account'
 import Portal from './pages/Portal'
+import Products from './pages/Products'
+import Admin from './pages/Admin'
 import { configured } from './firebase'
+import { useSiteSeo } from './lib/seo'
 
 // Shown instead of the app when the Firebase web config is missing, rather than
 // letting every auth call fail with an opaque runtime error.
@@ -26,11 +29,13 @@ function NotConfigured() {
 }
 
 export default function App() {
+  useSiteSeo()
   return (
     <>
       <Nav />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/products" element={<Products />} />
         <Route path="/login"  element={configured ? <Login />  : <NotConfigured />} />
         <Route path="/signup" element={configured ? <Signup /> : <NotConfigured />} />
         {/* PayFast return_url — where a buyer lands after paying. */}
@@ -38,9 +43,12 @@ export default function App() {
           <ProtectedRoute><Portal /></ProtectedRoute>
         } />
         {/* PayFast cancel_url — send them back to the pricing section. */}
-        <Route path="/plans" element={<Navigate to="/#plans" replace />} />
+        <Route path="/plans" element={<Navigate to="/products" replace />} />
         <Route path="/account" element={
           <ProtectedRoute><Account /></ProtectedRoute>
+        } />
+        <Route path="/admin" element={
+          <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

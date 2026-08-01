@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   updateProfile,
@@ -8,8 +8,9 @@ import {
   EmailAuthProvider,
 } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useAuth } from '../contexts/AuthContext'
-import { auth, identityDb } from '../firebase'
+import { auth, identityDb, storage } from '../firebase'
 import { SPORTS } from '../lib/sports'
 
 // Firebase requires a recent sign-in before changing an email or password. When
@@ -52,6 +53,8 @@ export default function Account() {
   const [current, setCurrent] = useState('')          // for re-auth
   const [msg,     setMsg]     = useState(null)        // { kind: 'ok'|'err', text }
   const [busy,    setBusy]    = useState('')          // which form is saving
+  const [photoURL, setPhotoURL] = useState(profile?.photoURL || user?.photoURL || '')
+  const fileInput = useRef(null)
 
   const isPasswordAccount = user?.providerData?.some(p => p.providerId === 'password')
 
@@ -121,6 +124,51 @@ export default function Account() {
     } finally { setBusy('') }
   }
 
+  async function uploadPicture(file) {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { say('err', 'Pick an image under 5 MB.'); return }
+    if (!file.type.startsWith('image/')) { say('err', 'Pick an image file (JPEG, PNG, WebP).'); return }
+    setBusy('picture'); setMsg(null)
+    try {
+      // Use a fixed filename per user so a re-upload overwrites the old one,
+      // rather than orphaning it in the bucket.
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const ref = storageRef(storage, `profilePictures/${user.uid}.${ext}`)
+      await uploadBytes(ref, file, { contentType: file.type })
+      const url = await getDownloadURL(ref)
+      await Promise.all([
+        updateProfile(auth.currentUser, { photoURL: url }),
+        setDoc(doc(identityDb, 'userProfiles', user.uid), { photoURL: url }, { merge: true }),
+      ])
+      setPhotoURL(url)
+      say('ok', 'Profile picture updated.')
+    } catch (err) {
+      say('err', err?.message || 'Upload failed.')
+    } finally {
+      setBusy('')
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
+  async function removePicture() {
+    setBusy('picture'); setMsg(null)
+    try {
+      // Try both common extensions — the rule allows only one per user, but we
+      // don't know which they last used without reading the storage listing.
+      await Promise.all(['jpg','jpeg','png','webp','gif'].map(ext =>
+        deleteObject(storageRef(storage, `profilePictures/${user.uid}.${ext}`)).catch(() => {})
+      ))
+      await Promise.all([
+        updateProfile(auth.currentUser, { photoURL: null }),
+        setDoc(doc(identityDb, 'userProfiles', user.uid), { photoURL: null }, { merge: true }),
+      ])
+      setPhotoURL('')
+      say('ok', 'Profile picture removed.')
+    } catch (err) {
+      say('err', err?.message || 'Could not remove picture.')
+    } finally { setBusy('') }
+  }
+
   async function signOut() {
     await logout()
     navigate('/', { replace: true })
@@ -140,6 +188,48 @@ export default function Account() {
             {msg.text}
           </p>
         )}
+
+        {/* ── Profile picture ───────────────────────────────────────────── */}
+        <Panel
+          title="Profile picture"
+          description="Shown next to your name on every MatchPulse sport."
+        >
+          <div className="pfp-row">
+            <div className="pfp-preview" aria-hidden="true">
+              {photoURL
+                ? <img src={photoURL} alt="" />
+                : <span className="pfp-initial">{(name || user?.email || '?').slice(0,1).toUpperCase()}</span>}
+            </div>
+            <div className="pfp-actions">
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/*"
+                className="pfp-input"
+                onChange={e => uploadPicture(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                className="btn btn-dark"
+                disabled={busy === 'picture'}
+                onClick={() => fileInput.current?.click()}
+              >
+                {busy === 'picture' ? 'Saving…' : (photoURL ? 'Replace picture' : 'Upload picture')}
+              </button>
+              {photoURL && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy === 'picture'}
+                  onClick={removePicture}
+                >
+                  Remove
+                </button>
+              )}
+              <p className="acct-fine">Under 5&nbsp;MB. JPEG, PNG or WebP.</p>
+            </div>
+          </div>
+        </Panel>
 
         {/* ── Plan ──────────────────────────────────────────────────────── */}
         <Panel title="Your plan" description="Billing is handled here, once for every sport.">
