@@ -211,7 +211,17 @@ service cloud.firestore {
     }
 
     // ── Platform config ───────────────────────────────────────────────────────
-    // _meta/payfastConfig holds the PayFast passphrase. No client may read it.
+    // _meta/seoSettings is the site's editable SEO defaults (title, description,
+    // og:image, …). Read publicly (every page loads it to populate document.head);
+    // written only by a platform admin from the admin panel.
+    match /_meta/seoSettings {
+      allow read:  if true;
+      allow write: if isPlatformAdmin();
+    }
+
+    // Everything else under _meta (e.g. payfastConfig, which holds the PayFast
+    // passphrase) stays closed to clients — the webhook reads it via the Admin
+    // SDK, which bypasses rules.
     match /_meta/{doc} {
       allow read, write: if false;
     }

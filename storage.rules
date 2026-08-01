@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// MatchPulse Cloud Storage rules — main site owns the (default) bucket.
+// Profile pictures are the only content stored here today; sport apps do
+// not write. Reads are public because the URL is embedded on every page a
+// user appears on. Writes are limited to the picture's owner, cap 5 MB,
+// image mime-types only.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // /profilePictures/{uid}.{ext} — one picture per user, they own the write.
+    match /profilePictures/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && filename.matches('^' + request.auth.uid + '\\..+')
+        && (request.resource == null
+            || (request.resource.size < 5 * 1024 * 1024
+                && request.resource.contentType.matches('image/.*')));
+    }
+
+    // Everything else denied by default.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

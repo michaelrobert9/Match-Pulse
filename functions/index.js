@@ -15,7 +15,8 @@
  */
 
 const { onDocumentWritten } = require('firebase-functions/v2/firestore')
-const { onRequest } = require('firebase-functions/v2/https')
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https')
+const { getFirestore } = require('firebase-admin/firestore')
 const logger = require('firebase-functions/logger')
 const admin  = require('firebase-admin')
 const crypto = require('crypto')
@@ -335,4 +336,55 @@ exports.payfastITN = onRequest({ region: REGION }, async (req, res) => {
     logger.error('PayFast ITN error', { message: err.message })
     res.status(200).send('OK')
   }
+})
+
+// ── getUserSportActivity ─────────────────────────────────────────────────────
+// Admin panel needs to answer "which sports has this user actually signed in on
+// and used?" — the truth for that lives in each sport's own named DB, which
+// Firestore rules can't read across but the Admin SDK can. So we hop from
+// (default) into each sport DB with getFirestore(app, dbId) and look for the
+// user's sport profile document. Present → active on that sport. Missing or
+// error → not active.
+//
+// The sport registry here must stay in step with src/lib/sports.js. If a sport's
+// named DB doesn't exist yet the read errors and we quietly report inactive —
+// safer than surfacing a scary error in the admin panel.
+const SPORT_DBS = [
+  { key: 'hockey',    dbId: 'hockey',    collection: 'hockeyProfiles'    },
+  { key: 'netball',   dbId: 'netball',   collection: 'netballProfiles'   },
+  { key: 'rugby',     dbId: 'rugby',     collection: 'rugbyProfiles'     },
+  { key: 'waterpolo', dbId: 'waterpolo', collection: 'waterpoloProfiles' },
+]
+
+async function callerIsAdmin(request) {
+  const uid   = request.auth?.uid
+  const token = request.auth?.token
+  if (!uid) return false
+  if (token?.platformAdmin === true) return true
+  // Fallback: check the users doc, matching the isPlatformAdmin() rule.
+  const snap = await db.doc(`users/${uid}`).get()
+  return snap.exists && snap.data()?.platformAdmin === true
+}
+
+exports.getUserSportActivity = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) {
+    throw new HttpsError('permission-denied', 'Platform admin only.')
+  }
+  const targetUid = String(request.data?.uid || '').trim()
+  if (!targetUid) throw new HttpsError('invalid-argument', 'uid required.')
+
+  const results = await Promise.all(SPORT_DBS.map(async ({ key, dbId, collection }) => {
+    try {
+      const sportDb = getFirestore(admin.app(), dbId)
+      const doc = await sportDb.collection(collection).doc(targetUid).get()
+      if (!doc.exists) return [key, { active: false }]
+      const d = doc.data() || {}
+      const lastActive = d.updatedAt?.toDate?.() ?? d.createdAt?.toDate?.() ?? null
+      return [key, { active: true, lastActive: lastActive ? lastActive.toISOString() : null }]
+    } catch (err) {
+      logger.warn('getUserSportActivity: read failed', { key, dbId, uid: targetUid, message: err.message })
+      return [key, { active: false, error: 'unreadable' }]
+    }
+  }))
+  return Object.fromEntries(results)
 })

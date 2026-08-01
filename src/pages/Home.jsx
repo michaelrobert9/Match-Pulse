@@ -251,6 +251,10 @@ export default function Home() {
             </div>
           </div>
 
+          <p className="reveal" style={{ textAlign: 'center', marginTop: 22, fontSize: 14.5 }}>
+            Full details, VAT invoices &amp; <strong>EFT payment option</strong>: <Link to="/products">See plans →</Link>
+          </p>
+
           <div className="sec-head center" style={{ marginTop: 72 }}>
             <p className="label reveal">Standard on every plan</p>
             <h2 className="h2 reveal">The whole platform. Every time.</h2>

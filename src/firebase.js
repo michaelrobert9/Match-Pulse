@@ -10,6 +10,7 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import { getFunctions } from 'firebase/functions'
+import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY             || '',
@@ -30,7 +31,7 @@ export const configured = !!firebaseConfig.apiKey
 // time, not build time.
 export const FUNCTIONS_REGION = import.meta.env.VITE_FUNCTIONS_REGION || 'europe-west1'
 
-let app, identityDb, auth, functions
+let app, identityDb, auth, functions, storage
 
 export const googleProvider = new GoogleAuthProvider()
 
@@ -60,7 +61,8 @@ if (configured) {
   })
 
   functions = getFunctions(app, FUNCTIONS_REGION)
+  storage   = getStorage(app)
 }
 
-export { identityDb, auth, functions }
+export { identityDb, auth, functions, storage }
 export default app
