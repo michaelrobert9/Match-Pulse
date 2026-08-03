@@ -532,3 +532,65 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 }
 .adm-callout h3 { margin: 0 0 8px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; }
 .adm-callout p { margin: 6px 0; color: #4a5560; font-size: 14.5px; line-height: 1.55; }
+
+/* ── Legal pages ─────────────────────────────────────────────────────────── */
+.legal { padding: 60px 0 80px; }
+.legal-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 44px; align-items: start; }
+.legal-nav {
+  position: sticky; top: 88px;
+  padding: 18px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+}
+.legal-nav .label { color: #6b7580; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11.5px; margin: 0 0 10px; }
+.legal-nav ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.legal-nav a {
+  display: block; padding: 8px 10px; border-radius: 8px; color: #4a5560;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+}
+.legal-nav a:hover { color: var(--ink); background: color-mix(in srgb, var(--line) 50%, transparent); }
+.legal-nav a.active { color: var(--ink); background: color-mix(in srgb, #059669 12%, transparent); font-weight: 600; }
+
+.legal-body { max-width: 780px; }
+.legal-head { padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+.legal-head h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(28px, 4vw, 38px); margin: 0 0 6px; }
+.legal-updated { color: #6b7580; font-size: 13.5px; margin: 0; }
+
+.legal-body h2 {
+  font-family: 'Space Grotesk', sans-serif; font-size: 20px;
+  margin: 30px 0 10px; color: var(--ink);
+}
+.legal-body h3 {
+  font-family: 'Space Grotesk', sans-serif; font-size: 16.5px;
+  margin: 22px 0 8px; color: var(--ink);
+}
+.legal-body p { color: #3a444e; font-size: 15px; line-height: 1.65; margin: 0 0 12px; }
+.legal-body ul { margin: 0 0 14px 22px; padding: 0; color: #3a444e; font-size: 15px; line-height: 1.65; }
+.legal-body li { margin: 4px 0; }
+.legal-body a { color: var(--pulse, #059669); }
+.legal-body strong { color: var(--ink); }
+.legal-foot { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); color: #6b7580; font-size: 14px; }
+
+@media (max-width: 780px) {
+  .legal-wrap { grid-template-columns: 1fr; gap: 22px; }
+  .legal-nav { position: static; }
+  .legal-nav ul { flex-direction: row; flex-wrap: wrap; }
+  .legal-nav a { padding: 6px 12px; font-size: 13.5px; }
+}
+
+/* ── Contact ─ Call button + form status ─────────────────────────────────── */
+.ci-call { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 14px; }
+.ci-call svg { flex: none; }
+.form-ok  { color: #065f46; }
+.form-err { color: #b91c1c; }
+
+/* ── Admin — messages tab ────────────────────────────────────────────────── */
+.adm-messages { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.adm-messages li {
+  padding: 16px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.adm-messages li.unread { border-left: 3px solid #059669; }
+.adm-msg-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+.adm-msg-name { font-weight: 700; }
+.adm-msg-meta { color: #6b7580; font-size: 12.5px; margin-top: 2px; }
+.adm-msg-meta a { color: var(--pulse, #059669); }
+.adm-msg-body { color: #3a444e; font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }

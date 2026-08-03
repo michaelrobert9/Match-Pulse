@@ -3,7 +3,7 @@ import { SPORTS } from '../lib/sports'
 
 export default function Footer() {
   return (
-    <footer id="legal">
+    <footer>
       <div className="wrap">
         <div className="foot-top">
           <div className="foot-brand">
@@ -23,26 +23,26 @@ export default function Footer() {
             <ul>
               <li><Link to="/#how">How it works</Link></li>
               <li><Link to="/#why">Features</Link></li>
-              <li><Link to="/#plans">Plans &amp; pricing</Link></li>
+              <li><Link to="/products">Plans &amp; pricing</Link></li>
               <li><Link to="/#contact">Contact us</Link></li>
             </ul>
           </div>
           <div className="foot-col">
             <h5>Legal</h5>
             <ul>
-              <li><a href="#legal">Terms of Service</a></li>
-              <li><a href="#legal">Privacy Policy</a></li>
-              <li><a href="#legal">Cookie Policy</a></li>
-              <li><a href="#legal">Acceptable Use</a></li>
+              <li><Link to="/legal/terms">Terms of Service</Link></li>
+              <li><Link to="/legal/privacy">Privacy Policy</Link></li>
+              <li><Link to="/legal/cookies">Cookie Policy</Link></li>
+              <li><Link to="/legal/acceptable-use">Acceptable Use</Link></li>
             </ul>
           </div>
         </div>
         <div className="foot-bottom">
           <span>© {new Date().getFullYear()} MatchPulse. All rights reserved.</span>
           <span className="legal-links">
-            <a href="#legal">Terms</a>
-            <a href="#legal">Privacy</a>
-            <a href="#legal">Cookies</a>
+            <Link to="/legal/terms">Terms</Link>
+            <Link to="/legal/privacy">Privacy</Link>
+            <Link to="/legal/cookies">Cookies</Link>
             <Link to="/#contact">Contact</Link>
           </span>
         </div>

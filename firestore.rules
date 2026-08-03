@@ -201,6 +201,16 @@ service cloud.firestore {
 
 
 
+    // ── Contact messages ─────────────────────────────────────────────────────
+    // Written only by submitContactForm (Admin SDK, bypasses rules); readable
+    // and mutable (mark-as-read) by platform admins. No client create path —
+    // that would let anyone spam the collection past the function's rate limit.
+    match /contactMessages/{id} {
+      allow read:   if isPlatformAdmin();
+      allow update: if isPlatformAdmin();
+      allow create, delete: if false;
+    }
+
     // ── Payments (PayFast ITN audit trail) ────────────────────────────────────
     // Every ITN is recorded here for reconciliation, including ones that could
     // not be attributed to an account. Written only by the webhook via the Admin

@@ -9,6 +9,10 @@ import Account from './pages/Account'
 import Portal from './pages/Portal'
 import Products from './pages/Products'
 import Admin from './pages/Admin'
+import Terms from './pages/legal/Terms'
+import Privacy from './pages/legal/Privacy'
+import AcceptableUse from './pages/legal/AcceptableUse'
+import Cookies from './pages/legal/Cookies'
 import { configured } from './firebase'
 import { useSiteSeo } from './lib/seo'
 
@@ -50,6 +54,11 @@ export default function App() {
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
         } />
+        <Route path="/legal/terms"          element={<Terms />} />
+        <Route path="/legal/privacy"        element={<Privacy />} />
+        <Route path="/legal/acceptable-use" element={<AcceptableUse />} />
+        <Route path="/legal/cookies"        element={<Cookies />} />
+        <Route path="/legal"                element={<Navigate to="/legal/terms" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />
