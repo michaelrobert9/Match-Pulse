@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { identityDb, functions } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,6 +11,7 @@ import { planStatus } from '../contexts/AuthContext'
 // hit F5 rarely enough that URL-persisted tabs aren't worth the wiring.
 const TABS = [
   { key: 'users',    label: 'Users' },
+  { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
   { key: 'activity', label: 'Sport activity' },
   { key: 'access',   label: 'Access' },
@@ -180,6 +181,74 @@ function PaymentsTab() {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Messages (contact form) ──────────────────────────────────────────────────
+function MessagesTab() {
+  const [rows, setRows] = useState(null)
+  const [err,  setErr]  = useState('')
+
+  async function load() {
+    setErr('')
+    try {
+      const q = query(collection(identityDb, 'contactMessages'), orderBy('createdAt', 'desc'))
+      const snap = await getDocs(q)
+      setRows(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    } catch (e) {
+      setErr(e.message || 'Could not load messages.')
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function toggleRead(id, read) {
+    try {
+      await updateDoc(doc(identityDb, 'contactMessages', id), { read: !read })
+      setRows(rs => rs.map(r => r.id === id ? { ...r, read: !read } : r))
+    } catch (e) {
+      setErr(e.message || 'Could not update message.')
+    }
+  }
+
+  return (
+    <div className="adm-section">
+      <p className="adm-hint">
+        Contact-form submissions. Email delivery to <strong>michael@matchpulse.co.za</strong>{' '}
+        needs SMTP or a transactional-email API key configured on the function
+        (see the <code>submitContactForm</code> TODO); until then, messages
+        surface here immediately after submit.
+      </p>
+      <Notice kind="err">{err}</Notice>
+      {!rows ? <p className="adm-loading">Loading…</p> : rows.length === 0 ? (
+        <p className="muted">No messages yet.</p>
+      ) : (
+        <ul className="adm-messages">
+          {rows.map(m => (
+            <li key={m.id} className={m.read ? 'read' : 'unread'}>
+              <div className="adm-msg-head">
+                <div>
+                  <div className="adm-msg-name">{m.name || <span className="muted">(no name)</span>}</div>
+                  <div className="adm-msg-meta">
+                    <a href={`mailto:${m.email}`}>{m.email}</a>
+                    {m.phone && <span> · <a href={`tel:${m.phone}`}>{m.phone}</a></span>}
+                    <span> · {fmtDate(m.createdAt)}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => toggleRead(m.id, m.read)}
+                >
+                  {m.read ? 'Mark unread' : 'Mark read'}
+                </button>
+              </div>
+              <div className="adm-msg-body">{m.message}</div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -391,6 +460,7 @@ export default function Admin() {
         </nav>
 
         {tab === 'users'    && <UsersTab />}
+        {tab === 'messages' && <MessagesTab />}
         {tab === 'payments' && <PaymentsTab />}
         {tab === 'activity' && <ActivityTab />}
         {tab === 'access'   && <AccessTab />}

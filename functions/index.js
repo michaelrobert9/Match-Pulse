@@ -388,3 +388,58 @@ exports.getUserSportActivity = onCall({ region: REGION }, async (request) => {
   }))
   return Object.fromEntries(results)
 })
+
+// ── submitContactForm ────────────────────────────────────────────────────────
+// The Home /#contact form posts here. Callable rather than HTTPS so App Check
+// (when enabled) applies and the caller's auth (if any) is attached. Writes to
+// /contactMessages/{id} for the admin panel; email delivery to
+// michael@matchpulse.co.za is left as a follow-up (needs SMTP or transactional-
+// email creds — see README when it's wired).
+//
+// Basic anti-abuse: reject empty/oversized messages, reject the same email
+// posting more than 5 times in an hour. Not a fortress; enough to make it a
+// worse target than the countless open forms elsewhere.
+const CONTACT_HOURLY_CAP = 5
+
+exports.submitContactForm = onCall({ region: REGION }, async (request) => {
+  const name    = String(request.data?.name    || '').trim().slice(0, 120)
+  const email   = String(request.data?.email   || '').trim().toLowerCase().slice(0, 200)
+  const phone   = String(request.data?.phone   || '').trim().slice(0, 40)
+  const message = String(request.data?.message || '').trim().slice(0, 4000)
+
+  if (!name || !email || !message) {
+    throw new HttpsError('invalid-argument', 'Name, email and message are required.')
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new HttpsError('invalid-argument', 'That email address doesn\'t look right.')
+  }
+
+  // Rate-limit per email address over the last hour.
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+  const recent = await db.collection('contactMessages')
+    .where('email', '==', email)
+    .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(oneHourAgo))
+    .count().get()
+  if (recent.data().count >= CONTACT_HOURLY_CAP) {
+    throw new HttpsError('resource-exhausted', 'Too many messages — please try again in an hour.')
+  }
+
+  await db.collection('contactMessages').add({
+    name, email, phone, message,
+    fromUid:    request.auth?.uid ?? null,
+    userAgent:  String(request.rawRequest?.headers?.['user-agent'] || '').slice(0, 200),
+    read:       false,
+    createdAt:  admin.firestore.FieldValue.serverTimestamp(),
+  })
+
+  // TODO: send email to michael@matchpulse.co.za. Two paths, both need config
+  // that isn't in this codebase today:
+  //   1) Install the "Trigger Email from Firestore" Firebase Extension against
+  //      the contactMessages collection with an SMTP transport, OR
+  //   2) Add nodemailer here + a functions secret (GMAIL_APP_PASSWORD /
+  //      SENDGRID_API_KEY / …) and send from this function.
+  // Until one of those is in place the admin panel's Messages tab is the
+  // notification surface — visible immediately after submit.
+  logger.info('Contact message received', { email, hasPhone: !!phone })
+  return { ok: true }
+})
