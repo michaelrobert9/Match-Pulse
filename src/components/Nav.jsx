@@ -3,11 +3,11 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 const SECTIONS = [
-  { href: '/#sports',  label: 'Sports' },
-  { href: '/#how',     label: 'How it works' },
-  { href: '/#why',     label: 'Features' },
-  { href: '/products', label: 'Plans' },
-  { href: '/#contact', label: 'Contact' },
+  { href: '/#find',        label: 'Find Your Sport' },
+  { href: '/#how',         label: 'How It Works' },
+  { href: '/#competition', label: 'Competitions' },
+  { href: '/#pricing',     label: 'Pricing' },
+  { href: '/#faq',         label: 'Help' },
 ]
 
 export default function Nav() {
@@ -48,8 +48,8 @@ export default function Nav() {
             </>
           ) : (
             <>
-              <Link className="btn btn-ghost btn-sm" to="/login">Sign in</Link>
-              <Link className="btn btn-primary btn-sm" to="/signup">Start free</Link>
+              <Link className="btn btn-ghost btn-sm" to="/login">Sign In</Link>
+              <Link className="btn btn-primary btn-sm" to="/signup">Create an Account</Link>
             </>
           )}
           <button
@@ -75,7 +75,7 @@ export default function Nav() {
                 <Link to="/account">My account</Link>
               </>
             ) : (
-              <><Link to="/login">Sign in</Link><Link to="/signup">Start free</Link></>
+              <><Link to="/login">Sign In</Link><Link to="/signup">Create an Account</Link></>
             )}
           </div>
         </div>

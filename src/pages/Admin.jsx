@@ -340,10 +340,10 @@ function AccessTab() {
 
 // ── SEO ──────────────────────────────────────────────────────────────────────
 const SEO_DEFAULTS = {
-  siteTitle:       'MatchPulse — One home for every sport you love',
-  siteDescription: 'MatchPulse runs your competitions, teams and matches across hockey, netball, rugby and water polo, on one account.',
-  ogTitle:         'MatchPulse',
-  ogDescription:   'One account. Every sport. Real-time results.',
+  siteTitle:       'MatchPulse | Sports Results for Schools, Clubs and Competitions',
+  siteDescription: 'MatchPulse lets coaches enter results directly after the match, saving schools, clubs and competition organisers from collecting and re-entering every score.',
+  ogTitle:         'MatchPulse | Sports Results for Schools, Clubs and Competitions',
+  ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
   ogImage:         '',
   themeColor:      '#059669',
 }
