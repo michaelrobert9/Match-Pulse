@@ -6,7 +6,7 @@ export default function Terms() {
     <LegalLayout title="Terms and Conditions" updated="14 July 2026">
       <p>
         These Terms and Conditions ("Terms") govern your use of MatchPulse, a
-        hockey tournament management and live scoring platform accessible
+        multi-sport tournament management and live scoring platform accessible
         through our website and web application (the "Platform"). MatchPulse
         is operated by the entity referred to in these Terms as "MatchPulse",
         "we", "us" or "our".
@@ -60,7 +60,7 @@ export default function Terms() {
       <p>5.8. Clause 5.7 sets out your rights under this policy. It does not limit any right you have under the Consumer Protection Act or the Electronic Communications and Transactions Act that cannot be excluded by agreement.</p>
 
       <h2>6. Minors</h2>
-      <p>6.1. The Platform may record the names and statistics of Players who are minors, for example in schoolboy or junior hockey.</p>
+      <p>6.1. The Platform may record the names and statistics of Players who are minors, for example in schools and junior sport.</p>
       <p>6.2. A Player profile relating to a minor may only be created and managed by the Player's Parent, or by a Manager acting with the Parent's consent. Whoever creates the profile confirms that they have the authority and any consent required to publish the minor's information.</p>
       <p>6.3. A Parent may ask us to correct or remove a minor's information at any time. Requests are handled as described in our <Link to="/legal/privacy">Privacy Policy</Link>.</p>
 

@@ -6,7 +6,7 @@ export default function Privacy() {
     <LegalLayout title="Privacy Policy" updated="14 July 2026">
       <p>
         This Privacy Policy explains how MatchPulse ("we", "us", "our")
-        collects and uses personal information when you use our hockey
+        collects and uses personal information when you use our multi-sport
         tournament management and live scoring platform (the "Platform"). It
         is written to meet our obligations under the Protection of Personal
         Information Act, 2013 (POPIA).
@@ -48,7 +48,7 @@ export default function Privacy() {
       <p>Competition results, standings and Player statistics are shown on public pages, and these pages may be indexed by search engines. This means Player names and statistics can be publicly visible. Anyone creating a Player profile should understand this before publishing information about a Player, particularly a minor.</p>
 
       <h2>6. Children's information</h2>
-      <p>The Platform may hold personal information about minors, for example in junior hockey.</p>
+      <p>The Platform may hold personal information about minors, for example in schools and junior sport.</p>
       <p>Under POPIA, processing a minor's personal information generally requires the consent of a competent person, usually a parent or guardian. Because only a Player, Parent or Manager can create a Player profile, the responsibility for obtaining that consent rests with the person who creates the profile.</p>
       <p>A Parent may ask us to correct or remove a minor's information at any time. We will act on a valid request as set out in clause 8.</p>
 
