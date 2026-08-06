@@ -2,15 +2,16 @@
 // EFT / invoice billing constants shared by the Products page and the invoice
 // pages. ONE place to edit when the details change.
 //
-// ⚠️ PLACEHOLDER BANK DETAILS — these are NOT real. Replace every field below
-// with the actual MatchPulse account before taking live payments.
+// Account number confirmed by the owner (FNB 62791013982). accountName and
+// accountType still to be confirmed against the bank's records — update them
+// here if what the bank has differs.
 // ─────────────────────────────────────────────────────────────────────────
 export const EFT = {
-  bank:        'First National Bank',
-  accountName: 'MatchPulse (Pty) Ltd',
-  accountType: 'Business Cheque',
-  accountNo:   '628 4402 1367',
-  branchCode:  '250655',
+  bank:        'First National Bank (FNB)',
+  accountName: 'MatchPulse',
+  accountType: 'Cheque Account',
+  accountNo:   '6279 101 3982',
+  branchCode:  '250655', // FNB universal branch code
   email:       'billing@matchpulse.co.za',
 }
 
