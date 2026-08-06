@@ -284,12 +284,12 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
   letter-spacing: .1em; color: var(--slate);
 }
 .field label .opt { text-transform: none; letter-spacing: 0; font-weight: 500; color: #9aa2ad; margin-left: 6px; }
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 10px;
   padding: 11px 13px; font-family: 'Inter', sans-serif; font-size: 14px;
   color: var(--ink); transition: border-color .15s; resize: none;
 }
-.field input:focus, .field textarea:focus { outline: none; border-color: var(--pulse); }
+.field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--pulse); }
 .field input::placeholder, .field textarea::placeholder { color: #9aa2ad; }
 
 .linkish {
@@ -813,3 +813,11 @@ section#sports.block { padding: 84px 0; }
   .foot-top { grid-template-columns: 1fr 1fr; }
   .mp-hero { padding: 40px 0 44px; }
 }
+
+/* ── Admin — access grant form ───────────────────────────────────────────── */
+.adm-grant { max-width: 520px; }
+.adm-grant-who {
+  width: 100%; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+  padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+}
+.adm-grant-current { margin-top: 8px; font-size: 13px; color: #6b7580; }
