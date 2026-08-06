@@ -171,11 +171,11 @@ function PaymentsTab() {
                   <td>{p.plan || <span className="muted">—</span>}</td>
                   <td>{fmtMoney(p.amountGross)}</td>
                   <td>
-                    <span className={`pill pill-${p.paymentStatus === 'COMPLETE' ? 'ok' : 'warn'}`}>
-                      {p.paymentStatus || 'PENDING'}
+                    <span className={`pill pill-${p.paymentStatus === 'COMPLETE' ? 'ok' : p.manual ? 'admin' : 'warn'}`}>
+                      {p.manual ? (p.method || 'manual').toUpperCase() : (p.paymentStatus || 'PENDING')}
                     </span>
                   </td>
-                  <td className="adm-uid">{p.pfPaymentId || p.mPaymentId || p.id}</td>
+                  <td className="adm-uid">{p.manual ? (p.note || '(manual allocation)') : (p.pfPaymentId || p.mPaymentId || p.id)}</td>
                 </tr>
               ))}
             </tbody>
@@ -315,25 +315,202 @@ function ActivityTab() {
   )
 }
 
-// ── Access management (deferred) ─────────────────────────────────────────────
+// ── Access management ────────────────────────────────────────────────────────
+// Grant, change or revoke a plan by hand: EFT payers, free/comp accounts,
+// corrections. Calls adminSetEntitlement, which writes the same fields the
+// PayFast webhook writes — so the change flows onto the user's token via
+// syncUserClaims and every sport site honours it automatically.
 function AccessTab() {
+  const [rows,     setRows]     = useState(null)
+  const [err,      setErr]      = useState('')
+  const [q,        setQ]        = useState('')
+  const [selected, setSelected] = useState(null)   // user row being edited
+  const [form,     setForm]     = useState({ plan: 'event', credits: 1, years: 1, method: 'eft', note: '' })
+  const [busy,     setBusy]     = useState(false)
+  const [msg,      setMsg]      = useState(null)
+
+  async function load() {
+    try {
+      const snap = await getDocs(collection(identityDb, 'users'))
+      const list = snap.docs.map(d => {
+        const data = d.data()
+        return {
+          uid:         d.id,
+          email:       data.email ?? '',
+          displayName: data.displayName ?? '',
+          plan:        planStatus(data),
+          raw:         data,
+        }
+      })
+      list.sort((a, b) => (a.email || '').localeCompare(b.email || ''))
+      setRows(list)
+    } catch (e) {
+      setErr(e.message || 'Could not load users.')
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    if (!rows) return null
+    if (!q.trim()) return rows
+    const needle = q.trim().toLowerCase()
+    return rows.filter(r =>
+      r.email.toLowerCase().includes(needle)
+      || r.displayName.toLowerCase().includes(needle)
+      || r.uid.toLowerCase().includes(needle)
+    )
+  }, [rows, q])
+
+  function pick(u) {
+    setSelected(u)
+    setMsg(null)
+    // Sensible starting point: mirror what they already have.
+    const e = u.raw.entitlement ?? 'none'
+    setForm(f => ({
+      ...f,
+      plan:    e === 'none' ? 'event' : e,
+      credits: Math.max(1, u.raw.eventCredits ?? 1),
+    }))
+  }
+
+  async function grant(e) {
+    e.preventDefault()
+    if (!selected) return
+    setBusy(true); setMsg(null)
+    try {
+      const call = httpsCallable(functions, 'adminSetEntitlement')
+      await call({
+        uid:     selected.uid,
+        plan:    form.plan,
+        credits: Number(form.credits),
+        years:   Number(form.years),
+        method:  form.method,
+        note:    form.note,
+      })
+      setMsg({ kind: 'ok', text:
+        `Done — ${selected.email || selected.uid} is now on ${form.plan === 'none' ? 'Free' : form.plan === 'event' ? `Plus (${form.credits} credit${Number(form.credits) === 1 ? '' : 's'})` : 'Pro'}. ` +
+        'It reaches the sport sites when their token refreshes — on their next sign-in or page load, or within about an hour.' })
+      setForm(f => ({ ...f, note: '' }))
+      await load()
+      setSelected(null)
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Grant failed.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const bind = (key) => ({
+    value:    form[key],
+    onChange: (e) => setForm(f => ({ ...f, [key]: e.target.value })),
+  })
+
   return (
     <div className="adm-section">
-      <div className="adm-callout">
-        <h3>Access management is on hold.</h3>
-        <p>
-          Granting a plan to a specific sport (or across all sports) needs the
-          entitlement model to be settled first — the two options on the table
-          are <em>Plus = one sport</em> and <em>Plus = one competition
-          anywhere</em>, and each shapes the schema differently.
-        </p>
-        <p>
-          The plumbing this tab needs — the users list, the payments list, the
-          sport-activity lookup — is already live in the other tabs. Once the
-          model is chosen, this becomes a Grant/Revoke button per user, per
-          sport.
-        </p>
-      </div>
+      <p className="adm-hint">
+        Allocate a plan by hand — an EFT payment, a free account, a correction.
+        <strong> Plus</strong> = competition credits, each usable on any one sport.
+        <strong> Pro</strong> = unlimited competitions on every sport until the expiry date.
+        Every manual change is recorded in the Payments tab.
+      </p>
+      <Notice kind="err">{err}</Notice>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+
+      {!selected ? (
+        <>
+          <div className="adm-toolbar">
+            <input
+              type="search"
+              value={q}
+              placeholder="Find a user by name, email or UID"
+              onChange={e => setQ(e.target.value)}
+            />
+          </div>
+          {!filtered ? <p className="adm-loading">Loading…</p> : (
+            <div className="adm-table-wrap">
+              <table className="adm-table">
+                <thead>
+                  <tr><th>User</th><th>Current plan</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {filtered.map(u => (
+                    <tr key={u.uid}>
+                      <td>
+                        <div className="adm-name">{u.displayName || <span className="muted">(no name)</span>}</div>
+                        <div className="adm-uid">{u.email || u.uid}</div>
+                      </td>
+                      <td><span className={`plan-badge plan-${u.plan.key}`}>{u.plan.label}</span></td>
+                      <td>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => pick(u)}>
+                          Change plan
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && <tr><td colSpan={3} className="muted">No users match.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+        <form className="acct-form adm-grant" onSubmit={grant}>
+          <div className="adm-grant-who">
+            <div>
+              <div className="adm-name">{selected.displayName || '(no name)'}</div>
+              <div className="adm-uid">{selected.email || selected.uid}</div>
+              <div className="adm-grant-current">
+                Current: <span className={`plan-badge plan-${selected.plan.key}`}>{selected.plan.label}</span>
+              </div>
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>
+              Choose someone else
+            </button>
+          </div>
+
+          <div className="field">
+            <label htmlFor="grant-plan">Plan to set</label>
+            <select id="grant-plan" {...bind('plan')}>
+              <option value="event">Plus — competition credits (once-off)</option>
+              <option value="pro">Pro — unlimited competitions (annual)</option>
+              <option value="none">Free — remove paid access</option>
+            </select>
+          </div>
+
+          {form.plan === 'event' && (
+            <div className="field">
+              <label htmlFor="grant-credits">Competition credits</label>
+              <input id="grant-credits" type="number" min="0" max="100" {...bind('credits')} />
+            </div>
+          )}
+          {form.plan === 'pro' && (
+            <div className="field">
+              <label htmlFor="grant-years">Years to add</label>
+              <input id="grant-years" type="number" min="1" max="5" {...bind('years')} />
+            </div>
+          )}
+
+          <div className="field">
+            <label htmlFor="grant-method">Reason</label>
+            <select id="grant-method" {...bind('method')}>
+              <option value="eft">EFT payment received</option>
+              <option value="comp">Free of charge</option>
+              <option value="correction">Correction</option>
+              <option value="manual">Other</option>
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="grant-note">Note <span className="opt">optional — e.g. EFT reference</span></label>
+            <input id="grant-note" type="text" placeholder="e.g. FNB ref 4471, paid 3 Aug" {...bind('note')} />
+          </div>
+
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Applying…' : 'Apply plan change'}
+          </button>
+        </form>
+      )}
     </div>
   )
 }

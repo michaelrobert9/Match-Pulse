@@ -389,6 +389,90 @@ exports.getUserSportActivity = onCall({ region: REGION }, async (request) => {
   return Object.fromEntries(results)
 })
 
+// ── adminSetEntitlement ──────────────────────────────────────────────────────
+// The admin panel's Access tab calls this to grant, change or revoke a plan by
+// hand — an EFT payer, a free/comp account, a correction. It writes the same
+// users/{uid} fields the PayFast ITN writes (so syncUserClaims mirrors it onto
+// the token identically), and records an audit row in /payments so every manual
+// allocation shows up in the same ledger as automated ones.
+//
+// A callable rather than a client write because the payment audit record is
+// Admin-SDK-only by rules, and because grant + audit should land together.
+exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) {
+    throw new HttpsError('permission-denied', 'Platform admin only.')
+  }
+
+  const uid    = String(request.data?.uid || '').trim()
+  const plan   = String(request.data?.plan || '')            // 'none' | 'event' | 'pro'
+  const method = String(request.data?.method || 'manual')    // 'eft' | 'comp' | 'correction' | …
+  const note   = String(request.data?.note || '').slice(0, 500)
+  const credits = Number.isFinite(Number(request.data?.credits)) ? Math.max(0, Math.floor(Number(request.data.credits))) : 1
+  const years   = Number.isFinite(Number(request.data?.years))   ? Math.max(1, Math.floor(Number(request.data.years)))   : 1
+
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  if (!['none', 'event', 'pro'].includes(plan)) {
+    throw new HttpsError('invalid-argument', "plan must be 'none', 'event' or 'pro'.")
+  }
+
+  const userRef  = db.doc(`users/${uid}`)
+  const userSnap = await userRef.get()
+  if (!userSnap.exists) throw new HttpsError('not-found', 'No such user.')
+  const beforeData = userSnap.data()
+
+  let update
+  if (plan === 'pro') {
+    // Same extension rule as the ITN: from the later of now and any remaining
+    // term, so a manual renewal stacks rather than clobbering paid time.
+    const current = beforeData.entitlementExpiresAt?.toDate?.() ?? null
+    const from    = current && current > new Date() ? current : new Date()
+    const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+    update = {
+      entitlement:          'pro',
+      entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expires),
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  } else if (plan === 'event') {
+    // SET the credit count (not increment): the admin states what the user
+    // should have, which also makes re-submitting the form idempotent.
+    update = {
+      entitlement:          'event',
+      eventCredits:         credits,
+      entitlementExpiresAt: null,
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  } else {
+    update = {
+      entitlement:          'none',
+      eventCredits:         0,
+      entitlementExpiresAt: null,
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  }
+
+  await userRef.update(update)
+
+  await db.collection('payments').add({
+    manual:        true,
+    method,                                   // eft | comp | correction | manual
+    note,
+    uid,
+    email:         beforeData.email ?? null,
+    plan,
+    creditsSet:    plan === 'event' ? credits : null,
+    years:         plan === 'pro' ? years : null,
+    previousPlan:  beforeData.entitlement ?? 'none',
+    adminUid:      request.auth.uid,
+    paymentStatus: 'MANUAL',
+    receivedAt:    admin.firestore.FieldValue.serverTimestamp(),
+  })
+
+  logger.info('Manual entitlement set', { uid, plan, method, by: request.auth.uid })
+  // syncUserClaims fires off the users/{uid} write and updates the token claim;
+  // the user picks it up on next token refresh (each app forces one on load).
+  return { ok: true, plan }
+})
+
 // ── submitContactForm ────────────────────────────────────────────────────────
 // The Home /#contact form posts here. Callable rather than HTTPS so App Check
 // (when enabled) applies and the caller's auth (if any) is attached. Writes to
