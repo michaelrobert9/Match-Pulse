@@ -523,6 +523,7 @@ const SEO_DEFAULTS = {
   ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
   ogImage:         '',
   themeColor:      '#059669',
+  headCode:        '',
 }
 
 function SeoTab() {
@@ -599,6 +600,23 @@ function SeoTab() {
           <div className="field">
             <label htmlFor="seo-themeColor">Browser theme color</label>
             <input type="text" placeholder="#059669" {...bind('themeColor')} />
+          </div>
+          <div className="field">
+            <label htmlFor="seo-headCode">
+              Custom code — inserted into the page &lt;head&gt; on every page
+            </label>
+            <textarea
+              rows={8}
+              className="adm-code"
+              placeholder={'Paste any tracking or verification code here — e.g. your StatCounter snippet,\nGoogle Search Console verification tag, analytics scripts.\n\n<script>...</script> tags are supported and will run.'}
+              spellCheck={false}
+              {...bind('headCode')}
+            />
+            <p className="adm-field-hint">
+              Runs for every visitor on every page of the main site. Paste the full snippet
+              exactly as the provider gives it (StatCounter, Google verification, etc.).
+              Changes apply from the next page load after saving.
+            </p>
           </div>
           <button className="btn btn-dark" disabled={busy}>{busy ? 'Saving…' : 'Save SEO'}</button>
           {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}

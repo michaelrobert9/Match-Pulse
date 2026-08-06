@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /portal
+
+Sitemap: https://matchpulse.co.za/sitemap.xml
