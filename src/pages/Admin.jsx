@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
+import { statusOf } from '../lib/billing'
 import { identityDb, functions } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
@@ -11,6 +13,7 @@ import { planStatus } from '../contexts/AuthContext'
 // hit F5 rarely enough that URL-persisted tabs aren't worth the wiring.
 const TABS = [
   { key: 'users',    label: 'Users' },
+  { key: 'invoices', label: 'Invoices' },
   { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
   { key: 'activity', label: 'Sport activity' },
@@ -176,6 +179,140 @@ function PaymentsTab() {
                     </span>
                   </td>
                   <td className="adm-uid">{p.manual ? (p.note || '(manual allocation)') : (p.pfPaymentId || p.mPaymentId || p.id)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Invoices ─────────────────────────────────────────────────────────────────
+// Every invoice ever raised, filterable by status. Mark paid → grants the plan
+// through the same entitlement core as the Access tab and logs an EFT payment
+// row. Void keeps the record (gapless numbering beats deletion when you're
+// reconciling a bank statement).
+function InvoicesTab() {
+  const [rows,   setRows]   = useState(null)
+  const [err,    setErr]    = useState('')
+  const [msg,    setMsg]    = useState(null)
+  const [filter, setFilter] = useState('outstanding')
+  const [busyId, setBusyId] = useState('')
+
+  async function load() {
+    setErr('')
+    try {
+      const snap = await getDocs(collection(identityDb, 'invoices'))
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      list.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      setRows(list)
+    } catch (e) {
+      setErr(e.message || 'Could not load invoices.')
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const shown = useMemo(() => {
+    if (!rows) return null
+    if (filter === 'all') return rows
+    return rows.filter(r => r.status === filter)
+  }, [rows, filter])
+
+  async function markPaid(inv) {
+    if (!window.confirm(`Mark ${inv.number} (${fmtMoney(inv.amount)}) as PAID and activate ${inv.planLabel} for ${inv.accountEmail || inv.uid}?`)) return
+    setBusyId(inv.id); setMsg(null)
+    try {
+      const call = httpsCallable(functions, 'markInvoicePaid')
+      await call({ id: inv.id })
+      setMsg({ kind: 'ok', text: `${inv.number} marked paid — plan activated. It reaches the sport sites on the user's next sign-in or within about an hour.` })
+      await load()
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Could not mark paid.' })
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  async function voidInv(inv) {
+    const note = window.prompt(`Void ${inv.number}? Optional note (e.g. "duplicate", "customer cancelled"):`)
+    if (note === null) return
+    setBusyId(inv.id); setMsg(null)
+    try {
+      const call = httpsCallable(functions, 'voidInvoice')
+      await call({ id: inv.id, note })
+      setMsg({ kind: 'ok', text: `${inv.number} voided.` })
+      await load()
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Could not void.' })
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  const FILTERS = [
+    ['outstanding', 'Outstanding'],
+    ['paid',        'Paid'],
+    ['void',        'Void'],
+    ['all',         'All'],
+  ]
+
+  return (
+    <div className="adm-section">
+      <div className="adm-toolbar">
+        <div className="adm-filterrow">
+          {FILTERS.map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`adm-filter ${filter === key ? 'active' : ''}`}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="adm-count">{shown ? `${shown.length} invoice${shown.length === 1 ? '' : 's'}` : ''}</span>
+      </div>
+      <Notice kind="err">{err}</Notice>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      {!shown ? <p className="adm-loading">Loading…</p> : shown.length === 0 ? (
+        <p className="muted">No {filter === 'all' ? '' : filter + ' '}invoices.</p>
+      ) : (
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead>
+              <tr><th>Invoice</th><th>Invoiced to</th><th>Plan</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {shown.map(v => (
+                <tr key={v.id}>
+                  <td>
+                    <div className="adm-name tnum">{v.number}</div>
+                    <div className="adm-uid">{fmtDate(v.createdAt)}</div>
+                  </td>
+                  <td>
+                    <div>{v.billTo?.name || <span className="muted">—</span>}</div>
+                    <div className="adm-uid">{v.billTo?.email}{v.accountEmail && v.accountEmail !== v.billTo?.email ? ` · acc: ${v.accountEmail}` : ''}</div>
+                  </td>
+                  <td>{v.planLabel}</td>
+                  <td className="tnum">{fmtMoney(v.amount)}</td>
+                  <td><span className={`pill pill-${statusOf(v.status).pill}`}>{statusOf(v.status).label}</span></td>
+                  <td className="adm-actions">
+                    <Link className="btn btn-ghost btn-sm" to={`/invoices/${v.id}`}>View</Link>
+                    {v.status === 'outstanding' && (
+                      <>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={busyId === v.id} onClick={() => markPaid(v)}>
+                          {busyId === v.id ? '…' : 'Mark paid'}
+                        </button>
+                        <button type="button" className="btn btn-ghost btn-sm" disabled={busyId === v.id} onClick={() => voidInv(v)}>
+                          Void
+                        </button>
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -655,6 +792,7 @@ export default function Admin() {
         </nav>
 
         {tab === 'users'    && <UsersTab />}
+        {tab === 'invoices' && <InvoicesTab />}
         {tab === 'messages' && <MessagesTab />}
         {tab === 'payments' && <PaymentsTab />}
         {tab === 'activity' && <ActivityTab />}

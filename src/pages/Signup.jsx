@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { paymentUrl } from '../lib/payfast'
 
 function friendlyError(code) {
   switch (code) {
@@ -24,12 +23,13 @@ export default function Signup() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
 
-  // Someone who clicked a paid plan lands here first, because a payment must
-  // carry a uid to be attributable. Now that they have one, send them to pay.
-  function onward(cred) {
+  // Someone who clicked a paid plan lands here first, because an invoice must
+  // belong to an account. Now that they have one, send them to raise it.
+  // (PayFast checkout is dormant — plans are sold by EFT invoice.)
+  function onward() {
     const plan = params.get('plan')
     if (plan === 'event' || plan === 'pro') {
-      window.location.assign(paymentUrl(plan, { uid: cred.user.uid, email: cred.user.email }))
+      navigate(`/invoice/new?plan=${plan}`, { replace: true })
       return
     }
     navigate('/account', { replace: true })

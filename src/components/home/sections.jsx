@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { SPORTS } from '../../lib/sports'
-import { PLANS, paymentUrl, formatRand } from '../../lib/payfast'
+import { PLANS, formatRand } from '../../lib/payfast'
 import ProductVisual from './ProductVisual'
 import * as C from '../../lib/homeContent'
 
@@ -32,17 +32,18 @@ function SectionHead({ label, heading, sub, center }) {
   )
 }
 
-// A CTA that either buys a plan (carrying the buyer's uid) or navigates a route.
-// The plan flow mirrors the old PlanCta: signed out → create an account first,
-// signed in → straight to the hosted PayFast checkout. Reused everywhere a paid
-// action appears so there is one purchase path.
+// A CTA that either starts a plan purchase or navigates a route. Plans are sold
+// by EFT invoice: signed out → create an account first (then straight on to the
+// invoice), signed in → the bill-to form. One purchase path, reused everywhere.
+// (The PayFast checkout in lib/payfast.js is dormant, kept for a possible
+// return to card payments — nothing links to it.)
 export function useBuy() {
   const { user } = useAuth()
   const navigate = useNavigate()
   return (plan) => {
     if (!plan) { navigate('/signup'); return }
     if (!user) { navigate(`/signup?plan=${plan}`); return }
-    window.location.assign(paymentUrl(plan, { uid: user.uid, email: user.email }))
+    navigate(`/invoice/new?plan=${plan}`)
   }
 }
 

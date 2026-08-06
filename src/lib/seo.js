@@ -31,7 +31,11 @@ const ROUTES = {
   '/account':              { title: 'Your Account — MatchPulse', noindex: true },
   '/admin':                { title: 'Admin — MatchPulse',        noindex: true },
   '/portal':               { title: 'MatchPulse',                noindex: true },
+  '/invoice/new':          { title: 'New Invoice — MatchPulse',  noindex: true },
 }
+
+// Dynamic private routes (e.g. /invoices/:id) — matched by prefix.
+const NOINDEX_PREFIXES = ['/invoices/']
 
 // Cache the fetched settings for the life of the tab so every route change
 // doesn't re-hit Firestore. First read wins; subsequent reads hydrate from cache.
@@ -121,10 +125,11 @@ function applySite(seo) {
 
 function applyRoute(seo, pathname) {
   const route = ROUTES[pathname] || {}
-  document.title = route.title || seo.siteTitle
+  const prefixNoindex = NOINDEX_PREFIXES.some(p => pathname.startsWith(p))
+  document.title = route.title || (prefixNoindex ? 'Invoice — MatchPulse' : seo.siteTitle)
   setLink('canonical', ORIGIN + (pathname === '/' ? '/' : pathname))
   setMeta('meta[property="og:url"]', 'content', ORIGIN + (pathname === '/' ? '/' : pathname))
-  setRobots(!!route.noindex)
+  setRobots(!!route.noindex || prefixNoindex)
 }
 
 // Site-wide SEO + per-route title/canonical. Called once from App, inside the

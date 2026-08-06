@@ -8,6 +8,8 @@ import Signup from './pages/Signup'
 import Account from './pages/Account'
 import Portal from './pages/Portal'
 import Products from './pages/Products'
+import NewInvoice from './pages/NewInvoice'
+import Invoice from './pages/Invoice'
 import Admin from './pages/Admin'
 import Terms from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
@@ -50,6 +52,12 @@ export default function App() {
         <Route path="/plans" element={<Navigate to="/products" replace />} />
         <Route path="/account" element={
           <ProtectedRoute><Account /></ProtectedRoute>
+        } />
+        <Route path="/invoice/new" element={
+          <ProtectedRoute><NewInvoice /></ProtectedRoute>
+        } />
+        <Route path="/invoices/:id" element={
+          <ProtectedRoute><Invoice /></ProtectedRoute>
         } />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><Admin /></ProtectedRoute>

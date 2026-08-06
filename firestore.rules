@@ -201,6 +201,31 @@ service cloud.firestore {
 
 
 
+    // ── Invoices (EFT billing) ────────────────────────────────────────────────
+    // Created and paid/voided ONLY via callables (Admin SDK) — numbering,
+    // pricing and the grant-on-payment all happen server-side. The one client
+    // write allowed: the invoice's owner may correct WHO IT IS BILLED TO while
+    // it is still outstanding (the accounts-department-says-it's-wrong case).
+    // Status, amount, plan and number are untouchable from the client.
+    match /invoices/{id} {
+      allow read: if isPlatformAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && resource.data.status == 'outstanding'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['billTo', 'updatedAt']);
+
+      allow create, delete: if false;
+    }
+
+    // Outbound email queue — written by functions, drained by the (future)
+    // email sender. No client access.
+    match /mailQueue/{id} {
+      allow read, write: if false;
+    }
+
     // ── Contact messages ─────────────────────────────────────────────────────
     // Written only by submitContactForm (Admin SDK, bypasses rules); readable
     // and mutable (mark-as-read) by platform admins. No client create path —

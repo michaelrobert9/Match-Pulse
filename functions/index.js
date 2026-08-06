@@ -389,6 +389,51 @@ exports.getUserSportActivity = onCall({ region: REGION }, async (request) => {
   return Object.fromEntries(results)
 })
 
+// ── Entitlement grant core ───────────────────────────────────────────────────
+// One place that writes plan state onto users/{uid}, shared by the admin grant
+// tool and invoice payment. Field shapes match the PayFast ITN exactly, so
+// syncUserClaims mirrors any of the three paths onto the token identically.
+// Returns the user doc's data from before the change (for audit rows).
+async function applyEntitlement(uid, { plan, credits = 1, years = 1 }) {
+  const userRef  = db.doc(`users/${uid}`)
+  const userSnap = await userRef.get()
+  if (!userSnap.exists) throw new HttpsError('not-found', 'No such user.')
+  const beforeData = userSnap.data()
+
+  let update
+  if (plan === 'pro') {
+    // Same extension rule as the ITN: from the later of now and any remaining
+    // term, so a renewal stacks rather than clobbering paid time.
+    const current = beforeData.entitlementExpiresAt?.toDate?.() ?? null
+    const from    = current && current > new Date() ? current : new Date()
+    const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+    update = {
+      entitlement:          'pro',
+      entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expires),
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  } else if (plan === 'event') {
+    // SET the credit count (not increment): the caller states what the user
+    // should have, which also makes re-submitting idempotent.
+    update = {
+      entitlement:          'event',
+      eventCredits:         credits,
+      entitlementExpiresAt: null,
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  } else {
+    update = {
+      entitlement:          'none',
+      eventCredits:         0,
+      entitlementExpiresAt: null,
+      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }
+  }
+
+  await userRef.update(update)
+  return beforeData
+}
+
 // ── adminSetEntitlement ──────────────────────────────────────────────────────
 // The admin panel's Access tab calls this to grant, change or revoke a plan by
 // hand — an EFT payer, a free/comp account, a correction. It writes the same
@@ -415,42 +460,7 @@ exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('invalid-argument', "plan must be 'none', 'event' or 'pro'.")
   }
 
-  const userRef  = db.doc(`users/${uid}`)
-  const userSnap = await userRef.get()
-  if (!userSnap.exists) throw new HttpsError('not-found', 'No such user.')
-  const beforeData = userSnap.data()
-
-  let update
-  if (plan === 'pro') {
-    // Same extension rule as the ITN: from the later of now and any remaining
-    // term, so a manual renewal stacks rather than clobbering paid time.
-    const current = beforeData.entitlementExpiresAt?.toDate?.() ?? null
-    const from    = current && current > new Date() ? current : new Date()
-    const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
-    update = {
-      entitlement:          'pro',
-      entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expires),
-      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }
-  } else if (plan === 'event') {
-    // SET the credit count (not increment): the admin states what the user
-    // should have, which also makes re-submitting the form idempotent.
-    update = {
-      entitlement:          'event',
-      eventCredits:         credits,
-      entitlementExpiresAt: null,
-      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }
-  } else {
-    update = {
-      entitlement:          'none',
-      eventCredits:         0,
-      entitlementExpiresAt: null,
-      entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }
-  }
-
-  await userRef.update(update)
+  const beforeData = await applyEntitlement(uid, { plan, credits, years })
 
   await db.collection('payments').add({
     manual:        true,
@@ -471,6 +481,170 @@ exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
   // syncUserClaims fires off the users/{uid} write and updates the token claim;
   // the user picks it up on next token refresh (each app forces one on load).
   return { ok: true, plan }
+})
+
+// ── Invoices (EFT billing) ───────────────────────────────────────────────────
+// PayFast is dormant (code kept, UI detached): plans are now sold by invoice.
+// A signed-in user picks a plan and bill-to details → createInvoice writes a
+// sequentially-numbered invoice (MP-<year>-<seq>) → they pay by EFT using the
+// invoice number as reference → an admin marks it paid, which grants the plan
+// through the same applyEntitlement core the admin tool uses.
+//
+// Prices are validated HERE, never trusted from the client. Keep this table in
+// step with src/lib/payfast.js PLANS (the client's display prices).
+const INVOICE_PLANS = {
+  event: { amount: 2000,  label: 'Single Competition',                 once: true  },
+  pro:   { amount: 15000, label: 'All-In Annual',                      once: false },
+}
+
+function cleanBillTo(raw = {}) {
+  const s = (v, n) => String(v ?? '').trim().slice(0, n)
+  return {
+    name:      s(raw.name, 160),      // organisation / school / person the invoice is made out to
+    contact:   s(raw.contact, 120),   // contact person at that organisation
+    email:     s(raw.email, 200).toLowerCase(),
+    address:   s(raw.address, 400),
+    vatNumber: s(raw.vatNumber, 40),
+    reference: s(raw.reference, 80),  // their own PO / order reference, optional
+  }
+}
+
+exports.createInvoice = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+
+  const planKey = String(request.data?.plan || '')
+  const planDef = INVOICE_PLANS[planKey]
+  if (!planDef) throw new HttpsError('invalid-argument', 'Unknown plan.')
+
+  const billTo = cleanBillTo(request.data?.billTo)
+  if (!billTo.name || !billTo.email) {
+    throw new HttpsError('invalid-argument', 'Invoice name and email are required.')
+  }
+
+  const userSnap = await db.doc(`users/${uid}`).get()
+  const accountEmail = userSnap.exists ? (userSnap.data().email ?? null) : null
+
+  // Sequential, human-readable number via a counter transaction — an EFT
+  // reference has to be short and unambiguous, so no random IDs.
+  const counterRef = db.doc('_meta/invoiceCounter')
+  const number = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(counterRef)
+    const seq  = (snap.exists ? snap.data().seq : 0) + 1
+    tx.set(counterRef, { seq }, { merge: true })
+    return `MP-${new Date().getFullYear()}-${String(seq).padStart(4, '0')}`
+  })
+
+  const invoice = {
+    number,
+    uid,
+    accountEmail,
+    plan:      planKey,
+    planLabel: planDef.label,
+    credits:   planKey === 'event' ? 1 : null,
+    years:     planKey === 'pro'   ? 1 : null,
+    amount:    planDef.amount,          // Rand, VAT inclusive where applicable
+    status:    'outstanding',           // outstanding | paid | void
+    billTo,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    paidAt:    null,
+    voidedAt:  null,
+  }
+  const ref = await db.collection('invoices').add(invoice)
+
+  // Email stub: queue the send. Nothing drains this queue yet — when an email
+  // sender is wired (Trigger Email extension on `mailQueue`, or a nodemailer/
+  // SendGrid function), queued invoices start going out with no further change.
+  await db.collection('mailQueue').add({
+    kind:      'invoice',
+    to:        billTo.email,
+    cc:        accountEmail && accountEmail !== billTo.email ? accountEmail : null,
+    invoiceId: ref.id,
+    number,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    sent:      false,
+  })
+
+  logger.info('Invoice created', { number, uid, plan: planKey })
+  return { ok: true, id: ref.id, number }
+})
+
+exports.markInvoicePaid = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) {
+    throw new HttpsError('permission-denied', 'Platform admin only.')
+  }
+  const id = String(request.data?.id || '').trim()
+  if (!id) throw new HttpsError('invalid-argument', 'Invoice id required.')
+
+  const invRef  = db.doc(`invoices/${id}`)
+  const invSnap = await invRef.get()
+  if (!invSnap.exists) throw new HttpsError('not-found', 'No such invoice.')
+  const inv = invSnap.data()
+  if (inv.status === 'paid') return { ok: true, already: true }
+  if (inv.status === 'void') throw new HttpsError('failed-precondition', 'Invoice is void — un-void is not supported; create a new invoice.')
+
+  const beforeData = await applyEntitlement(inv.uid, {
+    plan:    inv.plan,
+    credits: inv.credits ?? 1,
+    years:   inv.years ?? 1,
+  })
+
+  await invRef.update({
+    status:    'paid',
+    paidAt:    admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    paidByAdmin: request.auth.uid,
+  })
+
+  await db.collection('payments').add({
+    manual:        true,
+    method:        'eft',
+    note:          `Invoice ${inv.number} marked paid`,
+    invoiceId:     id,
+    invoiceNumber: inv.number,
+    uid:           inv.uid,
+    email:         inv.accountEmail ?? inv.billTo?.email ?? null,
+    plan:          inv.plan,
+    amountGross:   inv.amount,
+    creditsSet:    inv.plan === 'event' ? (inv.credits ?? 1) : null,
+    years:         inv.plan === 'pro' ? (inv.years ?? 1) : null,
+    previousPlan:  beforeData.entitlement ?? 'none',
+    adminUid:      request.auth.uid,
+    paymentStatus: 'MANUAL',
+    receivedAt:    admin.firestore.FieldValue.serverTimestamp(),
+  })
+
+  logger.info('Invoice paid', { number: inv.number, uid: inv.uid, by: request.auth.uid })
+  return { ok: true }
+})
+
+exports.voidInvoice = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) {
+    throw new HttpsError('permission-denied', 'Platform admin only.')
+  }
+  const id   = String(request.data?.id || '').trim()
+  const note = String(request.data?.note || '').slice(0, 300)
+  if (!id) throw new HttpsError('invalid-argument', 'Invoice id required.')
+
+  const invRef  = db.doc(`invoices/${id}`)
+  const invSnap = await invRef.get()
+  if (!invSnap.exists) throw new HttpsError('not-found', 'No such invoice.')
+  if (invSnap.data().status === 'paid') {
+    throw new HttpsError('failed-precondition', 'A paid invoice cannot be voided — use a correction in the Access tab instead.')
+  }
+
+  // Void rather than delete: the numbering stays gapless on the record, which
+  // is what you want when reconciling EFTs against a bank statement.
+  await invRef.update({
+    status:    'void',
+    voidNote:  note,
+    voidedAt:  admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    voidedByAdmin: request.auth.uid,
+  })
+  logger.info('Invoice voided', { id, by: request.auth.uid })
+  return { ok: true }
 })
 
 // ── submitContactForm ────────────────────────────────────────────────────────
