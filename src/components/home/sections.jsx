@@ -302,9 +302,6 @@ export function PricingSection() {
         </div>
         <div className="pc-footnote reveal">
           {C.pricing.footnote.map((p, i) => <p key={i}>{p}</p>)}
-          <p className="pc-eft">
-            VAT invoices &amp; EFT payment option: <Link to="/products">See full plan details →</Link>
-          </p>
         </div>
       </div>
     </section>

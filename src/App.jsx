@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -34,10 +35,27 @@ function NotConfigured() {
   )
 }
 
+// Reset scroll on route change. Without this an SPA keeps the previous page's
+// scroll depth, so a short page opened from deep in the homepage renders with
+// its heading stranded above the sticky nav. Hash links (/#pricing) scroll to
+// their section instead — React Router doesn't do that on its own either.
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => {
+    if (hash) {
+      const el = document.getElementById(hash.slice(1))
+      if (el) { el.scrollIntoView(); return }
+    }
+    window.scrollTo(0, 0)
+  }, [pathname, hash])
+  return null
+}
+
 export default function App() {
   useSiteSeo()
   return (
     <>
+      <ScrollToTop />
       <Nav />
       <Routes>
         <Route path="/" element={<Home />} />
