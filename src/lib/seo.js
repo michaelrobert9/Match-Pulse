@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { identityDb, configured } from '../firebase'
 
+const ORIGIN = 'https://matchpulse.co.za'
+
 // Built-in defaults if the /_meta/seoSettings doc is missing or unreadable.
-// Kept small on purpose — anything not covered here is left as whatever the
-// bundle's index.html shipped with.
+// Anything the admin saves in the SEO tab overrides these.
 const DEFAULTS = {
   siteTitle:       'MatchPulse | Sports Results for Schools, Clubs and Competitions',
   siteDescription: 'MatchPulse lets coaches enter results directly after the match, saving schools, clubs and competition organisers from collecting and re-entering every score.',
@@ -12,7 +14,28 @@ const DEFAULTS = {
   ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
   ogImage:         '',
   themeColor:      '#059669',
+  headCode:        '',
 }
+
+// Per-route page titles. The homepage keeps the full site title; other public
+// pages get "Page — MatchPulse". Private routes are also marked noindex.
+const ROUTES = {
+  '/':                     { title: null },
+  '/products':             { title: 'Plans & Pricing — MatchPulse' },
+  '/signup':               { title: 'Create an Account — MatchPulse' },
+  '/login':                { title: 'Sign In — MatchPulse' },
+  '/legal/terms':          { title: 'Terms and Conditions — MatchPulse' },
+  '/legal/privacy':        { title: 'Privacy Policy — MatchPulse' },
+  '/legal/acceptable-use': { title: 'Acceptable Use Policy — MatchPulse' },
+  '/legal/cookies':        { title: 'Cookie Policy — MatchPulse' },
+  '/account':              { title: 'Your Account — MatchPulse', noindex: true },
+  '/admin':                { title: 'Admin — MatchPulse',        noindex: true },
+  '/portal':               { title: 'MatchPulse',                noindex: true },
+  '/invoice/new':          { title: 'New Invoice — MatchPulse',  noindex: true },
+}
+
+// Dynamic private routes (e.g. /invoices/:id) — matched by prefix.
+const NOINDEX_PREFIXES = ['/invoices/']
 
 // Cache the fetched settings for the life of the tab so every route change
 // doesn't re-hit Firestore. First read wins; subsequent reads hydrate from cache.
@@ -47,22 +70,80 @@ function setMeta(selector, attr, value) {
   el.setAttribute(attr, value)
 }
 
-function apply(seo) {
-  if (seo.siteTitle) document.title = seo.siteTitle
-  setMeta('meta[name="description"]',      'content', seo.siteDescription)
-  setMeta('meta[property="og:title"]',     'content', seo.ogTitle || seo.siteTitle)
-  setMeta('meta[property="og:description"]', 'content', seo.ogDescription || seo.siteDescription)
-  setMeta('meta[property="og:image"]',     'content', seo.ogImage)
-  setMeta('meta[name="theme-color"]',      'content', seo.themeColor)
+function setLink(rel, href) {
+  let el = document.head.querySelector(`link[rel="${rel}"][data-managed]`)
+  if (!el) {
+    el = document.createElement('link')
+    el.setAttribute('rel', rel)
+    el.setAttribute('data-managed', '1')
+    document.head.appendChild(el)
+  }
+  el.setAttribute('href', href)
 }
 
-// Apply the site-wide SEO settings. Safe to call from App on mount — noop
-// server-side (`document` guarded), cached across route changes.
+function setRobots(noindex) {
+  let el = document.head.querySelector('meta[name="robots"][data-managed]')
+  if (!noindex) { if (el) el.remove(); return }
+  if (!el) {
+    el = document.createElement('meta')
+    el.setAttribute('name', 'robots')
+    el.setAttribute('data-managed', '1')
+    document.head.appendChild(el)
+  }
+  el.setAttribute('content', 'noindex, nofollow')
+}
+
+// Inject admin-supplied custom head code (StatCounter, verification tags, …).
+// Runs once per tab. innerHTML alone would leave <script> inert, so scripts are
+// rebuilt as real elements — that's what makes counters actually execute.
+let headCodeInjected = false
+function injectHeadCode(html) {
+  if (headCodeInjected || !html || !html.trim()) return
+  headCodeInjected = true
+  const container = document.createElement('div')
+  container.innerHTML = html
+  for (const node of Array.from(container.childNodes)) {
+    if (node.nodeName === 'SCRIPT') {
+      const s = document.createElement('script')
+      for (const a of node.attributes) s.setAttribute(a.name, a.value)
+      s.text = node.textContent
+      document.head.appendChild(s)
+    } else {
+      document.head.appendChild(node.cloneNode(true))
+    }
+  }
+}
+
+function applySite(seo) {
+  setMeta('meta[name="description"]',        'content', seo.siteDescription)
+  setMeta('meta[property="og:title"]',       'content', seo.ogTitle || seo.siteTitle)
+  setMeta('meta[property="og:description"]', 'content', seo.ogDescription || seo.siteDescription)
+  setMeta('meta[property="og:image"]',       'content', seo.ogImage)
+  setMeta('meta[name="theme-color"]',        'content', seo.themeColor)
+  injectHeadCode(seo.headCode)
+}
+
+function applyRoute(seo, pathname) {
+  const route = ROUTES[pathname] || {}
+  const prefixNoindex = NOINDEX_PREFIXES.some(p => pathname.startsWith(p))
+  document.title = route.title || (prefixNoindex ? 'Invoice — MatchPulse' : seo.siteTitle)
+  setLink('canonical', ORIGIN + (pathname === '/' ? '/' : pathname))
+  setMeta('meta[property="og:url"]', 'content', ORIGIN + (pathname === '/' ? '/' : pathname))
+  setRobots(!!route.noindex || prefixNoindex)
+}
+
+// Site-wide SEO + per-route title/canonical. Called once from App, inside the
+// Router, so it re-applies on every navigation.
 export function useSiteSeo() {
+  const { pathname } = useLocation()
   useEffect(() => {
     if (typeof document === 'undefined') return
     let cancelled = false
-    loadSeo().then(seo => { if (!cancelled) apply(seo) })
+    loadSeo().then(seo => {
+      if (cancelled) return
+      applySite(seo)
+      applyRoute(seo, pathname)
+    })
     return () => { cancelled = true }
-  }, [])
+  }, [pathname])
 }

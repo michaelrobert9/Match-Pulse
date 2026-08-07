@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   updateProfile,
   updatePassword,
@@ -7,7 +7,9 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from 'firebase/auth'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDocs, query, setDoc, serverTimestamp, where } from 'firebase/firestore'
+import { statusOf } from '../lib/billing'
+import { formatRand } from '../lib/payfast'
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { useAuth } from '../contexts/AuthContext'
 import { auth, identityDb, storage } from '../firebase'
@@ -28,6 +30,55 @@ function friendlyError(code) {
     case 'auth/network-request-failed': return 'Can’t reach the network. Check your connection and try again.'
     default:                            return 'That didn’t work. Please try again.'
   }
+}
+
+/** The signed-in user's invoices, newest first. Sorted client-side so the
+    where-clause needs no composite index. */
+function InvoicesPanel({ uid }) {
+  const [rows, setRows] = useState(null)
+
+  useEffect(() => {
+    if (!uid) return
+    let cancel = false
+    ;(async () => {
+      try {
+        const q = query(collection(identityDb, 'invoices'), where('uid', '==', uid))
+        const snap = await getDocs(q)
+        if (cancel) return
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        list.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+        setRows(list)
+      } catch {
+        if (!cancel) setRows([])
+      }
+    })()
+    return () => { cancel = true }
+  }, [uid])
+
+  if (!rows || rows.length === 0) return null   // nothing to show, no empty panel
+
+  return (
+    <Panel
+      title="Your invoices"
+      description="Pay any outstanding invoice by EFT using its number as the reference."
+    >
+      <ul className="inv-list">
+        {rows.map(v => {
+          const st = statusOf(v.status)
+          return (
+            <li key={v.id}>
+              <Link to={`/invoices/${v.id}`} className="inv-list-row">
+                <span className="inv-list-no tnum">{v.number}</span>
+                <span className="inv-list-plan">{v.planLabel}</span>
+                <span className="inv-list-amt tnum">{formatRand(v.amount)}</span>
+                <span className={`pill pill-${st.pill}`}>{st.label}</span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </Panel>
+  )
 }
 
 /** Panel wrapper so every section reads the same. */
@@ -246,10 +297,14 @@ export default function Account() {
             </a>
           </div>
           <p className="acct-fine">
-            Purchases are coming to this page shortly. In the meantime, contact{' '}
-            <strong>billing@matchpulse.co.za</strong> and we’ll get you set up.
+            Plans are paid by EFT: choose a plan, we generate an invoice with our bank
+            details and a payment reference, and your plan activates once the payment
+            reflects.
           </p>
         </Panel>
+
+        {/* ── Invoices ──────────────────────────────────────────────────── */}
+        <InvoicesPanel uid={user?.uid} />
 
         {/* ── Sports ────────────────────────────────────────────────────── */}
         <Panel

@@ -1,50 +1,29 @@
 import { Link } from 'react-router-dom'
-import { PLANS, paymentUrl, formatRand } from '../lib/payfast'
+import { PLANS, formatRand } from '../lib/payfast'
 import { useAuth } from '../contexts/AuthContext'
 
-// Bank details for EFT / manual payment. Kept as a plain constant here so it's
-// one edit if a detail changes; the same block renders under every paid plan.
-const EFT = {
-  bank:        'First National Bank',
-  accountName: 'MatchPulse (Pty) Ltd',
-  accountType: 'Business Cheque',
-  accountNo:   '628 4402 1367',
-  branchCode:  '250655',
-  reference:   'Your email address + plan (e.g. name@example.com Pro)',
-  email:       'billing@matchpulse.co.za',
-}
-
+// Plans are sold by EFT invoice: the button raises an invoice (with our bank
+// details and a unique payment reference), and the plan activates when the
+// payment reflects. PayFast checkout is dormant — kept in lib/payfast.js in
+// case card payments return, but nothing links to it.
 function PayButton({ planKey, children }) {
   const { user } = useAuth()
-  if (!user) {
-    return (
-      <Link className="btn btn-primary" to={`/signup?next=${encodeURIComponent(`/products#${planKey}`)}`}>
-        {children}
-      </Link>
-    )
-  }
-  return (
-    <a className="btn btn-primary" href={paymentUrl(planKey, user)}>{children}</a>
-  )
+  const to = user ? `/invoice/new?plan=${planKey}` : `/signup?plan=${planKey}`
+  return <Link className="btn btn-primary" to={to}>{children}</Link>
 }
 
-function EftBlock({ plan }) {
+function EftBlock() {
   return (
     <details className="eft-panel">
-      <summary>Pay by EFT instead</summary>
+      <summary>How payment works</summary>
       <div className="eft-body">
         <p className="eft-lede">
-          Prefer EFT? Transfer <strong>{formatRand(plan.amount)}</strong> to the account below and email proof of payment to{' '}
-          <a href={`mailto:${EFT.email}`}>{EFT.email}</a>. We'll activate your plan within one business day, and you'll receive an invoice by email.
+          Payment is by EFT. Choosing a plan creates an invoice made out to whoever
+          should be billed — you, your school or your club — with our bank details and
+          a unique payment reference on it. Your plan activates as soon as the payment
+          reflects. The invoice stays on your account, and the billing details can be
+          corrected after it's issued if your accounts department needs a change.
         </p>
-        <dl className="eft-details">
-          <div><dt>Bank</dt><dd>{EFT.bank}</dd></div>
-          <div><dt>Account name</dt><dd>{EFT.accountName}</dd></div>
-          <div><dt>Account type</dt><dd>{EFT.accountType}</dd></div>
-          <div><dt>Account number</dt><dd>{EFT.accountNo}</dd></div>
-          <div><dt>Branch code</dt><dd>{EFT.branchCode}</dd></div>
-          <div><dt>Reference</dt><dd>{EFT.reference}</dd></div>
-        </dl>
       </div>
     </details>
   )
@@ -101,12 +80,12 @@ export default function Products() {
               <li>Run a competition (league, cup or tournament)</li>
               <li>Live standings, fixtures &amp; results pages</li>
               <li>Team &amp; player awards, top-scorer tables</li>
-              <li>Downloadable invoice on payment</li>
+              <li>Invoice issued up front, kept on your account</li>
             </ul>
             <div className="product-cta">
               <PayButton planKey="event">Buy Plus — {formatRand(plus.amount)}</PayButton>
             </div>
-            <EftBlock plan={plus} />
+            <EftBlock />
           </article>
 
           {/* Pro */}
@@ -130,17 +109,18 @@ export default function Products() {
             <div className="product-cta">
               <PayButton planKey="pro">Go Pro — {formatRand(pro.amount)} / yr</PayButton>
             </div>
-            <EftBlock plan={pro} />
+            <EftBlock />
           </article>
         </div>
 
         <section className="products-fine">
           <h3>How activation works</h3>
           <ul>
-            <li><strong>Card &amp; instant EFT via PayFast:</strong> access unlocks automatically the moment the payment clears.</li>
-            <li><strong>Manual EFT:</strong> we activate within one business day of the transfer landing, and email you the invoice.</li>
-            <li>All plans are billed by <strong>MatchPulse (Pty) Ltd</strong>, South Africa. Invoices are downloadable from your account after purchase.</li>
-            <li>Questions? <a href="mailto:billing@matchpulse.co.za">billing@matchpulse.co.za</a>.</li>
+            <li><strong>Choose a plan</strong> and tell us who the invoice should be made out to — you, your school or your club.</li>
+            <li><strong>Pay the invoice by EFT</strong>, using the invoice number as your payment reference.</li>
+            <li><strong>Your plan activates</strong> as soon as the payment reflects — usually within one business day.</li>
+            <li>Every invoice stays on your account, and its billing details can be corrected after it's issued.</li>
+            <li>Questions? Use the <Link to="/#contact">contact form</Link>.</li>
           </ul>
         </section>
       </div>

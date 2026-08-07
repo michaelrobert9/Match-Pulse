@@ -2,21 +2,23 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { SPORTS } from '../../lib/sports'
-import { PLANS, paymentUrl, formatRand } from '../../lib/payfast'
+import { PLANS, formatRand } from '../../lib/payfast'
 import ProductVisual from './ProductVisual'
 import * as C from '../../lib/homeContent'
 
 /* ── shared primitives ─────────────────────────────────────────────────── */
 
 // Heading that accepts a string or an array of lines (each on its own line).
-function Heading({ text, className = 'h2' }) {
+// `tag` picks the element so the page keeps a correct outline (one h1, in the
+// hero; h2 everywhere else).
+function Heading({ text, className = 'h2', tag: Tag = 'h2' }) {
   const lines = Array.isArray(text) ? text : [text]
   return (
-    <h2 className={className}>
+    <Tag className={className}>
       {lines.map((l, i) => (
         <span key={i} className="hline">{l}{i < lines.length - 1 ? <br /> : null}</span>
       ))}
-    </h2>
+    </Tag>
   )
 }
 
@@ -30,17 +32,18 @@ function SectionHead({ label, heading, sub, center }) {
   )
 }
 
-// A CTA that either buys a plan (carrying the buyer's uid) or navigates a route.
-// The plan flow mirrors the old PlanCta: signed out → create an account first,
-// signed in → straight to the hosted PayFast checkout. Reused everywhere a paid
-// action appears so there is one purchase path.
+// A CTA that either starts a plan purchase or navigates a route. Plans are sold
+// by EFT invoice: signed out → create an account first (then straight on to the
+// invoice), signed in → the bill-to form. One purchase path, reused everywhere.
+// (The PayFast checkout in lib/payfast.js is dormant, kept for a possible
+// return to card payments — nothing links to it.)
 export function useBuy() {
   const { user } = useAuth()
   const navigate = useNavigate()
   return (plan) => {
     if (!plan) { navigate('/signup'); return }
     if (!user) { navigate(`/signup?plan=${plan}`); return }
-    window.location.assign(paymentUrl(plan, { uid: user.uid, email: user.email }))
+    navigate(`/invoice/new?plan=${plan}`)
   }
 }
 
@@ -59,7 +62,9 @@ export function SportFinder() {
     <section className="sportfinder" id="find" aria-labelledby="find-h">
       <div className="wrap">
         <p className="sf-eyebrow">{C.sportFinder.eyebrow}</p>
-        <h2 id="find-h" className="sf-heading">{C.sportFinder.heading}</h2>
+        {/* A styled <p>, not a heading: this strip precedes the page's h1 (the
+            hero), and a heading here would put the document outline out of order. */}
+        <p id="find-h" className="sf-heading">{C.sportFinder.heading}</p>
         <div className="sf-grid">
           {SPORTS.map(s => (
             <a key={s.key} className="sf-card" style={{ '--hue': s.hue }} href={s.host}>
@@ -83,7 +88,7 @@ export function Hero() {
       <div className="wrap mp-hero-grid">
         <div className="mp-hero-copy">
           <p className="eyebrow">{C.hero.eyebrow}</p>
-          <Heading text={C.hero.heading} className="mp-hero-h1" />
+          <Heading text={C.hero.heading} className="mp-hero-h1" tag="h1" />
           <p className="mp-hero-body">{C.hero.body}</p>
           <div className="mp-hero-cta">
             <Cta to={C.hero.primary.to} className="btn btn-primary">{C.hero.primary.label}</Cta>

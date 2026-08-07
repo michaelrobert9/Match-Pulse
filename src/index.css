@@ -821,3 +821,98 @@ section#sports.block { padding: 84px 0; }
   padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
 }
 .adm-grant-current { margin-top: 8px; font-size: 13px; color: #6b7580; }
+
+/* ── Admin — custom head-code editor ─────────────────────────────────────── */
+.adm-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important; font-size: 12.5px !important; line-height: 1.5; white-space: pre; overflow-x: auto; }
+.adm-field-hint { margin: 6px 0 0; font-size: 12.5px; color: #6b7580; line-height: 1.5; }
+
+/* ── Invoices ────────────────────────────────────────────────────────────── */
+.inv-new-wrap { max-width: 640px; }
+.inv-plan-summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 26px;
+}
+.inv-plan-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; margin: 0; }
+.inv-plan-detail { font-size: 13.5px; color: #6b7580; margin: 4px 0 0; }
+.inv-plan-price { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; margin: 0; white-space: nowrap; }
+.inv-plan-price span { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px; color: #6b7580; }
+
+.inv-wrap { max-width: 760px; }
+.inv-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 26px 0 18px; flex-wrap: wrap; }
+.inv-toolbar-actions { display: flex; gap: 8px; }
+.inv-edit { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; margin-bottom: 22px; }
+.inv-edit-h { font-family: 'Space Grotesk', sans-serif; font-size: 18px; margin: 0 0 6px; }
+
+.inv-doc {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 40px 42px; margin-bottom: 60px;
+}
+.inv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 24px; border-bottom: 2px solid var(--ink); }
+.inv-mark { font-size: 26px; }
+.inv-site { margin: 6px 0 0; font-size: 13px; color: #6b7580; }
+.inv-title { text-align: right; }
+.inv-title h1 { font-family: 'Space Grotesk', sans-serif; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+.inv-number { font-size: 15px; font-weight: 700; margin: 4px 0 8px; }
+.pill-muted { background: #E9EBEF; color: #5B6472; }
+
+.inv-meta { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; padding: 24px 0; }
+.inv-meta h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6b7580; margin: 0 0 8px; }
+.inv-billto p { margin: 2px 0; font-size: 14.5px; }
+.inv-billto-name { font-weight: 700; font-size: 16px !important; }
+.inv-pre { white-space: pre-line; }
+.inv-dates p { display: flex; justify-content: space-between; gap: 12px; margin: 2px 0; font-size: 14px; }
+.inv-dates p span { color: #6b7580; }
+
+.inv-lines { width: 100%; border-collapse: collapse; margin: 4px 0 26px; }
+.inv-lines th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: #6b7580; border-bottom: 1px solid var(--line); padding: 8px 0; }
+.inv-lines td { padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 15px; vertical-align: top; }
+.inv-lines .num { text-align: right; white-space: nowrap; }
+.inv-line-detail { font-size: 13px; color: #6b7580; margin-top: 4px; }
+.inv-lines tfoot td { border-bottom: 0; font-weight: 700; font-size: 17px; padding-top: 16px; }
+.inv-vat { font-weight: 400; font-size: 12.5px; color: #6b7580; }
+
+.inv-pay { background: var(--canvas); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; }
+.inv-pay h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16px; margin: 0 0 10px; }
+.inv-pay-lede { font-size: 14px; line-height: 1.55; color: #3a444e; margin: 0 0 14px; }
+.inv-bank { display: grid; grid-template-columns: max-content 1fr; gap: 5px 18px; margin: 0; font-size: 14px; }
+.inv-bank > div { display: contents; }
+.inv-bank dt { color: #6b7580; }
+.inv-bank dd { margin: 0; font-weight: 600; }
+.inv-ref { color: var(--pulse-ink); font-size: 15px; }
+.inv-voidnote { color: #6b7580; font-style: italic; }
+.inv-foot { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line); }
+.inv-foot p { margin: 0; font-size: 12px; color: #8a949e; text-align: center; }
+
+.inv-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.inv-list-row {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items: center;
+  padding: 12px 15px; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  font-size: 14px; transition: border-color .15s;
+}
+.inv-list-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); }
+.inv-list-no { font-weight: 700; }
+.inv-list-plan { color: #6b7580; }
+.inv-list-amt { font-weight: 600; }
+
+.adm-filterrow { display: flex; gap: 6px; }
+.adm-filter { background: transparent; border: 1px solid var(--line); border-radius: 980px; padding: 7px 14px; font-size: 13px; font-weight: 600; color: #6b7580; cursor: pointer; font-family: 'Inter', sans-serif; }
+.adm-filter.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.adm-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .inv-doc { padding: 26px 20px; }
+  .inv-meta { grid-template-columns: 1fr; gap: 18px; }
+  .inv-list-row { grid-template-columns: 1fr auto; }
+  .inv-list-plan { display: none; }
+}
+
+/* Print: the invoice document alone, clean. */
+@media print {
+  header, footer, .noprint { display: none !important; }
+  body { background: #fff; }
+  .acct.inv-page { padding: 0; }
+  .inv-wrap { max-width: none; padding: 0; }
+  .inv-doc { border: 0; border-radius: 0; padding: 0; margin: 0; }
+  .inv-pay { break-inside: avoid; }
+}
