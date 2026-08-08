@@ -85,6 +85,9 @@ service cloud.firestore {
         || (controlsPerson(resource.data) && consentFieldsUnchanged())
         || (managesPerson(resource.data) && personControlFieldsUnchanged() && consentFieldsUnchanged())
         || (isSignedIn()
+            // Team-sheet-created profiles are claimable ONLY through the
+            // verified-email branch — never this legacy unverified path.
+            && resource.data.get('createdVia', '') != 'teamSheet'
             && resource.data.get('ownerUid', null) == null
             && resource.data.get('guardianUids', []).size() == 0
             && request.resource.data.diff(resource.data).affectedKeys()
