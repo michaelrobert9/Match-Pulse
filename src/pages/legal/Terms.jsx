@@ -24,7 +24,7 @@ export default function Terms() {
       <p><strong>Parent</strong> means a parent or legal guardian of a Player who is a minor.</p>
       <p><strong>Spectator</strong> means a person who uses the Platform to view competitions, results or statistics.</p>
       <p><strong>User</strong> means any person who uses the Platform, including Organisers, Players, Managers, Parents and Spectators.</p>
-      <p><strong>Paid Plan</strong> means any paid plan we offer, as described on our pricing page. Some Paid Plans are once-off and some are recurring.</p>
+      <p><strong>Paid Plan</strong> means any paid plan we offer, as described on our pricing page. Some Paid Plans are once-off and some run for a fixed period.</p>
       <p><strong>Content</strong> means any data, text, results, scores, images, team information, player information and other material submitted to or generated on the Platform.</p>
 
       <h2>2. Accounts</h2>
@@ -52,11 +52,11 @@ export default function Terms() {
       <p>5.4. The pricing principle is simple: you pay for what you host, not for what you play in. Participating in a competition someone else hosts does not require a Paid Plan.</p>
 
       <h3>Renewals</h3>
-      <p>5.5. Some Paid Plans are once-off, and some renew automatically for a further period unless you cancel before the renewal date. Where a plan renews automatically, we will send you a reminder by email before each renewal so you can decide whether to continue. Whether a plan is once-off or recurring is shown at the time of purchase and on our pricing page.</p>
-      <p>5.6. You can cancel automatic renewal at any time before the renewal date. Cancellation stops the next charge; it does not end your current paid period early.</p>
+      <p>5.5. Some Paid Plans are once-off. Others run for a fixed period — for example, a year — and then end. Plans do not renew automatically, and you are not charged again unless you make a new purchase. To continue after a plan ends, you buy it again. Whether a plan is once-off or for a fixed period, and its expiry date, are shown at the time of purchase, on your account page, and on our pricing page.</p>
+      <p>5.6. We do not currently send a reminder before a plan ends, so please check the expiry date on your account page if you want to buy again before it lapses. When a Paid Plan ends, your existing competitions, results and data are not deleted — you simply cannot create new competitions under that plan until you buy again.</p>
 
       <h3>Refunds</h3>
-      <p>5.7. You may request a refund of a Paid Plan <strong>before a competition has begun or holds active data</strong> under that plan. Once a competition tied to the plan has started or contains active match data, the plan is treated as used and <strong>no refund is payable</strong>. This applies to both once-off and recurring plans.</p>
+      <p>5.7. You may request a refund of a Paid Plan <strong>before a competition has begun or holds active data</strong> under that plan. Once a competition tied to the plan has started or contains active match data, the plan is treated as used and <strong>no refund is payable</strong>. This applies to both once-off and fixed-period plans.</p>
       <p>5.8. Clause 5.7 sets out your rights under this policy. It does not limit any right you have under the Consumer Protection Act or the Electronic Communications and Transactions Act that cannot be excluded by agreement.</p>
 
       <h2>6. Minors</h2>

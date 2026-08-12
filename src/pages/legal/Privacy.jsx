@@ -38,7 +38,7 @@ export default function Privacy() {
         <li>create and manage accounts and Player profiles;</li>
         <li>calculate standings and statistics;</li>
         <li>process payments for Paid Plans;</li>
-        <li>send service messages, including renewal reminders for recurring plans;</li>
+        <li>send service messages about your account and plans where needed;</li>
         <li>keep the Platform secure and prevent misuse;</li>
         <li>comply with our legal obligations.</li>
       </ul>
