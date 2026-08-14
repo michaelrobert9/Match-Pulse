@@ -11,7 +11,7 @@ export const SPORTS = [
     key:   'hockey',
     name:  'Hockey',
     hue:   '#059669',
-    host:  'https://match-pulse-hockey.web.app',
+    host:  'https://hockey.matchpulse.co.za',
     blurb: 'Goals, cards and quarters, with full team and player records.',
   },
   {
