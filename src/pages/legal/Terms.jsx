@@ -18,7 +18,7 @@ export default function Terms() {
       </p>
 
       <h2>1. Definitions</h2>
-      <p><strong>Organiser</strong> means a person or organisation that creates or administers a competition, tournament, league or fixture on the Platform.</p>
+      <p><strong>Organiser</strong> means a person or organisation that creates or administers a competition, tournament, league or match on the Platform.</p>
       <p><strong>Player</strong> means an individual whose participation, profile or statistics are recorded on the Platform.</p>
       <p><strong>Manager</strong> means a person who administers a team or a group of Players.</p>
       <p><strong>Parent</strong> means a parent or legal guardian of a Player who is a minor.</p>
@@ -34,7 +34,7 @@ export default function Terms() {
       <p>2.4. We may suspend or close an account that breaches these Terms, our Acceptable Use Policy, or applicable law.</p>
 
       <h2>3. Roles and responsibilities</h2>
-      <p>3.1. <strong>Organisers</strong> are responsible for the competitions they run on the Platform, including fixtures, results, and the accuracy of the information they publish. Organisers confirm the outcome of every match through the Platform's manual confirmation process.</p>
+      <p>3.1. <strong>Organisers</strong> are responsible for the competitions they run on the Platform, including matches, results, and the accuracy of the information they publish. Organisers confirm the outcome of every match through the Platform's manual confirmation process.</p>
       <p>3.2. <strong>Organisers cannot create Player profiles</strong> and cannot attach a Player's name to live scoring in a competition. Only a Player, a Parent, or a Manager may create and manage a Player profile. This is a deliberate design choice, and it means the person who creates a profile is responsible for that profile and for any consent required to publish it.</p>
       <p>3.3. <strong>Players, Parents and Managers</strong> who create profiles are responsible for the information in those profiles and confirm they are entitled to publish it. Where a profile relates to a minor, clause 6 applies.</p>
       <p>3.4. <strong>Spectators</strong> may view public competition information subject to these Terms.</p>

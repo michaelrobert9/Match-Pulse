@@ -51,7 +51,7 @@ export default function Products() {
             <header>
               <h2>Free</h2>
               <p className="product-price"><span className="amount">R0</span></p>
-              <p className="product-tagline">Unlimited teams &amp; fixtures. Zero cost, forever.</p>
+              <p className="product-tagline">Unlimited teams &amp; matches. Zero cost, forever.</p>
             </header>
             <ul className="product-features">
               <li>Unlimited teams, players and matches</li>
@@ -78,7 +78,7 @@ export default function Products() {
             <ul className="product-features">
               <li>Everything in Free</li>
               <li>Run a competition (league, cup or tournament)</li>
-              <li>Live standings, fixtures &amp; results pages</li>
+              <li>Live standings, matches &amp; results pages</li>
               <li>Team &amp; player awards, top-scorer tables</li>
               <li>Invoice issued up front, kept on your account</li>
             </ul>

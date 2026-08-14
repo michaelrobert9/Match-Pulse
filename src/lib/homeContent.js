@@ -7,8 +7,8 @@
 
 // § Sport finder (top of page) — quick route to a sport site.
 export const sportFinder = {
-  eyebrow: 'Fixtures, scores & results',
-  heading: 'Looking for fixtures, scores or results? Choose your sport.',
+  eyebrow: 'Matches, scores & results',
+  heading: 'Looking for matches, scores or results? Choose your sport.',
 }
 
 // § Hero
@@ -47,7 +47,7 @@ export const problem = {
 export const howItWorks = {
   heading: 'Results should be completed at the match.',
   steps: [
-    { n: '01', title: 'The fixture is ready',      body: 'The match is already available on MatchPulse before play begins.' },
+    { n: '01', title: 'The match is ready',      body: 'The match is already available on MatchPulse before play begins.' },
     { n: '02', title: 'The coach enters the result', body: 'After the match, the coach or scorer adds the final score.' },
     { n: '03', title: 'Everyone can see it',        body: 'The result is immediately available to the school, club, competition and everyone following the sport.' },
   ],
@@ -96,7 +96,7 @@ export const audience = [
   {
     who: 'For parents, players and supporters',
     line: 'One place to look.',
-    body: 'Find fixtures, scores, results and competition information through the relevant MatchPulse sport website.',
+    body: 'Find matches, scores, results and competition information through the relevant MatchPulse sport website.',
   },
 ]
 
@@ -105,27 +105,27 @@ export const sportsNetwork = {
   heading: ['One MatchPulse account.', 'A dedicated home for every sport.'],
   body:
     'MatchPulse brings your organisation together under one account while giving every sport ' +
-    'its own place for fixtures, scores and results.',
+    'its own place for matches, scores and results.',
   closing: 'One account. Every sport connected.',
   // keyed by sport.key — longer marketing line than the registry blurb
   descriptions: {
-    hockey:    'Fixtures, live scores and results for school and club hockey.',
-    netball:   'Fixtures, live scores and results for school and club netball.',
-    rugby:     'Fixtures, live scores and results for school and club rugby.',
-    waterpolo: 'Fixtures, live scores and results for school and club water polo.',
+    hockey:    'Matches, live scores and results for school and club hockey.',
+    netball:   'Matches, live scores and results for school and club netball.',
+    rugby:     'Matches, live scores and results for school and club rugby.',
+    waterpolo: 'Matches, live scores and results for school and club water polo.',
   },
 }
 
 // § Free use
 export const freeUse = {
-  heading: 'Start with your everyday fixtures. Free.',
+  heading: 'Start with your everyday matches. Free.',
   body:
-    'Schools and clubs can use MatchPulse for ordinary fixtures and results without purchasing ' +
+    'Schools and clubs can use MatchPulse for ordinary matches and results without purchasing ' +
     'a competition package. Create your organisation, add your teams and give coaches a simpler ' +
     'way to enter results.',
   items: [
     'Create teams',
-    'Create ordinary fixtures',
+    'Create ordinary matches',
     'Enter results',
     'Publish scores',
     'Give supporters one place to follow',
@@ -141,13 +141,13 @@ export const competition = {
   heading: 'Running a competition?',
   paragraphs: [
     'A competition creates more matches, more teams and more results for someone to manage. ' +
-      'MatchPulse gives every fixture and result one place to go from the beginning of the ' +
+      'MatchPulse gives every match and result one place to go from the beginning of the ' +
       'competition to the final match.',
     'Participating coaches and scorers enter results directly. Organisers see the competition ' +
       'come together without manually collecting every score.',
   ],
   items: [
-    'Fixtures together',
+    'Matches together',
     'Results up to date',
     'Competition tables current',
     'Teams informed',
@@ -166,12 +166,12 @@ export const pricing = {
       name: 'Everyday MatchPulse',
       plan: null,
       freeLabel: 'Free',
-      description: 'For schools and clubs recording ordinary fixtures and results.',
+      description: 'For schools and clubs recording ordinary matches and results.',
       items: [
         'Organisation and team setup',
-        'Fixture creation',
+        'Match creation',
         'Result entry',
-        'Public fixtures and results',
+        'Public matches and results',
         'Access to the MatchPulse sport websites',
       ],
       button: 'Start Free',
@@ -186,7 +186,7 @@ export const pricing = {
       items: [
         'Competition setup',
         'Participating teams',
-        'Competition fixtures',
+        'Competition matches',
         'Direct result entry',
         'Results and standings',
         'Public competition page',
@@ -227,7 +227,7 @@ export const benefits = {
     { title: 'Share the responsibility',           body: 'Each coach enters the one result they already know instead of one person processing every result.' },
     { title: 'Know what is complete',              body: 'See which results have been entered and where attention may still be needed.' },
     { title: 'Make results immediately available', body: 'Once a result is entered, people following the sport can find it without waiting for a separate results list.' },
-    { title: 'Create one reliable place to look',  body: 'Fixtures, scores, results and competitions remain available through the relevant MatchPulse sport website.' },
+    { title: 'Create one reliable place to look',  body: 'Matches, scores, results and competitions remain available through the relevant MatchPulse sport website.' },
   ],
 }
 
@@ -235,7 +235,7 @@ export const benefits = {
 export const productDemo = {
   heading: 'From final whistle to published result',
   steps: [
-    { title: 'Match finished',   body: 'The coach or scorer opens the scheduled fixture.' },
+    { title: 'Match finished',   body: 'The coach or scorer opens the scheduled match.' },
     { title: 'Result entered',   body: 'The final score is added in a few simple steps.' },
     { title: 'Result available', body: 'The school, club, organiser and supporters can see it immediately.' },
   ],
@@ -245,14 +245,14 @@ export const productDemo = {
 
 // § FAQ
 export const faqs = [
-  { q: 'Is MatchPulse free?',                          a: 'MatchPulse is free for ordinary school and club fixtures. Competition packages are available when an organisation wants to run a formal competition.' },
+  { q: 'Is MatchPulse free?',                          a: 'MatchPulse is free for ordinary school and club matches. Competition packages are available when an organisation wants to run a formal competition.' },
   { q: 'What counts as a competition?',                a: 'A competition is an organised group of matches within a defined sport and age group, such as a league, festival or tournament.' },
   { q: 'What is included in the Single Competition plan?', a: 'The plan covers one defined competition within one sport and one age group.' },
   { q: 'Who enters the results?',                      a: 'The coach, scorer or authorised person at the match enters the result directly into MatchPulse.' },
-  { q: 'Where do parents and supporters find results?', a: 'Each sport has its own MatchPulse website where people can find fixtures, scores, results and competitions.' },
+  { q: 'Where do parents and supporters find results?', a: 'Each sport has its own MatchPulse website where people can find matches, scores, results and competitions.' },
   { q: 'Do we need a different account for every sport?', a: 'No. An organisation starts with one MatchPulse account and uses it across the relevant MatchPulse sports.' },
   { q: 'What happens if we run several sports or age groups?', a: 'The All-In Annual plan covers all available sports, all age groups and unlimited competitions for the calendar year.' },
-  { q: 'Can we start free before buying a competition plan?', a: 'Yes. A school or club can begin using MatchPulse for ordinary fixtures and choose a competition plan when needed.' },
+  { q: 'Can we start free before buying a competition plan?', a: 'Yes. A school or club can begin using MatchPulse for ordinary matches and choose a competition plan when needed.' },
 ]
 
 // § Final CTA

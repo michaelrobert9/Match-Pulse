@@ -290,7 +290,7 @@ export default function Account() {
               {plan.key === 'plus'    && <p className="plan-meta">{plan.credits} event credit{plan.credits === 1 ? '' : 's'} remaining.</p>}
               {plan.key === 'pro'     && <p className="plan-meta">Renews {plan.expiresAt?.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
               {plan.key === 'expired' && <p className="plan-meta">Your Pro subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
-              {plan.key === 'free'    && <p className="plan-meta">Unlimited teams and fixtures. Upgrade to run a competition.</p>}
+              {plan.key === 'free'    && <p className="plan-meta">Unlimited teams and matches. Upgrade to run a competition.</p>}
             </div>
             <a className="btn btn-primary" href="/#plans">
               {plan.key === 'free' ? 'See plans' : 'Change plan'}
