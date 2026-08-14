@@ -16,7 +16,7 @@ export default function AcceptableUse() {
       <p>You agree to use the Platform lawfully and honestly. You must not use it in a way that harms others, misrepresents results, or interferes with how it works.</p>
 
       <h2>2. Accurate competition data</h2>
-      <p>Organisers and Managers must record fixtures, results and statistics honestly. Do not enter false results, manipulate standings, or misrepresent what happened in a match.</p>
+      <p>Organisers and Managers must record matches, results and statistics honestly. Do not enter false results, manipulate standings, or misrepresent what happened in a match.</p>
 
       <h2>3. Player profiles and other people's information</h2>
       <p>You must not:</p>

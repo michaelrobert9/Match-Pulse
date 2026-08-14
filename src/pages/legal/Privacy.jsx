@@ -23,7 +23,7 @@ export default function Privacy() {
       <h2>2. Information we collect</h2>
       <p><strong>Account information.</strong> When you create an account, we collect information such as your name, email address, and login details. Different roles (Organiser, Player, Manager, Parent, Spectator) may provide different information.</p>
       <p><strong>Player profile information.</strong> When a Player, Parent or Manager creates a Player profile, we collect the information they choose to include, such as the Player's name, team, age group and statistics.</p>
-      <p><strong>Competition information.</strong> When Organisers run competitions, we process fixtures, results, scores and standings, which may include Player names and statistics.</p>
+      <p><strong>Competition information.</strong> When Organisers run competitions, we process matches, results, scores and standings, which may include Player names and statistics.</p>
       <p><strong>Payment information.</strong> When you buy a Paid Plan, payment is handled by PayFast. We receive confirmation of payment and related transaction details. We do not store your full card details.</p>
       <p><strong>Technical information.</strong> We collect information about how you access the Platform, such as device and browser information and log data, and information collected through cookies. See our <Link to="/legal/cookies">Cookie Policy</Link> for detail.</p>
 
