@@ -1,0 +1,275 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import {
+  ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
+  slugify, generateUniqueOrgSlug, slugIsFree,
+  createOrg, updateOrg, uploadOrgAsset, getOrg,
+} from '../lib/orgs'
+
+const SOCIALS = [
+  { key: 'facebook',  label: 'Facebook' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'x',         label: 'X (Twitter)' },
+  { key: 'youtube',   label: 'YouTube' },
+]
+
+function AssetField({ label, kind, orgId, url, onChange, hint }) {
+  const input = useRef(null)
+  const [busy, setBusy] = useState(false)
+  const [err,  setErr]  = useState('')
+
+  async function pick(file) {
+    if (!file) return
+    if (!orgId) { setErr('Save the organisation first, then add images.'); return }
+    setBusy(true); setErr('')
+    try {
+      const next = await uploadOrgAsset(kind, orgId, file)
+      onChange(`${next}?t=${Date.now()}`) // cache-bust after re-upload to same path
+    } catch (e) {
+      setErr(e.message || 'Upload failed.')
+    } finally {
+      setBusy(false)
+      if (input.current) input.current.value = ''
+    }
+  }
+
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <div className="org-asset">
+        <div className={`org-asset-preview ${kind}`}>
+          {url ? <img src={url} alt="" /> : <span className="org-asset-empty">No image</span>}
+        </div>
+        <div className="org-asset-actions">
+          <input ref={input} type="file" accept="image/*" className="pfp-input"
+            onChange={e => pick(e.target.files?.[0])} />
+          <button type="button" className="btn btn-dark btn-sm" disabled={busy || !orgId}
+            onClick={() => input.current?.click()}>
+            {busy ? 'Uploading…' : url ? 'Replace' : 'Upload'}
+          </button>
+          {url && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange('')}>Remove</button>}
+          <p className="adm-field-hint">{hint}</p>
+          {err && <p className="form-err">{err}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function OrgForm() {
+  const { id } = useParams()                 // undefined on /new
+  const editing = !!id
+  const { user, profile } = useAuth()
+  const isAdmin = profile?.platformAdmin === true
+  const navigate = useNavigate()
+
+  const [f,        setF]        = useState(emptyOrg())
+  const [slug,     setSlug]     = useState('')
+  const [record,   setRecord]   = useState(null)   // existing doc when editing
+  const [loading,  setLoading]  = useState(editing)
+  const [busy,     setBusy]     = useState(false)
+  const [msg,      setMsg]      = useState(null)
+  const [denied,   setDenied]   = useState(false)
+  const [transfer, setTransfer] = useState('')     // new ownerUserId, transfer only
+
+  // Load existing org for edit; gate to owner/admin (rules also enforce).
+  useEffect(() => {
+    if (!editing) return
+    let cancel = false
+    ;(async () => {
+      try {
+        const org = await getOrg(id)
+        if (cancel) return
+        if (!org) { setDenied(true); setLoading(false); return }
+        if (org.ownerUserId !== user?.uid && !isAdmin) { setDenied(true); setLoading(false); return }
+        setRecord(org)
+        setSlug(org.slug || '')
+        setF({ ...emptyOrg(), ...org, socialLinks: org.socialLinks || {} })
+        setLoading(false)
+      } catch {
+        if (!cancel) { setDenied(true); setLoading(false) }
+      }
+    })()
+    return () => { cancel = true }
+  }, [editing, id, user?.uid, isAdmin])
+
+  const set   = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
+  const setSoc = (k) => (e) => setF(s => ({ ...s, socialLinks: { ...s.socialLinks, [k]: e.target.value } }))
+  const showMatchName = typeHasMatchName(f.type)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!f.name.trim()) { setMsg({ kind: 'err', text: 'Name is required.' }); return }
+    setBusy(true); setMsg(null)
+    try {
+      if (editing) {
+        await updateOrg(id, f, isAdmin || record?.ownerUserId === user?.uid
+          ? (transfer.trim() ? { transferOwnerUserId: transfer.trim() } : {})
+          : {})
+        setMsg({ kind: 'ok', text: 'Organisation saved.' })
+        if (transfer.trim()) { navigate('/organisations', { replace: true }); return }
+      } else {
+        const chosen = slug.trim() || await generateUniqueOrgSlug(f.name)
+        if (!(await slugIsFree(chosen))) {
+          setMsg({ kind: 'err', text: `The slug "${chosen}" is taken — edit it and try again.` })
+          setSlug(chosen); setBusy(false); return
+        }
+        const res = await createOrg({ uid: user.uid, slug: chosen, fields: f })
+        // Land on edit so they can now add logo/banner (needs the orgId).
+        navigate(`/organisations/${res.id}/edit`, { replace: true })
+        return
+      }
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Could not save.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Offer a slug suggestion as they type the name (create only).
+  async function suggestSlug() {
+    if (editing) return
+    setSlug(await generateUniqueOrgSlug(f.name))
+  }
+
+  if (loading) return <main className="acct"><div className="wrap"><p className="adm-loading" style={{ paddingTop: 40 }}>Loading…</p></div></main>
+  if (denied)  return (
+    <main className="acct"><div className="wrap">
+      <p className="notice notice-err" style={{ marginTop: 40 }}>You don’t have access to edit this organisation.</p>
+      <p><Link to="/organisations">Back to your organisations</Link></p>
+    </div></main>
+  )
+
+  return (
+    <main className="acct">
+      <div className="wrap org-form-wrap">
+        <header className="acct-head">
+          <p className="label">Organisation</p>
+          <h1>{editing ? f.name || 'Edit organisation' : 'Create an organisation'}</h1>
+          {editing && <p className="acct-email">Slug <strong>{slug}</strong> · fixed after creation</p>}
+        </header>
+
+        {msg && <p className={`notice ${msg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`} role="status">{msg.text}</p>}
+
+        <form className="acct-form" onSubmit={submit}>
+          {/* Identity */}
+          <div className="field">
+            <label htmlFor="o-name">Name *</label>
+            <input id="o-name" type="text" required value={f.name} onChange={set('name')} onBlur={suggestSlug}
+              placeholder="e.g. Ashton College" />
+          </div>
+
+          <div className="field">
+            <label htmlFor="o-type">Type</label>
+            <select id="o-type" value={f.type} onChange={set('type')}>
+              {ORG_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          </div>
+
+          {showMatchName && (
+            <div className="field">
+              <label htmlFor="o-matchName">Match name <span className="opt">short name shown on matches</span></label>
+              <input id="o-matchName" type="text" value={f.matchName || ''} onChange={set('matchName')}
+                placeholder="e.g. Ashton" />
+            </div>
+          )}
+
+          {!editing && (
+            <div className="field">
+              <label htmlFor="o-slug">Slug <span className="opt">web address — fixed after creation</span></label>
+              <input id="o-slug" type="text" value={slug}
+                onChange={e => setSlug(slugify(e.target.value))}
+                onFocus={() => { if (!slug) suggestSlug() }}
+                placeholder="ashton-college" />
+            </div>
+          )}
+
+          <div className="field">
+            <label htmlFor="o-gender">Gender profile</label>
+            <select id="o-gender" value={f.genderProfile} onChange={set('genderProfile')}>
+              {GENDER_PROFILES.map(g => <option key={g.key} value={g.key}>{g.label}</option>)}
+            </select>
+          </div>
+
+          {/* Assets */}
+          <AssetField label="Logo" kind="logo" orgId={editing ? id : null}
+            url={f.logoUrl} onChange={v => setF(s => ({ ...s, logoUrl: v }))}
+            hint="Square works best. Under 2 MB. JPEG, PNG or WebP." />
+          <AssetField label="Banner" kind="banner" orgId={editing ? id : null}
+            url={f.bannerUrl} onChange={v => setF(s => ({ ...s, bannerUrl: v }))}
+            hint="Wide image for the org page header. Under 5 MB." />
+
+          {/* Colours */}
+          <div className="org-colors">
+            <div className="field">
+              <label htmlFor="o-primary">Primary colour</label>
+              <div className="org-color-row">
+                <input id="o-primary" type="color" value={f.primaryColor} onChange={set('primaryColor')} />
+                <input type="text" value={f.primaryColor} onChange={set('primaryColor')} />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="o-secondary">Secondary colour</label>
+              <div className="org-color-row">
+                <input id="o-secondary" type="color" value={f.secondaryColor} onChange={set('secondaryColor')} />
+                <input type="text" value={f.secondaryColor} onChange={set('secondaryColor')} />
+              </div>
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="field">
+            <label htmlFor="o-bio">Bio</label>
+            <textarea id="o-bio" rows={3} value={f.bio} onChange={set('bio')}
+              placeholder="A short description of the organisation." />
+          </div>
+          <div className="field">
+            <label htmlFor="o-region">Region</label>
+            <input id="o-region" type="text" value={f.region} onChange={set('region')} placeholder="e.g. KwaZulu-Natal" />
+          </div>
+          <div className="field">
+            <label htmlFor="o-website">Website</label>
+            <input id="o-website" type="url" value={f.website} onChange={set('website')} placeholder="https://…" />
+          </div>
+          <div className="field">
+            <label htmlFor="o-email">Contact email</label>
+            <input id="o-email" type="email" value={f.contactEmail} onChange={set('contactEmail')} placeholder="info@example.co.za" />
+          </div>
+          <div className="field">
+            <label htmlFor="o-phone">Phone</label>
+            <input id="o-phone" type="tel" value={f.phone} onChange={set('phone')} placeholder="e.g. 031 123 4567" />
+          </div>
+
+          {/* Socials */}
+          <div className="field">
+            <label>Social links <span className="opt">optional</span></label>
+            <div className="org-socials">
+              {SOCIALS.map(s => (
+                <input key={s.key} type="url" value={f.socialLinks?.[s.key] || ''} onChange={setSoc(s.key)}
+                  placeholder={s.label} />
+              ))}
+            </div>
+          </div>
+
+          {/* Ownership transfer (edit; owner or admin) */}
+          {editing && (isAdmin || record?.ownerUserId === user?.uid) && (
+            <div className="field org-transfer">
+              <label htmlFor="o-transfer">Transfer ownership <span className="opt">optional — new owner’s user UID</span></label>
+              <input id="o-transfer" type="text" value={transfer} onChange={e => setTransfer(e.target.value)}
+                placeholder="Paste the new owner’s user UID" />
+              <p className="adm-field-hint">Hands this organisation to another account. You’ll no longer be able to edit it unless you’re a platform admin.</p>
+            </div>
+          )}
+
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : editing ? 'Save organisation' : 'Create organisation'}
+          </button>
+          {!editing && <p className="acct-fine">You’ll be able to add a logo and banner right after it’s created.</p>}
+        </form>
+
+        <div className="acct-signout"><Link className="btn btn-ghost" to="/organisations">Back to organisations</Link></div>
+      </div>
+    </main>
+  )
+}

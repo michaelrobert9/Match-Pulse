@@ -306,6 +306,14 @@ export default function Account() {
         {/* ── Invoices ──────────────────────────────────────────────────── */}
         <InvoicesPanel uid={user?.uid} />
 
+        {/* ── Organisations ─────────────────────────────────────────────── */}
+        <Panel
+          title="Your organisations"
+          description="Author a school, club, association or league once — its identity carries to every sport."
+        >
+          <Link className="btn btn-dark" to="/organisations">Manage organisations</Link>
+        </Panel>
+
         {/* ── Sports ────────────────────────────────────────────────────── */}
         <Panel
           title="Your sports"

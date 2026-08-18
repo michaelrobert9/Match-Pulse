@@ -18,6 +18,27 @@ service firebase.storage {
                 && request.resource.contentType.matches('image/.*')));
     }
 
+    // Org logos (≤2 MB) and banners (≤5 MB), keyed by orgId. Public read (the
+    // URL is embedded on public org pages across every sport). Storage rules
+    // can't read Firestore to check org ownership, so writes are gated only on
+    // sign-in + size + image type — mirroring the sport apps' asset pattern.
+    // The authored URL lands on the org doc, which the Firestore rules DO
+    // protect to owner/admin, so a stray upload can't attach itself to an org.
+    match /org-logos/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (request.resource == null
+            || (request.resource.size < 2 * 1024 * 1024
+                && request.resource.contentType.matches('image/.*')));
+    }
+    match /org-banners/{filename} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && (request.resource == null
+            || (request.resource.size < 5 * 1024 * 1024
+                && request.resource.contentType.matches('image/.*')));
+    }
+
     // Everything else denied by default.
     match /{path=**} {
       allow read, write: if false;
