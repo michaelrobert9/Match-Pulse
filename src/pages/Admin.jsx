@@ -191,6 +191,109 @@ function PaymentsTab() {
   )
 }
 
+// ── Hockey migration (one-time) ──────────────────────────────────────────────
+// Drives the Brief #5 migration: Dry run (read-only preview) → Import (writes
+// central, activatedSports empty) → Activate all in Hockey (the safety gate is
+// eyeballing central between Import and Activate).
+function HockeyMigrationPanel() {
+  const [busy, setBusy] = useState('')
+  const [res,  setRes]  = useState(null)
+  const [err,  setErr]  = useState('')
+
+  async function run(fn, arg, label) {
+    if (label === 'import' && !window.confirm('Write these orgs into the central database? Safe to re-run; nothing is written to Hockey.')) return
+    if (label === 'activate' && !window.confirm('Activate every Hockey org into Hockey now? Only do this after eyeballing the imported central records.')) return
+    setBusy(label); setErr(''); setRes(null)
+    try {
+      const call = httpsCallable(functions, fn)
+      const { data } = await call(arg)
+      setRes({ label, data })
+    } catch (e) {
+      setErr(e.message || 'Failed.')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <details className="adm-migrate">
+      <summary>Hockey org migration (one-time)</summary>
+      <div className="adm-migrate-body">
+        <p className="adm-field-hint">
+          <strong>Dry run</strong> previews what would import (writes nothing).
+          <strong> Import</strong> writes the central records with <code>activatedSports</code> empty —
+          Hockey is untouched. Eyeball the central orgs, then <strong>Activate</strong> to switch on the
+          sync into Hockey.
+        </p>
+        <div className="adm-migrate-actions">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy}
+            onClick={() => run('centralMigrateHockeyOrgs', { commit: false }, 'dryrun')}>
+            {busy === 'dryrun' ? 'Reading…' : '1. Dry run'}
+          </button>
+          <button type="button" className="btn btn-dark btn-sm" disabled={!!busy}
+            onClick={() => run('centralMigrateHockeyOrgs', { commit: true }, 'import')}>
+            {busy === 'import' ? 'Importing…' : '2. Import to central'}
+          </button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={!!busy}
+            onClick={() => run('centralActivateHockeyOrgs', {}, 'activate')}>
+            {busy === 'activate' ? 'Activating…' : '3. Activate all in Hockey'}
+          </button>
+        </div>
+
+        <Notice kind="err">{err}</Notice>
+
+        {res && res.data && (
+          <div className="adm-migrate-result">
+            {res.label !== 'activate' ? (
+              <>
+                <p className="adm-name">
+                  {res.data.commit ? `Imported ${res.data.written} of ${res.data.count}` : `Dry run: ${res.data.count} orgs`}
+                  {res.data.collisions?.length ? ` · ⚠️ ${res.data.collisions.length} slug collision(s)` : ''}
+                  {res.data.ambiguities?.length ? ` · ⚠️ ${res.data.ambiguities.length} ambiguous owner(s)` : ''}
+                </p>
+                {res.data.collisions?.length > 0 && (
+                  <p className="form-err">Collisions (nothing written): {res.data.collisions.map(c => c.slug).join(', ')} — resolve by hand.</p>
+                )}
+                <div className="adm-table-wrap">
+                  <table className="adm-table">
+                    <thead><tr><th>Org</th><th>Slug</th><th>Owner</th><th>Staff</th><th>Flags</th></tr></thead>
+                    <tbody>
+                      {res.data.orgs.map(o => (
+                        <tr key={o.orgId}>
+                          <td><div className="adm-name">{o.name || '(no name)'}</div><div className="adm-uid">{o.orgId}</div></td>
+                          <td className="tnum">{o.slug || '—'}</td>
+                          <td className="adm-uid">{o.ownerUserId || '—'}<div className="muted">{o.ownerSource}</div></td>
+                          <td>{o.staffCount}</td>
+                          <td>{o.collision ? <span className="pill pill-warn">slug clash</span> : o.ownerSource?.includes('ambiguous') ? <span className="pill pill-warn">owner?</span> : ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="adm-table-wrap">
+                <table className="adm-table">
+                  <thead><tr><th>Org</th><th>Result</th><th>Staff copied</th></tr></thead>
+                  <tbody>
+                    {res.data.results.map(r => (
+                      <tr key={r.orgId}>
+                        <td className="adm-uid">{r.orgId}</td>
+                        <td>{r.error ? <span className="form-err">{r.error}</span> : r.alreadyActive ? 'already active' : r.skipped ? r.skipped : `activated (${r.sport})`}</td>
+                        <td>{r.staffCount ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
 // ── Orgs ─────────────────────────────────────────────────────────────────────
 // Every central organisation record. Admins can open any into the shared
 // authoring form (rules allow a platform admin to edit any org). Identity is
@@ -228,6 +331,7 @@ function OrgsTab() {
 
   return (
     <div className="adm-section">
+      <HockeyMigrationPanel />
       <div className="adm-toolbar">
         <input type="search" value={q} placeholder="Search by name, slug or region"
           onChange={e => setQ(e.target.value)} />

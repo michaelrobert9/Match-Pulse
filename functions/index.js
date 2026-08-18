@@ -758,36 +758,14 @@ async function writeIdentityToSport(sport, orgId, identity, centralUpdatedMs) {
   return true
 }
 
-// ── centralOrgActivate ───────────────────────────────────────────────────────
-// Activate an org into a sport: copy identity + the whole staff roster down, then
-// record it in the central activatedSports map. Idempotent — a second call for an
-// already-active sport is a no-op. Guard: org owner or platform admin.
-exports.centralOrgActivate = onCall({ region: REGION }, async (request) => {
-  const uid = request.auth?.uid
-  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
-
-  const orgId = String(request.data?.orgId || '').trim()
-  const sport = String(request.data?.sport || '').trim()
-  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
-  if (!isSportKey(sport)) throw new HttpsError('invalid-argument', `sport must be one of ${SPORT_KEYS.join(', ')}.`)
-
-  const orgRef  = db.doc(`organizations/${orgId}`)
-  const orgSnap = await orgRef.get()
-  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
-  const org = orgSnap.data()
-
-  // Guard: owner or platform admin.
-  const admin_ = request.auth?.token?.platformAdmin === true
-    || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
-  if (org.ownerUserId !== uid && !admin_) {
-    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can activate.')
-  }
-
-  // Idempotent: already active → no-op.
+// Activation core, shared by the callable and the Hockey migration's activate
+// step. Copies identity + the whole central staff roster into the sport, then
+// stamps activatedSports.<sport>. Idempotent (already-active → no-op). Assumes
+// the caller has already authorised.
+async function activateOrgIntoSport(org, orgId, sport, uid) {
   if (org.activatedSports && org.activatedSports[sport]) {
     return { sport, slug: org.slug, staffCount: null, alreadyActive: true }
   }
-
   // c. identity into the sport org doc (merge).
   await writeIdentityToSport(sport, orgId, pickIdentity(org), asMillis(org.updatedAt))
 
@@ -803,15 +781,40 @@ exports.centralOrgActivate = onCall({ region: REGION }, async (request) => {
   if (n % 400 !== 0 || n === 0) await batch.commit()
 
   // e. record activation centrally (re-fires the identity trigger — harmless).
-  await orgRef.set({
+  await db.doc(`organizations/${orgId}`).set({
     activatedSports: { [sport]: {
       activatedAt: admin.firestore.FieldValue.serverTimestamp(),
       activatedBy: uid,
     } },
   }, { merge: true })
 
-  logger.info('Org activated in sport', { orgId, sport, staffCount: n, by: uid })
+  logger.info('Org activated in sport', { orgId, sport, staffCount: n })
   return { sport, slug: org.slug, staffCount: n }
+}
+
+// ── centralOrgActivate ───────────────────────────────────────────────────────
+// Activate an org into a sport: copy identity + the whole staff roster down, then
+// record it in the central activatedSports map. Idempotent. Guard: owner|admin.
+exports.centralOrgActivate = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+
+  const orgId = String(request.data?.orgId || '').trim()
+  const sport = String(request.data?.sport || '').trim()
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+  if (!isSportKey(sport)) throw new HttpsError('invalid-argument', `sport must be one of ${SPORT_KEYS.join(', ')}.`)
+
+  const orgSnap = await db.doc(`organizations/${orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+
+  const admin_ = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
+  if (org.ownerUserId !== uid && !admin_) {
+    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can activate.')
+  }
+
+  return activateOrgIntoSport(org, orgId, sport, uid)
 })
 
 // ── centralOrgIdentitySync ───────────────────────────────────────────────────
@@ -868,3 +871,167 @@ exports.centralOrgStaffSync = onDocumentWritten(
     logger.info('Org staff synced', { orgId, uid, deleted: !after, sports })
   }
 )
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HOCKEY ORG MIGRATION (Brief #5) — one-time, one-way (Hockey → central).
+// Admin-only. Reads hockey/organizations, writes (default)/organizations with
+// the SAME doc id (id parity keeps central/Hockey/future sports in lockstep),
+// derives ownerUserId from Hockey's staff, copies the staff roster up, and
+// seeds orgSlugs. Leaves activatedSports EMPTY (safety gate) so nothing is
+// written back to Hockey until a separate activate step. Never writes to Hockey.
+// Re-running upserts the same ids — idempotent, no duplicates.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const HOCKEY_MIGRATE_FIELDS = ORG_IDENTITY_FIELDS   // same 14 identity fields
+
+// Owner = a Hockey staff doc with role 'owner' and NO teamId (org-wide).
+function deriveOwner(staffDocs, hockeyCreatedBy) {
+  const owners = staffDocs
+    .map(d => ({ uid: d.id, ...d.data() }))
+    .filter(s => s.role === 'owner' && (s.teamId == null || s.teamId === ''))
+  if (owners.length === 1) return { ownerUserId: owners[0].uid, ownerSource: 'staff-owner' }
+  if (owners.length === 0) {
+    return hockeyCreatedBy
+      ? { ownerUserId: hockeyCreatedBy, ownerSource: 'createdBy-fallback' }
+      : { ownerUserId: null, ownerSource: 'none', flag: 'no-owner' }
+  }
+  return { ownerUserId: owners[0].uid, ownerSource: 'ambiguous-first', flag: 'ambiguous-owner', candidates: owners.map(o => o.uid) }
+}
+
+exports.centralMigrateHockeyOrgs = onCall({ region: REGION, timeoutSeconds: 300 }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const commit = request.data?.commit === true
+  const uid = request.auth.uid
+
+  const hockey = sportDbFor('hockey')
+  const orgSnap = await hockey.collection('organizations').get()
+
+  const rows = []
+  const collisions = []
+  const ambiguities = []
+
+  for (const d of orgSnap.docs) {
+    const hid = d.id
+    const h = d.data() || {}
+    const identity = {}
+    for (const k of HOCKEY_MIGRATE_FIELDS) identity[k] = h[k] ?? null
+    // bio: Hockey's bio, else its (dropped) description as the source text.
+    identity.bio = (h.bio ?? h.description ?? '') || ''
+
+    const staffDocs = (await hockey.collection(`organizations/${hid}/staff`).get()).docs
+    const owner = deriveOwner(staffDocs, h.createdBy ?? null)
+    if (owner.flag) ambiguities.push({ orgId: hid, name: h.name ?? null, slug: h.slug ?? null, ...owner })
+
+    // Slug collision: an existing central reservation for a DIFFERENT org id.
+    const slug = h.slug ?? null
+    let collision = null
+    if (slug) {
+      const resv = await db.doc(`orgSlugs/${slug}`).get()
+      if (resv.exists && resv.data().orgId !== hid) {
+        collision = { slug, existingOrgId: resv.data().orgId, hockeyOrgId: hid }
+        collisions.push(collision)
+      }
+    }
+
+    rows.push({
+      orgId: hid,
+      name: h.name ?? null,
+      slug,
+      type: h.type ?? null,
+      genderProfile: h.genderProfile ?? null,
+      matchName: h.matchName ?? null,
+      ownerUserId: owner.ownerUserId,
+      ownerSource: owner.ownerSource,
+      staffCount: staffDocs.length,
+      hasLogo: !!identity.logoUrl,
+      collision,
+      _identity: identity,
+      _staff: staffDocs.map(s => ({ id: s.id, data: s.data() })),
+      _hCreatedAt: h.createdAt ?? null,
+      _hCreatedBy: h.createdBy ?? null,
+    })
+  }
+
+  // Never write when a slug collides — stop and report for a hand tie-break.
+  if (commit && collisions.length > 0) {
+    throw new HttpsError('failed-precondition',
+      `Slug collision(s) — resolve by hand, nothing written: ${collisions.map(c => c.slug).join(', ')}`)
+  }
+
+  let written = 0
+  if (commit) {
+    for (const r of rows) {
+      const orgRef = db.doc(`organizations/${r.orgId}`)
+      const existing = await orgRef.get()
+      // createdAt: keep existing central, else Hockey's, else now.
+      const createdAt = existing.exists
+        ? (existing.data().createdAt ?? r._hCreatedAt ?? admin.firestore.FieldValue.serverTimestamp())
+        : (r._hCreatedAt ?? admin.firestore.FieldValue.serverTimestamp())
+      // Identity + ownership. activatedSports is NOT written — stays empty on
+      // first migrate (safety gate) and untouched on re-run.
+      await orgRef.set({
+        ...r._identity,
+        slug:        r.slug,
+        ownerUserId: r.ownerUserId,
+        createdBy:   r._hCreatedBy ?? r.ownerUserId ?? uid,
+        createdAt,
+        updatedAt:   admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+
+      // Staff roster up into central.
+      let batch = db.batch(); let n = 0
+      for (const s of r._staff) {
+        batch.set(db.doc(`organizations/${r.orgId}/staff/${s.id}`), s.data, { merge: true })
+        if (++n % 400 === 0) { await batch.commit(); batch = db.batch() }
+      }
+      if (n % 400 !== 0 || n === 0) await batch.commit()
+
+      // Seed the slug reservation (idempotent).
+      if (r.slug) {
+        await db.doc(`orgSlugs/${r.slug}`).set({
+          orgId: r.orgId, createdBy: r._hCreatedBy ?? r.ownerUserId ?? uid,
+          createdAt: r._hCreatedAt ?? admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true })
+      }
+      written++
+    }
+  }
+
+  // Strip internal fields from the report.
+  const report = rows.map(({ _identity, _staff, _hCreatedAt, _hCreatedBy, ...pub }) => pub)
+  logger.info('Hockey org migration', { commit, count: rows.length, written, collisions: collisions.length })
+  return {
+    commit,
+    count: rows.length,
+    written,
+    orgs: report,
+    slugSeed: rows.filter(r => r.slug).map(r => ({ slug: r.slug, orgId: r.orgId })),
+    collisions,
+    ambiguities,
+  }
+})
+
+// Activate every migrated Hockey org into Hockey (step 7). Admin-only. Only run
+// AFTER eyeballing central. For each Hockey org id, activates the central doc
+// into Hockey (identity + staff down, stamp activatedSports.hockey). Idempotent.
+exports.centralActivateHockeyOrgs = onCall({ region: REGION, timeoutSeconds: 300 }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = request.auth.uid
+
+  const hockey = sportDbFor('hockey')
+  const ids = (await hockey.collection('organizations').get()).docs.map(d => d.id)
+
+  const results = []
+  for (const orgId of ids) {
+    const snap = await db.doc(`organizations/${orgId}`).get()
+    if (!snap.exists) { results.push({ orgId, skipped: 'no-central-doc' }); continue }
+    try {
+      const res = await activateOrgIntoSport(snap.data(), orgId, 'hockey', uid)
+      results.push({ orgId, ...res })
+    } catch (err) {
+      results.push({ orgId, error: err.message })
+    }
+  }
+  logger.info('Hockey orgs activated', { count: results.length })
+  return { count: results.length, results }
+})
