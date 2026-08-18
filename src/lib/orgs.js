@@ -13,7 +13,8 @@ import {
   runTransaction, updateDoc, serverTimestamp,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { identityDb, storage } from '../firebase'
+import { httpsCallable } from 'firebase/functions'
+import { identityDb, storage, functions } from '../firebase'
 
 // type: schools/clubs field a "match name" (short name shown in fixtures);
 // associations/leagues do not, so matchName is forced null for those.
@@ -172,4 +173,14 @@ export async function listOrgsOwnedBy(uid) {
 export async function listAllOrgs() {
   const snap = await getDocs(collection(identityDb, 'organizations'))
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ── Activation (copy-down) ──────────────────────────────────────────────────
+// Calls the main-site centralOrgActivate function, which copies identity + the
+// staff roster into the sport's named DB and records it in activatedSports.
+// Idempotent server-side. Returns { sport, slug, staffCount, alreadyActive? }.
+export async function activateOrgInSport(orgId, sport) {
+  const call = httpsCallable(functions, 'centralOrgActivate')
+  const { data } = await call({ orgId, sport })
+  return data
 }

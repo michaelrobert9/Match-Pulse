@@ -701,3 +701,170 @@ exports.submitContactForm = onCall({ region: REGION }, async (request) => {
   logger.info('Contact message received', { email, hasPhone: !!phone })
   return { ok: true }
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COPY-DOWN ENGINE (Brief #3) — one-way sync of the central org identity + staff
+// down into each ACTIVATED sport's named database. Sports never write back; all
+// writes here are Admin SDK (bypass rules) via getFirestore(admin.app(), sport).
+//
+//   activate  →  centralOrgActivate       (callable, owner/admin)
+//   identity  →  centralOrgIdentitySync   (trigger on (default) organizations/{id})
+//   staff     →  centralOrgStaffSync      (trigger on (default) organizations/{id}/staff/{uid})
+//
+// Names are `central*` so they can't collide with any sport codebase's globally
+// unique function names. All bind to the (default) database / europe-west1.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// The four valid sport keys == the named-DB ids (see SPORT_DBS above).
+const SPORT_KEYS = SPORT_DBS.map(s => s.key)
+const isSportKey = (s) => SPORT_KEYS.includes(s)
+const sportDbFor = (sport) => getFirestore(admin.app(), sport)   // dbId === key
+
+// The EXACT identity field set copied down. genderProfile + matchName are in
+// (they drive sport-side rules/cards). banner, teamLevelManagement, staff and
+// billing are deliberately OUT — never touched by the sync.
+const ORG_IDENTITY_FIELDS = [
+  'name', 'matchName', 'type', 'slug', 'logoUrl', 'genderProfile',
+  'primaryColor', 'secondaryColor', 'bio', 'region', 'website',
+  'contactEmail', 'phone', 'socialLinks',
+]
+
+function pickIdentity(d = {}) {
+  const out = {}
+  for (const k of ORG_IDENTITY_FIELDS) out[k] = d[k] ?? null
+  return out
+}
+
+const asMillis = (v) => (v?.toMillis ? v.toMillis() : (typeof v === 'number' ? v : 0))
+
+// Write the identity set into one sport's org doc, merge:true (so sport-local
+// banner/teamLevelManagement/team snapshots survive). Stamps the sport copy's
+// updatedAt = the central updatedAt so it becomes the last-write-wins watermark;
+// syncedAt/syncedFrom are audit only. Returns true if written, false if skipped.
+async function writeIdentityToSport(sport, orgId, identity, centralUpdatedMs) {
+  const sportDb = sportDbFor(sport)
+  const ref = sportDb.doc(`organizations/${orgId}`)
+  const snap = await ref.get()
+  // Out-of-order guard: skip if the sport copy is already at/after central.
+  if (snap.exists && asMillis(snap.data()?.updatedAt) >= centralUpdatedMs && centralUpdatedMs > 0) {
+    return false
+  }
+  await ref.set({
+    ...identity,
+    updatedAt:  admin.firestore.Timestamp.fromMillis(centralUpdatedMs || Date.now()),
+    syncedFrom: 'central',
+    syncedAt:   admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true })
+  return true
+}
+
+// ── centralOrgActivate ───────────────────────────────────────────────────────
+// Activate an org into a sport: copy identity + the whole staff roster down, then
+// record it in the central activatedSports map. Idempotent — a second call for an
+// already-active sport is a no-op. Guard: org owner or platform admin.
+exports.centralOrgActivate = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+
+  const orgId = String(request.data?.orgId || '').trim()
+  const sport = String(request.data?.sport || '').trim()
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+  if (!isSportKey(sport)) throw new HttpsError('invalid-argument', `sport must be one of ${SPORT_KEYS.join(', ')}.`)
+
+  const orgRef  = db.doc(`organizations/${orgId}`)
+  const orgSnap = await orgRef.get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+
+  // Guard: owner or platform admin.
+  const admin_ = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
+  if (org.ownerUserId !== uid && !admin_) {
+    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can activate.')
+  }
+
+  // Idempotent: already active → no-op.
+  if (org.activatedSports && org.activatedSports[sport]) {
+    return { sport, slug: org.slug, staffCount: null, alreadyActive: true }
+  }
+
+  // c. identity into the sport org doc (merge).
+  await writeIdentityToSport(sport, orgId, pickIdentity(org), asMillis(org.updatedAt))
+
+  // d. copy the ENTIRE central staff subcollection down.
+  const staffSnap = await db.collection(`organizations/${orgId}/staff`).get()
+  const sportDb = sportDbFor(sport)
+  let batch = sportDb.batch()
+  let n = 0
+  for (const s of staffSnap.docs) {
+    batch.set(sportDb.doc(`organizations/${orgId}/staff/${s.id}`), s.data(), { merge: true })
+    if (++n % 400 === 0) { await batch.commit(); batch = sportDb.batch() }
+  }
+  if (n % 400 !== 0 || n === 0) await batch.commit()
+
+  // e. record activation centrally (re-fires the identity trigger — harmless).
+  await orgRef.set({
+    activatedSports: { [sport]: {
+      activatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      activatedBy: uid,
+    } },
+  }, { merge: true })
+
+  logger.info('Org activated in sport', { orgId, sport, staffCount: n, by: uid })
+  return { sport, slug: org.slug, staffCount: n }
+})
+
+// ── centralOrgIdentitySync ───────────────────────────────────────────────────
+// On any central org create/update, overwrite the identity set into EVERY
+// activated sport (whole set at once, merge:true, out-of-order guarded).
+exports.centralOrgIdentitySync = onDocumentWritten(
+  { document: 'organizations/{orgId}', region: REGION },
+  async (event) => {
+    const after = event.data?.after?.data()
+    if (!after) return                                   // org deleted — leave sport copies
+    const { orgId } = event.params
+    const active = after.activatedSports || {}
+    const sports = Object.keys(active).filter(isSportKey)
+    if (sports.length === 0) return
+
+    const identity = pickIdentity(after)
+    const centralMs = asMillis(after.updatedAt)
+    await Promise.all(sports.map(async (sport) => {
+      try {
+        await writeIdentityToSport(sport, orgId, identity, centralMs)
+      } catch (err) {
+        logger.error('centralOrgIdentitySync: write failed', { orgId, sport, message: err.message })
+      }
+    }))
+    logger.info('Org identity synced', { orgId, sports })
+  }
+)
+
+// ── centralOrgStaffSync ──────────────────────────────────────────────────────
+// On a central staff doc create/update → mirror it into every activated sport's
+// staff/{uid}; on delete → delete it in every activated sport. Staff is managed
+// once, centrally; the sport copy stays exactly the authorisation record the
+// (unchanged) sport rules already read.
+exports.centralOrgStaffSync = onDocumentWritten(
+  { document: 'organizations/{orgId}/staff/{uid}', region: REGION },
+  async (event) => {
+    const { orgId, uid } = event.params
+    const after = event.data?.after?.data()
+
+    const orgSnap = await db.doc(`organizations/${orgId}`).get()
+    if (!orgSnap.exists) return
+    const sports = Object.keys(orgSnap.data().activatedSports || {}).filter(isSportKey)
+    if (sports.length === 0) return
+
+    await Promise.all(sports.map(async (sport) => {
+      try {
+        const ref = sportDbFor(sport).doc(`organizations/${orgId}/staff/${uid}`)
+        if (after) await ref.set(after, { merge: true })   // create/update
+        else       await ref.delete()                      // revoked
+      } catch (err) {
+        logger.error('centralOrgStaffSync: write failed', { orgId, uid, sport, message: err.message })
+      }
+    }))
+    logger.info('Org staff synced', { orgId, uid, deleted: !after, sports })
+  }
+)

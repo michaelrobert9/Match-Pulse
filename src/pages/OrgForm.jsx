@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { SPORTS } from '../lib/sports'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
-  createOrg, updateOrg, uploadOrgAsset, getOrg,
+  createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -72,6 +73,9 @@ export default function OrgForm() {
   const [msg,      setMsg]      = useState(null)
   const [denied,   setDenied]   = useState(false)
   const [transfer, setTransfer] = useState('')     // new ownerUserId, transfer only
+  const [activated, setActivated] = useState({})   // activatedSports map
+  const [actBusy,  setActBusy]  = useState('')     // sport key mid-activation
+  const [actMsg,   setActMsg]   = useState(null)
 
   // Load existing org for edit; gate to owner/admin (rules also enforce).
   useEffect(() => {
@@ -85,6 +89,7 @@ export default function OrgForm() {
         if (org.ownerUserId !== user?.uid && !isAdmin) { setDenied(true); setLoading(false); return }
         setRecord(org)
         setSlug(org.slug || '')
+        setActivated(org.activatedSports || {})
         setF({ ...emptyOrg(), ...org, socialLinks: org.socialLinks || {} })
         setLoading(false)
       } catch {
@@ -124,6 +129,21 @@ export default function OrgForm() {
       setMsg({ kind: 'err', text: e.message || 'Could not save.' })
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function activate(sport) {
+    setActBusy(sport); setActMsg(null)
+    try {
+      const res = await activateOrgInSport(id, sport)
+      setActivated(a => ({ ...a, [sport]: { activatedAt: Date.now() } }))
+      setActMsg({ kind: 'ok', text: res.alreadyActive
+        ? `${sport} was already active.`
+        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. The owner can manage it there now.` })
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Activation failed.' })
+    } finally {
+      setActBusy('')
     }
   }
 
@@ -267,6 +287,39 @@ export default function OrgForm() {
           </button>
           {!editing && <p className="acct-fine">You’ll be able to add a logo and banner right after it’s created.</p>}
         </form>
+
+        {/* Activation — copy this org down into a sport. Owner or admin. */}
+        {editing && (isAdmin || record?.ownerUserId === user?.uid) && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">Activate on sports</h2>
+            <p className="adm-field-hint">
+              Copies this organisation’s identity and staff into a sport so the owner can
+              manage it there. Additive — a sport stays active once switched on, and central
+              edits flow down automatically.
+            </p>
+            {actMsg && <p className={`notice ${actMsg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{actMsg.text}</p>}
+            <ul className="org-activate-list">
+              {SPORTS.map(s => {
+                const on = !!activated[s.key]
+                return (
+                  <li key={s.key} style={{ '--hue': s.hue }}>
+                    <span className="org-act-dot" style={{ background: s.hue }} />
+                    <span className="org-act-name">{s.name}</span>
+                    {on ? (
+                      <span className="pill pill-ok">Active</span>
+                    ) : (
+                      <button type="button" className="btn btn-dark btn-sm"
+                        disabled={actBusy === s.key}
+                        onClick={() => activate(s.key)}>
+                        {actBusy === s.key ? 'Activating…' : 'Activate'}
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
 
         <div className="acct-signout"><Link className="btn btn-ghost" to="/organisations">Back to organisations</Link></div>
       </div>
