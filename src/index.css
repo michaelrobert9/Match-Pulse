@@ -978,3 +978,10 @@ section#sports.block { padding: 84px 0; }
 .btn-danger:hover { transform: translateY(-2px); background: #a11414; }
 .btn-danger:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .org-danger { border-top: 1px solid var(--line); padding-top: 22px; margin-top: 8px; }
+
+/* ── Admin — Hockey migration panel ──────────────────────────────────────── */
+.adm-migrate { margin-bottom: 18px; border: 1px solid color-mix(in srgb, #059669 25%, var(--line)); border-radius: 12px; background: color-mix(in srgb, #059669 5%, var(--card)); }
+.adm-migrate summary { cursor: pointer; padding: 14px 16px; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
+.adm-migrate-body { padding: 0 16px 16px; }
+.adm-migrate-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.adm-migrate-result { margin-top: 12px; }
