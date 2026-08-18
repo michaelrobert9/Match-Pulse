@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
+import { listAllOrgs, ORG_TYPES } from '../lib/orgs'
 import { identityDb, functions } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
@@ -13,6 +14,7 @@ import { planStatus } from '../contexts/AuthContext'
 // hit F5 rarely enough that URL-persisted tabs aren't worth the wiring.
 const TABS = [
   { key: 'users',    label: 'Users' },
+  { key: 'orgs',     label: 'Orgs' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
@@ -179,6 +181,78 @@ function PaymentsTab() {
                     </span>
                   </td>
                   <td className="adm-uid">{p.manual ? (p.note || '(manual allocation)') : (p.pfPaymentId || p.mPaymentId || p.id)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Orgs ─────────────────────────────────────────────────────────────────────
+// Every central organisation record. Admins can open any into the shared
+// authoring form (rules allow a platform admin to edit any org). Identity is
+// authored here; billing lives elsewhere and is not shown.
+function OrgsTab() {
+  const [rows, setRows] = useState(null)
+  const [err,  setErr]  = useState('')
+  const [q,    setQ]    = useState('')
+
+  useEffect(() => {
+    let cancel = false
+    ;(async () => {
+      try {
+        const list = await listAllOrgs()
+        if (cancel) return
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        setRows(list)
+      } catch (e) {
+        if (!cancel) setErr(e.message || 'Could not load organisations.')
+      }
+    })()
+    return () => { cancel = true }
+  }, [])
+
+  const typeLabel = (t) => ORG_TYPES.find(x => x.key === t)?.label || t
+  const filtered = useMemo(() => {
+    if (!rows) return null
+    if (!q.trim()) return rows
+    const n = q.trim().toLowerCase()
+    return rows.filter(o =>
+      (o.name || '').toLowerCase().includes(n)
+      || (o.slug || '').toLowerCase().includes(n)
+      || (o.region || '').toLowerCase().includes(n))
+  }, [rows, q])
+
+  return (
+    <div className="adm-section">
+      <div className="adm-toolbar">
+        <input type="search" value={q} placeholder="Search by name, slug or region"
+          onChange={e => setQ(e.target.value)} />
+        <Link className="btn btn-primary btn-sm" to="/organisations/new">Create org</Link>
+      </div>
+      <Notice kind="err">{err}</Notice>
+      {!filtered ? <p className="adm-loading">Loading…</p> : filtered.length === 0 ? (
+        <p className="muted">No organisations{q ? ' match' : ' yet'}.</p>
+      ) : (
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead>
+              <tr><th>Organisation</th><th>Type</th><th>Slug</th><th>Region</th><th></th></tr>
+            </thead>
+            <tbody>
+              {filtered.map(o => (
+                <tr key={o.id}>
+                  <td>
+                    <div className="adm-name">{o.name || <span className="muted">(no name)</span>}</div>
+                    <div className="adm-uid">owner: {o.ownerUserId || '—'}</div>
+                  </td>
+                  <td>{typeLabel(o.type)}</td>
+                  <td className="tnum">{o.slug}</td>
+                  <td>{o.region || <span className="muted">—</span>}</td>
+                  <td><Link className="btn btn-ghost btn-sm" to={`/organisations/${o.id}/edit`}>Edit</Link></td>
                 </tr>
               ))}
             </tbody>
@@ -792,6 +866,7 @@ export default function Admin() {
         </nav>
 
         {tab === 'users'    && <UsersTab />}
+        {tab === 'orgs'     && <OrgsTab />}
         {tab === 'invoices' && <InvoicesTab />}
         {tab === 'messages' && <MessagesTab />}
         {tab === 'payments' && <PaymentsTab />}

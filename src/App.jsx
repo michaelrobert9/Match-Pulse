@@ -11,6 +11,8 @@ import Portal from './pages/Portal'
 import Products from './pages/Products'
 import NewInvoice from './pages/NewInvoice'
 import Invoice from './pages/Invoice'
+import Organisations from './pages/Organisations'
+import OrgForm from './pages/OrgForm'
 import Admin from './pages/Admin'
 import Terms from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
@@ -76,6 +78,15 @@ export default function App() {
         } />
         <Route path="/invoices/:id" element={
           <ProtectedRoute><Invoice /></ProtectedRoute>
+        } />
+        <Route path="/organisations" element={
+          <ProtectedRoute><Organisations /></ProtectedRoute>
+        } />
+        <Route path="/organisations/new" element={
+          <ProtectedRoute><OrgForm /></ProtectedRoute>
+        } />
+        <Route path="/organisations/:id/edit" element={
+          <ProtectedRoute><OrgForm /></ProtectedRoute>
         } />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><Admin /></ProtectedRoute>

@@ -32,10 +32,12 @@ const ROUTES = {
   '/admin':                { title: 'Admin — MatchPulse',        noindex: true },
   '/portal':               { title: 'MatchPulse',                noindex: true },
   '/invoice/new':          { title: 'New Invoice — MatchPulse',  noindex: true },
+  '/organisations':        { title: 'Your Organisations — MatchPulse', noindex: true },
+  '/organisations/new':    { title: 'Create Organisation — MatchPulse', noindex: true },
 }
 
-// Dynamic private routes (e.g. /invoices/:id) — matched by prefix.
-const NOINDEX_PREFIXES = ['/invoices/']
+// Dynamic private routes (e.g. /invoices/:id, /organisations/:id/edit).
+const NOINDEX_PREFIXES = ['/invoices/', '/organisations/']
 
 // Cache the fetched settings for the life of the tab so every route change
 // doesn't re-hit Firestore. First read wins; subsequent reads hydrate from cache.

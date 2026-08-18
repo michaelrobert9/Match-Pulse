@@ -167,39 +167,74 @@ service cloud.firestore {
         && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null);
     }
 
-    function isOrgStaff(orgId) {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid));
+    // Owner of an org is the reassignable ownerUserId FIELD on the org doc —
+    // the single authority for editing identity, transferring ownership and
+    // managing the staff roster. (The previous staff-subcollection-derived
+    // owner check is retired.)
+    function orgOwnerUid(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('ownerUserId', '');
     }
 
-    function isOrgOwner(orgId) {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid))
-        && get(/databases/$(database)/documents/organizations/$(orgId)/staff/$(request.auth.uid))
-             .data.get('role', '') == 'owner';
+    // On update, immutable fields must not change: slug (fixed after create),
+    // createdBy and createdAt (creation record).
+    function orgImmutableUnchanged() {
+      return request.resource.data.get('slug', '')      == resource.data.get('slug', '')
+        && request.resource.data.get('createdBy', '')   == resource.data.get('createdBy', '')
+        && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
+    }
+
+    // ownerUserId may change ONLY when the caller is a platform admin or the
+    // CURRENT owner (the transfer). Unchanged ownerUserId is always fine.
+    function orgOwnerChangeAuthorised() {
+      return request.resource.data.get('ownerUserId', '') == resource.data.get('ownerUserId', '')
+        || isPlatformAdmin()
+        || request.auth.uid == resource.data.get('ownerUserId', '');
     }
 
     match /organizations/{orgId} {
       // Org pages are public across every sport site.
       allow read: if true;
 
-      // Self-service creation: the creator must start with no entitlement.
-      allow create: if isPlatformAdmin()
-        || (isSignedIn()
-            && request.resource.data.get('entitlement', 'none') == 'none'
-            && request.resource.data.get('eventCredits', 0) == 0
-            && request.resource.data.get('entitlementExpiresAt', null) == null);
+      // Create: signed-in, sets self as owner, and grants itself no billing.
+      // (Billing fields default absent → 'none'/0/null, which the rule requires.)
+      allow create: if isSignedIn()
+        && request.resource.data.get('ownerUserId', '') == request.auth.uid
+        && request.resource.data.get('entitlement', 'none') == 'none'
+        && request.resource.data.get('eventCredits', 0) == 0
+        && request.resource.data.get('entitlementExpiresAt', null) == null;
 
-      // Staff edit the org's own details; billing stays untouchable.
-      allow update: if isPlatformAdmin()
-        || (isOrgStaff(orgId) && orgBillingUnchanged());
+      // Update: platform admin or the current owner. Billing untouchable,
+      // slug/createdBy/createdAt immutable, owner change only via the transfer.
+      allow update: if (isPlatformAdmin()
+              || request.auth.uid == resource.data.get('ownerUserId', ''))
+        && orgBillingUnchanged()
+        && orgImmutableUnchanged()
+        && orgOwnerChangeAuthorised();
 
-      allow delete: if isPlatformAdmin() || isOrgOwner(orgId);
+      allow delete: if isPlatformAdmin()
+        || request.auth.uid == resource.data.get('ownerUserId', '');
 
+      // Staff roster (owner/staff/scorer, optionally team-scoped) — written by
+      // the org owner or a platform admin. syncOrgRoleClaim mirrors changes here
+      // onto users/{uid}.orgRoles.
       match /staff/{uid} {
         allow read:  if isSignedIn();
-        allow write: if isPlatformAdmin() || isOrgOwner(orgId);
+        allow write: if isPlatformAdmin() || request.auth.uid == orgOwnerUid(orgId);
       }
+    }
+
+    // ── Org slug registry ─────────────────────────────────────────────────────
+    // One platform-wide namespace: orgSlugs/{slug} reserves a slug at org create
+    // (written transactionally with the org doc). Public read so the create form
+    // can dedupe and so a slug can be resolved to an orgId. Create-only for
+    // signed-in users stamping themselves as createdBy; never updated (slugs are
+    // immutable); deletable only by an admin (cleanup / re-seeding).
+    match /orgSlugs/{slug} {
+      allow read:   if true;
+      allow create: if isSignedIn()
+        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      allow update: if false;
+      allow delete: if isPlatformAdmin();
     }
 
 
