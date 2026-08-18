@@ -972,3 +972,9 @@ section#sports.block { padding: 84px 0; }
 }
 .org-act-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .org-act-name { flex: 1; font-weight: 600; }
+
+/* ── Danger action ───────────────────────────────────────────────────────── */
+.btn-danger { background: #b91c1c; color: #fff; }
+.btn-danger:hover { transform: translateY(-2px); background: #a11414; }
+.btn-danger:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.org-danger { border-top: 1px solid var(--line); padding-top: 22px; margin-top: 8px; }
