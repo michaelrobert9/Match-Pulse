@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { SPORTS } from '../lib/sports'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
-  createOrg, updateOrg, uploadOrgAsset, getOrg,
+  createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
+  deleteOrg, adminChangeSlug,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -72,6 +74,16 @@ export default function OrgForm() {
   const [msg,      setMsg]      = useState(null)
   const [denied,   setDenied]   = useState(false)
   const [transfer, setTransfer] = useState('')     // new ownerUserId, transfer only
+  const [activated, setActivated] = useState({})   // activatedSports map
+  const [actBusy,  setActBusy]  = useState('')     // sport key mid-activation
+  const [actMsg,   setActMsg]   = useState(null)
+  const [slugEdit, setSlugEdit] = useState('')     // admin slug editor input
+  const [slugBusy, setSlugBusy] = useState(false)
+  const [delBusy,  setDelBusy]  = useState(false)
+
+  const isOwner = record?.ownerUserId === user?.uid
+  const canDelete = editing && (isAdmin || isOwner)
+  const isActivated = Object.keys(activated).length > 0
 
   // Load existing org for edit; gate to owner/admin (rules also enforce).
   useEffect(() => {
@@ -85,6 +97,7 @@ export default function OrgForm() {
         if (org.ownerUserId !== user?.uid && !isAdmin) { setDenied(true); setLoading(false); return }
         setRecord(org)
         setSlug(org.slug || '')
+        setActivated(org.activatedSports || {})
         setF({ ...emptyOrg(), ...org, socialLinks: org.socialLinks || {} })
         setLoading(false)
       } catch {
@@ -124,6 +137,52 @@ export default function OrgForm() {
       setMsg({ kind: 'err', text: e.message || 'Could not save.' })
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function changeSlug() {
+    const next = slugify(slugEdit)
+    if (!next || next === slug) { setMsg({ kind: 'err', text: 'Enter a different, valid slug.' }); return }
+    setSlugBusy(true); setMsg(null)
+    try {
+      const applied = await adminChangeSlug(id, slug, next, user.uid)
+      setSlug(applied); setSlugEdit(''); setF(s => ({ ...s, slug: applied }))
+      setMsg({ kind: 'ok', text: `Slug changed to “${applied}”.` })
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Could not change the slug.' })
+    } finally {
+      setSlugBusy(false)
+    }
+  }
+
+  async function remove() {
+    const label = isActivated
+      ? 'This org is active on a sport and cannot be deleted here.'
+      : `Delete “${f.name}” permanently? This frees the slug “${slug}” for reuse and cannot be undone.`
+    if (isActivated) { setMsg({ kind: 'err', text: label }); return }
+    if (!window.confirm(label)) return
+    setDelBusy(true); setMsg(null)
+    try {
+      await deleteOrg(id)
+      navigate('/organisations', { replace: true })
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Could not delete.' })
+      setDelBusy(false)
+    }
+  }
+
+  async function activate(sport) {
+    setActBusy(sport); setActMsg(null)
+    try {
+      const res = await activateOrgInSport(id, sport)
+      setActivated(a => ({ ...a, [sport]: { activatedAt: Date.now() } }))
+      setActMsg({ kind: 'ok', text: res.alreadyActive
+        ? `${sport} was already active.`
+        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. The owner can manage it there now.` })
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Activation failed.' })
+    } finally {
+      setActBusy('')
     }
   }
 
@@ -267,6 +326,75 @@ export default function OrgForm() {
           </button>
           {!editing && <p className="acct-fine">You’ll be able to add a logo and banner right after it’s created.</p>}
         </form>
+
+        {/* Activation — copy this org down into a sport. Owner or admin. */}
+        {editing && (isAdmin || record?.ownerUserId === user?.uid) && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">Activate on sports</h2>
+            <p className="adm-field-hint">
+              Copies this organisation’s identity and staff into a sport so the owner can
+              manage it there. Additive — a sport stays active once switched on, and central
+              edits flow down automatically.
+            </p>
+            {actMsg && <p className={`notice ${actMsg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{actMsg.text}</p>}
+            <ul className="org-activate-list">
+              {SPORTS.map(s => {
+                const on = !!activated[s.key]
+                return (
+                  <li key={s.key} style={{ '--hue': s.hue }}>
+                    <span className="org-act-dot" style={{ background: s.hue }} />
+                    <span className="org-act-name">{s.name}</span>
+                    {on ? (
+                      <span className="pill pill-ok">Active</span>
+                    ) : (
+                      <button type="button" className="btn btn-dark btn-sm"
+                        disabled={actBusy === s.key}
+                        onClick={() => activate(s.key)}>
+                        {actBusy === s.key ? 'Activating…' : 'Activate'}
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
+
+        {/* Admin-only slug edit (relaxes Brief #2 immutability, admins only). */}
+        {editing && isAdmin && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">Change slug <span className="opt">platform admin</span></h2>
+            <p className="adm-field-hint">
+              Current slug: <strong>{slug}</strong>.
+              {isActivated
+                ? ' ⚠️ This org is already active on a sport — changing the slug changes its public URL on every sport and breaks old links (there’s no central redirect).'
+                : ' Safe to change while the org isn’t activated yet.'}
+            </p>
+            <div className="adm-inline-form">
+              <input type="text" value={slugEdit} placeholder={slug}
+                onChange={e => setSlugEdit(slugify(e.target.value))} />
+              <button type="button" className="btn btn-dark" disabled={slugBusy || !slugEdit}
+                onClick={changeSlug}>
+                {slugBusy ? 'Changing…' : 'Change slug'}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Delete — owner or platform admin. Frees the slug reservation. */}
+        {canDelete && (
+          <section className="org-danger">
+            <h2 className="inv-edit-h">Delete organisation</h2>
+            <p className="adm-field-hint">
+              {isActivated
+                ? 'Active on a sport — deletion is blocked until the sport copies are cleaned up.'
+                : 'Permanently deletes this organisation and frees its slug for reuse. This cannot be undone.'}
+            </p>
+            <button type="button" className="btn btn-danger" disabled={delBusy || isActivated} onClick={remove}>
+              {delBusy ? 'Deleting…' : 'Delete organisation'}
+            </button>
+          </section>
+        )}
 
         <div className="acct-signout"><Link className="btn btn-ghost" to="/organisations">Back to organisations</Link></div>
       </div>

@@ -10,10 +10,11 @@
 // ─────────────────────────────────────────────────────────────────────────
 import {
   doc, collection, getDoc, getDocs, query, where,
-  runTransaction, updateDoc, serverTimestamp,
+  runTransaction, updateDoc, writeBatch, serverTimestamp,
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { identityDb, storage } from '../firebase'
+import { httpsCallable } from 'firebase/functions'
+import { identityDb, storage, functions } from '../firebase'
 
 // type: schools/clubs field a "match name" (short name shown in fixtures);
 // associations/leagues do not, so matchName is forced null for those.
@@ -172,4 +173,56 @@ export async function listOrgsOwnedBy(uid) {
 export async function listAllOrgs() {
   const snap = await getDocs(collection(identityDb, 'organizations'))
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ── Delete ──────────────────────────────────────────────────────────────────
+// Deletes the org, its staff subcollection, and RELEASES its slug reservation
+// (so the slug is free to reuse) — atomically in one batch. Refuses if the org
+// is activated on any sport: a plain central delete would orphan the sport
+// copies, and there's no de-activation path (Brief #3 decision 10). Owner or
+// platform admin (the rules enforce the same).
+export async function deleteOrg(orgId) {
+  const org = await getOrg(orgId)
+  if (!org) return
+  if (org.activatedSports && Object.keys(org.activatedSports).length > 0) {
+    throw new Error(
+      'This organisation is active on a sport. Its sport copies must be cleaned up before it can be deleted.'
+    )
+  }
+  const batch = writeBatch(identityDb)
+  const staff = await getDocs(collection(identityDb, 'organizations', orgId, 'staff'))
+  staff.forEach(d => batch.delete(doc(identityDb, 'organizations', orgId, 'staff', d.id)))
+  batch.delete(doc(identityDb, 'organizations', orgId))
+  if (org.slug) batch.delete(doc(identityDb, 'orgSlugs', org.slug))
+  await batch.commit()
+}
+
+// ── Admin slug change ────────────────────────────────────────────────────────
+// Platform admin only (rules gate the org-doc slug change to isPlatformAdmin()).
+// Transaction: verify the new slug is free, delete the old reservation, create
+// the new one, and set slug on the org doc. Returns the applied slug.
+export async function adminChangeSlug(orgId, oldSlug, newSlugRaw, uid) {
+  const newSlug = slugify(newSlugRaw)
+  if (!newSlug) throw new Error('Enter a valid slug.')
+  if (newSlug === oldSlug) return oldSlug
+  await runTransaction(identityDb, async (tx) => {
+    const taken = await tx.get(doc(identityDb, 'orgSlugs', newSlug))
+    if (taken.exists()) throw new Error(`The slug "${newSlug}" is already taken. Pick another.`)
+    if (oldSlug) tx.delete(doc(identityDb, 'orgSlugs', oldSlug))
+    tx.set(doc(identityDb, 'orgSlugs', newSlug), {
+      orgId, createdBy: uid, createdAt: serverTimestamp(),
+    })
+    tx.update(doc(identityDb, 'organizations', orgId), { slug: newSlug, updatedAt: serverTimestamp() })
+  })
+  return newSlug
+}
+
+// ── Activation (copy-down) ──────────────────────────────────────────────────
+// Calls the main-site centralOrgActivate function, which copies identity + the
+// staff roster into the sport's named DB and records it in activatedSports.
+// Idempotent server-side. Returns { sport, slug, staffCount, alreadyActive? }.
+export async function activateOrgInSport(orgId, sport) {
+  const call = httpsCallable(functions, 'centralOrgActivate')
+  const { data } = await call({ orgId, sport })
+  return data
 }

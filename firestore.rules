@@ -175,10 +175,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/organizations/$(orgId)).data.get('ownerUserId', '');
     }
 
-    // On update, immutable fields must not change: slug (fixed after create),
-    // createdBy and createdAt (creation record).
+    // On update, createdBy and createdAt (the creation record) are always fixed.
+    // slug is fixed for owners but a PLATFORM ADMIN may change it (Brief #4) —
+    // the transactional re-reservation of orgSlugs happens client-side.
     function orgImmutableUnchanged() {
-      return request.resource.data.get('slug', '')      == resource.data.get('slug', '')
+      return (request.resource.data.get('slug', '') == resource.data.get('slug', '') || isPlatformAdmin())
         && request.resource.data.get('createdBy', '')   == resource.data.get('createdBy', '')
         && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
     }
@@ -234,7 +235,14 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.get('createdBy', '') == request.auth.uid;
       allow update: if false;
-      allow delete: if isPlatformAdmin();
+      // Deletable by a platform admin (re-seeding / admin slug edit) or by the
+      // CURRENT owner of the org this slug points at — so deleting an org can
+      // release its slug for reuse. The org doc is read from pre-transaction
+      // state, so this still resolves during the org's own delete transaction.
+      allow delete: if isPlatformAdmin()
+        || (isSignedIn()
+            && exists(/databases/$(database)/documents/organizations/$(resource.data.orgId))
+            && request.auth.uid == get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.get('ownerUserId', ''));
     }
 
 
