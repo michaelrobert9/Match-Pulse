@@ -232,7 +232,10 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 @media (max-width: 760px) {
   .nav-links { display: none; }
   .menu-btn { display: inline-flex; }
-  .nav-cta .btn-ghost { display: none; }
+  /* Keep login / account reachable directly on mobile; the wide primary CTA and
+     the account name collapse into the hamburger / an avatar-only chip. */
+  .nav-cta .nav-signup { display: none; }
+  .nav-acct-name { display: none; }
   .flow, .tier-grid, .feat-groups { grid-template-columns: 1fr; }
   section.block { padding: 60px 0; }
   .hero { padding: 48px 0 16px; }
@@ -248,6 +251,20 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 #mnav .wrap { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; padding-bottom: 14px; }
 #mnav a { padding: 11px 12px; border-radius: 10px; font-weight: 500; color: var(--slate); }
 #mnav a:hover { background: rgba(11,18,32,.04); color: var(--ink); }
+#mnav .mnav-sep { height: 1px; background: var(--line); margin: 8px 4px; }
+#mnav a.mnav-admin { color: #b45309; font-weight: 600; }
+#mnav a.mnav-admin:hover { background: rgba(245,158,11,.12); color: #92400e; }
+
+/* Admin nav link — distinct amber treatment, matching the sport sites. */
+.nav-links a.link.nav-admin { color: #b45309; font-weight: 600; }
+.nav-links a.link.nav-admin:hover { background: rgba(245,158,11,.12); color: #92400e; }
+.nav-links a.link.nav-admin.active { background: rgba(245,158,11,.14); color: #92400e; }
+
+/* Signed-in account chip (avatar + name) — mirrors the sport sites' profile pill. */
+.nav-acct { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 6px; border-radius: 980px; text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--card); transition: border-color .15s, background .15s; }
+.nav-acct:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); background: var(--pulse-tint); }
+.nav-acct-av { width: 28px; height: 28px; flex: none; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--pulse-tint); color: var(--pulse-ink); font-size: 12px; font-weight: 800; border: 1px solid color-mix(in srgb, var(--pulse) 30%, var(--line)); }
+.nav-acct-name { font-size: 13.5px; font-weight: 600; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; }
