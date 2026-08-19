@@ -987,24 +987,39 @@ section#sports.block { padding: 84px 0; }
 .adm-migrate-result { margin-top: 12px; }
 
 /* ── Public cross-sport org profile ──────────────────────────────────────── */
-.orgprofile { background: var(--paper); min-height: 60vh; padding-bottom: 88px; }
-.op-header {
-  position: relative; padding: 44px 0 28px; margin-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 8%, var(--paper)), var(--paper));
+.orgprofile { background: var(--paper); min-height: 60vh; padding: 32px 0 88px; }
+
+/* Identity card — mirrors the sport-site design: banner image, then a white
+   body with logo, type badge, name, region, bio and website link. */
+.op-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+  overflow: hidden; box-shadow: 0 24px 60px -40px rgba(11,18,32,.4);
 }
-.op-head-inner { display: flex; align-items: center; gap: 22px; }
+.op-banner { position: relative; height: clamp(180px, 30vw, 300px); background: color-mix(in srgb, var(--pc) 10%, var(--paper)); }
+.op-banner img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.op-banner-strip { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--pc, var(--pulse)); }
+
+.op-card-body { display: flex; align-items: flex-start; gap: 22px; padding: 26px 28px 28px; }
 .op-logo {
-  width: 88px; height: 88px; flex: none; border-radius: 18px; overflow: hidden;
+  width: 88px; height: 88px; flex: none; border-radius: 16px; overflow: hidden;
   background: var(--card); border: 1px solid var(--line);
-  display: grid; place-items: center; box-shadow: 0 10px 30px -18px rgba(11,18,32,.4);
+  display: grid; place-items: center; box-shadow: 0 6px 18px -12px rgba(11,18,32,.35);
 }
-.op-logo img { width: 100%; height: 100%; object-fit: cover; }
+.op-logo img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
 .op-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; color: var(--pc, var(--pulse)); }
-.op-id h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(26px, 4vw, 38px); line-height: 1.1; margin: 0; }
-.op-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0 0; font-size: 14px; color: #6b7580; }
-.op-meta a { color: var(--pulse-ink); font-weight: 600; }
-.op-bio { margin: 12px 0 0; max-width: 62ch; color: #4a545e; line-height: 1.5; }
+
+.op-id { min-width: 0; }
+.op-badge {
+  display: inline-flex; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 7px; margin-bottom: 10px;
+  background: rgba(11,18,32,.05); color: #5a6572; border: 1px solid var(--line);
+}
+.op-id h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(24px, 3.6vw, 34px); line-height: 1.12; margin: 0; }
+.op-region { margin: 6px 0 0; font-size: 15px; color: #6b7580; }
+.op-bio { margin: 14px 0 0; max-width: 72ch; color: #4a545e; line-height: 1.55; }
+.op-website { display: inline-flex; align-items: center; gap: 4px; margin-top: 14px; font-size: 14.5px; font-weight: 600; color: var(--pulse-ink); text-decoration: none; }
+.op-website:hover { text-decoration: underline; }
+.op-website span { font-size: 13px; }
 
 .op-body { padding-top: 28px; }
 
@@ -1047,6 +1062,6 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 
 @media (max-width: 640px) {
   .op-lists { grid-template-columns: 1fr; gap: 22px; }
-  .op-head-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .op-card-body { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px 18px 22px; }
   .opm-teams { width: 100%; }
 }
