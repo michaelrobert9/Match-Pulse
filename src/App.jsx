@@ -15,7 +15,9 @@ import Organisations from './pages/Organisations'
 import OrgForm from './pages/OrgForm'
 import OrgProfile from './pages/OrgProfile'
 import OrgRedirect from './pages/OrgRedirect'
+import OrgDirectory from './pages/OrgDirectory'
 import SubscribeProfile from './pages/SubscribeProfile'
+import Tournaments from './pages/Tournaments'
 import Admin from './pages/Admin'
 import Terms from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
@@ -94,6 +96,10 @@ export default function App() {
         <Route path="/subscribe/:orgId" element={
           <ProtectedRoute><SubscribeProfile /></ProtectedRoute>
         } />
+
+        {/* Public directories (front doors), indexable. */}
+        <Route path="/organizations" element={<OrgDirectory />} />
+        <Route path="/tournaments"   element={<Tournaments />} />
 
         {/* Public, type-prefixed org profiles (free identity + gated matches). */}
         <Route path="/schools/:slug"      element={<OrgProfile prefix="schools" />} />

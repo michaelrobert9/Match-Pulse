@@ -1207,3 +1207,79 @@ exports.getOrgProfile = onCall({ region: REGION }, async (request) => {
   const matches = await aggregateMatches(orgId, sports)
   return { org: identity, activatedSports: sports, locked: false, matches }
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// getTournaments — public cross-sport tournaments directory.
+// Reads each sport DB's `competitions` collection with the Admin SDK (rules
+// can't list across databases), keeps only published ones, and returns a
+// compact card shape with a link OUT to that competition's overview page on its
+// own sport subdomain. Free / public. Cached in-memory per instance (5-min TTL).
+// The URL + lifecycle helpers mirror the sport sites' slugify.competitionUrl and
+// competitionRules.competitionLifecycle so links and status badges match.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TOURN_CAP = 300                        // per sport
+const TOURN_CACHE = { at: 0, data: null }
+
+function compToMs(v) {
+  if (v == null) return null
+  if (typeof v === 'number') return v
+  if (typeof v.toMillis === 'function') return v.toMillis()
+  if (v instanceof Date) return v.getTime()
+  const t = new Date(v).getTime()
+  return Number.isNaN(t) ? null : t
+}
+
+// Derived lifecycle: upcoming | live | completed (from start/end datetimes).
+function compLifecycle(c, now = Date.now()) {
+  const s = compToMs(c.startDate), e = compToMs(c.endDate)
+  if (s != null && now < s) return 'upcoming'
+  if (e != null && now > e) return 'completed'
+  if (s != null && now >= s) return 'live'
+  return 'upcoming'
+}
+
+// Public path on the sport site — mirrors slugify.competitionUrl exactly.
+function competitionPublicPath(c) {
+  if (c.slug && c.season) return `/competitions/${c.season}/${c.slug}`
+  if (c.competitionPath)  return `/competition/${c.competitionPath}`
+  return `/competitions/${c.id}`
+}
+
+async function readSportCompetitions(sport) {
+  const snap = await sportDbFor(sport).collection('competitions').limit(TOURN_CAP).get()
+  const out = []
+  for (const doc of snap.docs) {
+    const c = { id: doc.id, ...doc.data() }
+    if (c.published === false) continue      // unpublished = hidden from public
+    out.push({
+      id: c.id, sport,
+      name:      c.name ?? 'Untitled competition',
+      season:    c.season ?? null,
+      gender:    c.gender ?? null,
+      ageGroup:  c.ageGroup ?? null,
+      type:      c.type ?? null,
+      logoUrl:   c.logoUrl ?? null,
+      bannerUrl: c.bannerUrl ?? null,
+      status:    compLifecycle(c),
+      startDate: compToMs(c.startDate),
+      endDate:   compToMs(c.endDate),
+      url:       `https://${sport}.matchpulse.co.za${competitionPublicPath(c)}`,
+    })
+  }
+  return out
+}
+
+exports.getTournaments = onCall({ region: REGION }, async () => {
+  if (TOURN_CACHE.data && Date.now() - TOURN_CACHE.at < AGG_TTL_MS) {
+    return { tournaments: TOURN_CACHE.data }
+  }
+  const per = await Promise.all(SPORT_KEYS.map(async (sport) => {
+    try { return await readSportCompetitions(sport) }
+    catch (err) { logger.warn('getTournaments sport failed', { sport, message: err.message }); return [] }
+  }))
+  const tournaments = per.flat()
+  TOURN_CACHE.data = tournaments
+  TOURN_CACHE.at = Date.now()
+  return { tournaments }
+})

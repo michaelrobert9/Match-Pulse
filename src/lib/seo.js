@@ -22,6 +22,8 @@ const DEFAULTS = {
 const ROUTES = {
   '/':                     { title: null },
   '/products':             { title: 'Plans & Pricing — MatchPulse' },
+  '/organizations':        { title: 'Organisations — MatchPulse' },
+  '/tournaments':          { title: 'Tournaments & Competitions — MatchPulse' },
   '/signup':               { title: 'Create an Account — MatchPulse' },
   '/login':                { title: 'Sign In — MatchPulse' },
   '/legal/terms':          { title: 'Terms and Conditions — MatchPulse' },

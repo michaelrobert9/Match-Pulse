@@ -27,10 +27,9 @@ export default function Footer() {
             <h5>Use MatchPulse</h5>
             <ul>
               <li><Link to="/#how">How It Works</Link></li>
-              <li><Link to="/#free-use">For Schools</Link></li>
-              <li><Link to="/#free-use">For Clubs</Link></li>
-              <li><Link to="/#competition">Competitions</Link></li>
-              <li><Link to="/#pricing">Pricing</Link></li>
+              <li><Link to="/organizations">Organisations</Link></li>
+              <li><Link to="/tournaments">Tournaments</Link></li>
+              <li><Link to="/products">Pricing</Link></li>
             </ul>
           </div>
 
