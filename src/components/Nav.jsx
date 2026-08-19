@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
+// Primary nav — real routes (not homepage hash sections).
 const SECTIONS = [
-  { href: '/#find',        label: 'Find Your Sport' },
-  { href: '/#how',         label: 'How It Works' },
-  { href: '/#competition', label: 'Competitions' },
-  { href: '/#pricing',     label: 'Pricing' },
-  { href: '/#faq',         label: 'Help' },
+  { to: '/',              label: 'Home' },
+  { to: '/products',      label: 'Pricing' },
+  { to: '/organizations', label: 'Organisations' },
+  { to: '/tournaments',   label: 'Tournaments' },
 ]
 
 export default function Nav() {
@@ -36,7 +36,11 @@ export default function Nav() {
 
         <nav className="nav-links" aria-label="Primary">
           {SECTIONS.map(s => (
-            <a key={s.href} className="link" href={s.href}>{s.label}</a>
+            <Link
+              key={s.to}
+              className={'link' + (location.pathname === s.to ? ' active' : '')}
+              to={s.to}
+            >{s.label}</Link>
           ))}
         </nav>
 
@@ -68,7 +72,7 @@ export default function Nav() {
       {open && (
         <div id="mnav">
           <div className="wrap">
-            {SECTIONS.map(s => <a key={s.href} href={s.href}>{s.label}</a>)}
+            {SECTIONS.map(s => <Link key={s.to} to={s.to}>{s.label}</Link>)}
             {user ? (
               <>
                 {isAdmin && <Link to="/admin">Admin</Link>}

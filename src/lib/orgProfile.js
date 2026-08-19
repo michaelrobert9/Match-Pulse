@@ -2,7 +2,7 @@
 // Cross-sport org profile — public URL shape + the callable wrappers.
 // URLs are TYPE-PREFIXED to match the sport sites: /{prefix}/{slug}.
 // ─────────────────────────────────────────────────────────────────────────
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { functions, identityDb } from '../firebase'
 
@@ -31,6 +31,17 @@ export async function resolveOrgPathBySlug(slug) {
   if (!orgSnap.exists()) return null
   const o = orgSnap.data()
   return orgPublicPathFrom(o.type, o.slug)
+}
+
+// Public directory: list every central organisation (rules allow public read
+// of the organizations collection). Sorted by name client-side so a doc missing
+// `name` isn't silently dropped by an orderBy.
+export async function listPublicOrganizations() {
+  const snap = await getDocs(collection(identityDb, 'organizations'))
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(o => o.slug)   // needs a slug for the public link
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 }
 
 // Server-side: resolve slug → org, enforce the paid gate, aggregate matches.
