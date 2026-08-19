@@ -74,30 +74,40 @@ export default function OrgProfile({ prefix }) {
     return <Navigate to={orgPublicPathFrom(org.type, org.slug)} replace />
   }
 
-  const isOwner = user && org && data.ownerUserId === user.uid   // ownerUserId not returned; owner action gated below by admin or account
-  const canManage = isAdmin // owners manage via /organisations; public page keeps the subscribe CTA simple
   const pc = org.primaryColor || '#059669'
+  const websiteHref  = org.website ? (/^https?:\/\//.test(org.website) ? org.website : `https://${org.website}`) : null
+  const websiteLabel = org.website ? org.website.replace(/^https?:\/\//, '') : ''
 
   return (
     <main className="orgprofile">
-      {/* Identity header — always free / SEO */}
-      <header className="op-header" style={{ '--pc': pc, background: org.bannerUrl ? `linear-gradient(180deg, rgba(11,18,32,.05), rgba(11,18,32,.35)), url(${org.bannerUrl}) center/cover` : undefined }}>
-        <div className="wrap op-head-inner">
-          <div className="op-logo">
-            {org.logoUrl ? <img src={org.logoUrl} alt="" /> : <span>{(org.matchName || org.name || '?').slice(0,1)}</span>}
+      <div className="wrap">
+        {/* Identity card — matches the sport-site design. Always free / SEO. */}
+        <article className="op-card" style={{ '--pc': pc }}>
+          {org.bannerUrl && (
+            <div className="op-banner">
+              <img src={org.bannerUrl} alt="" />
+              <span className="op-banner-strip" aria-hidden="true" />
+            </div>
+          )}
+          <div className="op-card-body">
+            <div className="op-logo">
+              {org.logoUrl ? <img src={org.logoUrl} alt="" /> : <span>{(org.matchName || org.name || '?').slice(0,1)}</span>}
+            </div>
+            <div className="op-id">
+              {org.type && <span className="op-badge">{org.type}</span>}
+              <h1>{org.name}</h1>
+              {org.region && <p className="op-region">{org.region}</p>}
+              {org.bio && <p className="op-bio">{org.bio}</p>}
+              {websiteHref && (
+                <a className="op-website" href={websiteHref} target="_blank" rel="noreferrer">
+                  {websiteLabel} <span aria-hidden="true">↗</span>
+                </a>
+              )}
+            </div>
           </div>
-          <div className="op-id">
-            <h1>{org.name}</h1>
-            <p className="op-meta">
-              {org.region && <span>{org.region}</span>}
-              {org.website && <a href={org.website} target="_blank" rel="noreferrer">Website</a>}
-            </p>
-            {org.bio && <p className="op-bio">{org.bio}</p>}
-          </div>
-        </div>
-      </header>
+        </article>
 
-      <div className="wrap op-body">
+        <div className="op-body">
         {data.locked ? (
           <section className="op-upsell">
             <h2>See {org.name}’s fixtures &amp; results across all sports</h2>
@@ -147,6 +157,7 @@ export default function OrgProfile({ prefix }) {
             )}
           </section>
         )}
+        </div>
       </div>
     </main>
   )
