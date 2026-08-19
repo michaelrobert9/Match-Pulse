@@ -161,10 +161,15 @@ service cloud.firestore {
     // No client path may set or change them, which is what keeps a compromised
     // or buggy sport client from granting itself a plan.
 
+    // Billing + the org-level profile subscription are server-written only (the
+    // payment flow / admin grant via the Admin SDK). No client update may touch
+    // them — public read is fine; the paid gate is enforced in the aggregation
+    // function, not by hiding the field.
     function orgBillingUnchanged() {
       return request.resource.data.get('entitlement', 'none') == resource.data.get('entitlement', 'none')
         && request.resource.data.get('eventCredits', 0) == resource.data.get('eventCredits', 0)
-        && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null);
+        && request.resource.data.get('entitlementExpiresAt', null) == resource.data.get('entitlementExpiresAt', null)
+        && request.resource.data.get('profileSubscription', null) == resource.data.get('profileSubscription', null);
     }
 
     // Owner of an org is the reassignable ownerUserId FIELD on the org doc —

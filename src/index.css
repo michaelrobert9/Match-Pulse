@@ -985,3 +985,68 @@ section#sports.block { padding: 84px 0; }
 .adm-migrate-body { padding: 0 16px 16px; }
 .adm-migrate-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
 .adm-migrate-result { margin-top: 12px; }
+
+/* ── Public cross-sport org profile ──────────────────────────────────────── */
+.orgprofile { background: var(--paper); min-height: 60vh; padding-bottom: 88px; }
+.op-header {
+  position: relative; padding: 44px 0 28px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 8%, var(--paper)), var(--paper));
+}
+.op-head-inner { display: flex; align-items: center; gap: 22px; }
+.op-logo {
+  width: 88px; height: 88px; flex: none; border-radius: 18px; overflow: hidden;
+  background: var(--card); border: 1px solid var(--line);
+  display: grid; place-items: center; box-shadow: 0 10px 30px -18px rgba(11,18,32,.4);
+}
+.op-logo img { width: 100%; height: 100%; object-fit: cover; }
+.op-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; color: var(--pc, var(--pulse)); }
+.op-id h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(26px, 4vw, 38px); line-height: 1.1; margin: 0; }
+.op-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0 0; font-size: 14px; color: #6b7580; }
+.op-meta a { color: var(--pulse-ink); font-weight: 600; }
+.op-bio { margin: 12px 0 0; max-width: 62ch; color: #4a545e; line-height: 1.5; }
+
+.op-body { padding-top: 28px; }
+
+/* Locked upsell */
+.op-upsell {
+  max-width: 640px; margin: 0 auto; text-align: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+  padding: 40px 32px; box-shadow: 0 20px 48px -30px rgba(11,18,32,.3);
+}
+.op-upsell h2 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 0 0 12px; }
+.op-upsell p { color: #4a545e; line-height: 1.55; margin: 0 auto 20px; max-width: 52ch; }
+.op-upsell-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.op-upsell-fine { font-size: 13px; color: #8a949e; margin-top: 18px; }
+
+/* Sport tabs */
+.op-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 24px; }
+.op-tabs button {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 14px;
+  padding: 9px 16px; border-radius: 980px; cursor: pointer;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); transition: all .2s var(--ease);
+}
+.op-tabs button:hover { border-color: color-mix(in srgb, var(--hue, var(--pulse)) 45%, var(--line)); }
+.op-tabs button.active { background: var(--hue, var(--pulse)); color: #fff; border-color: transparent; }
+
+/* Two-column fixtures / results */
+.op-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.op-col h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; letter-spacing: .02em; margin: 0 0 12px; color: var(--ink); }
+.opm-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  text-decoration: none; color: var(--ink); transition: border-color .2s, transform .2s;
+}
+a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); transform: translateX(2px); }
+.opm-date { font-size: 12px; color: #8a949e; flex: none; width: 74px; }
+.opm-teams { display: flex; align-items: center; gap: 8px; flex: 1; font-weight: 600; font-size: 14px; flex-wrap: wrap; }
+.opm-v { color: #b0b8c0; font-weight: 500; }
+.opm-score { background: var(--pulse-tint); color: var(--pulse-ink); border-radius: 7px; padding: 2px 8px; font-weight: 700; }
+.opm-venue { font-size: 12px; color: #8a949e; flex: none; }
+.opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; }
+
+@media (max-width: 640px) {
+  .op-lists { grid-template-columns: 1fr; gap: 22px; }
+  .op-head-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .opm-teams { width: 100%; }
+}

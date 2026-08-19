@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
+import { orgPublicPath, adminSetProfileSubscription } from '../lib/orgProfile'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
@@ -171,6 +172,18 @@ export default function OrgForm() {
     }
   }
 
+  async function setSub(action) {
+    setActBusy('sub'); setActMsg(null)
+    try {
+      const res = await adminSetProfileSubscription(id, action, 1)
+      setActMsg({ kind: 'ok', text: action === 'revoke' ? 'Profile subscription revoked.' : 'Profile subscription active (+1 year).' })
+      // reflect optimistically
+      setRecord(r => ({ ...r, profileSubscription: { status: res.status } }))
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Could not update subscription.' })
+    } finally { setActBusy('') }
+  }
+
   async function activate(sport) {
     setActBusy(sport); setActMsg(null)
     try {
@@ -206,7 +219,12 @@ export default function OrgForm() {
         <header className="acct-head">
           <p className="label">Organisation</p>
           <h1>{editing ? f.name || 'Edit organisation' : 'Create an organisation'}</h1>
-          {editing && <p className="acct-email">Slug <strong>{slug}</strong> · fixed after creation</p>}
+          {editing && (
+            <p className="acct-email">
+              Slug <strong>{slug}</strong> · fixed after creation ·{' '}
+              <Link to={orgPublicPath({ type: f.type, slug })}>View public page →</Link>
+            </p>
+          )}
         </header>
 
         {msg && <p className={`notice ${msg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`} role="status">{msg.text}</p>}
@@ -357,6 +375,26 @@ export default function OrgForm() {
                 )
               })}
             </ul>
+          </section>
+        )}
+
+        {/* Admin-only cross-sport profile subscription (Brief #6, Part C). */}
+        {editing && isAdmin && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">Cross-sport profile subscription <span className="opt">platform admin</span></h2>
+            <p className="adm-field-hint">
+              Status: <strong>{record?.profileSubscription?.status === 'active' ? 'Active' : 'Not subscribed'}</strong>.
+              Grant an annual subscription (comp / EFT received off-invoice) or revoke it. Owners
+              can also self-subscribe from the public page, which raises an EFT invoice.
+            </p>
+            <div className="adm-migrate-actions">
+              <button type="button" className="btn btn-dark btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('grant')}>
+                {actBusy === 'sub' ? 'Working…' : 'Grant +1 year'}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('revoke')}>
+                Revoke
+              </button>
+            </div>
           </section>
         )}
 
