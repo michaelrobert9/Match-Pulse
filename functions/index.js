@@ -497,6 +497,36 @@ const INVOICE_PLANS = {
   pro:   { amount: 15000, label: 'All-In Annual',                      once: false },
 }
 
+// Org-level cross-sport profile subscription (Brief #6) — the platform's first
+// ORG-level paid feature, distinct from the person-keyed plans above. Price is
+// TBD: set PROFILE_SUB_AMOUNT (Rand/yr, VAT incl.) via env when decided; the
+// plumbing is built now.
+const PROFILE_SUB_AMOUNT = Number(process.env.PROFILE_SUB_AMOUNT || 0)
+const PROFILE_SUB_LABEL  = 'Cross-sport profile — annual'
+
+// Set/extend an org's profile subscription. Renewal stacks from the later of
+// now and any remaining term (same rule as the person 'pro' plan). Written on
+// the org doc only — never client-writable (orgBillingUnchanged guards it).
+async function applyProfileSubscription(orgId, { years = 1, lastPaymentId = null }) {
+  const ref  = db.doc(`organizations/${orgId}`)
+  const snap = await ref.get()
+  if (!snap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const cur    = snap.data().profileSubscription || null
+  const curExp = cur?.expiresAt?.toDate?.() ?? null
+  const from    = curExp && curExp > new Date() ? curExp : new Date()
+  const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+  await ref.set({
+    profileSubscription: {
+      status:        'active',
+      plan:          'annual',
+      startedAt:     (cur?.status === 'active' && cur?.startedAt) ? cur.startedAt : admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt:     admin.firestore.Timestamp.fromDate(expires),
+      lastPaymentId: lastPaymentId,
+    },
+  }, { merge: true })
+  return snap.data()
+}
+
 function cleanBillTo(raw = {}) {
   const s = (v, n) => String(v ?? '').trim().slice(0, n)
   return {
@@ -513,9 +543,30 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
   const uid = request.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
 
-  const planKey = String(request.data?.plan || '')
-  const planDef = INVOICE_PLANS[planKey]
-  if (!planDef) throw new HttpsError('invalid-argument', 'Unknown plan.')
+  // Two products: a person-keyed plan (event/pro) OR an org-level cross-sport
+  // profile subscription (product:'orgProfile', orgId). Both bill by EFT invoice.
+  const product = String(request.data?.product || 'plan')
+  let planKey, planLabel, amount, credits = null, years = null, kind = 'plan', orgId = null
+
+  if (product === 'orgProfile') {
+    orgId = String(request.data?.orgId || '').trim()
+    if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+    const orgSnap = await db.doc(`organizations/${orgId}`).get()
+    if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+    const admin_ = request.auth?.token?.platformAdmin === true
+      || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
+    if (orgSnap.data().ownerUserId !== uid && !admin_) {
+      throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can subscribe.')
+    }
+    kind = 'orgProfile'; planKey = 'profileAnnual'; planLabel = PROFILE_SUB_LABEL
+    amount = PROFILE_SUB_AMOUNT; years = 1
+  } else {
+    const planDef = INVOICE_PLANS[String(request.data?.plan || '')]
+    if (!planDef) throw new HttpsError('invalid-argument', 'Unknown plan.')
+    planKey = String(request.data?.plan); planLabel = planDef.label; amount = planDef.amount
+    credits = planKey === 'event' ? 1 : null
+    years   = planKey === 'pro'   ? 1 : null
+  }
 
   const billTo = cleanBillTo(request.data?.billTo)
   if (!billTo.name || !billTo.email) {
@@ -539,11 +590,13 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     number,
     uid,
     accountEmail,
+    kind,                               // 'plan' | 'orgProfile'
+    orgId,                              // set for orgProfile
     plan:      planKey,
-    planLabel: planDef.label,
-    credits:   planKey === 'event' ? 1 : null,
-    years:     planKey === 'pro'   ? 1 : null,
-    amount:    planDef.amount,          // Rand, VAT inclusive where applicable
+    planLabel,
+    credits,
+    years,
+    amount,                             // Rand, VAT inclusive where applicable
     status:    'outstanding',           // outstanding | paid | void
     billTo,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -584,11 +637,19 @@ exports.markInvoicePaid = onCall({ region: REGION }, async (request) => {
   if (inv.status === 'paid') return { ok: true, already: true }
   if (inv.status === 'void') throw new HttpsError('failed-precondition', 'Invoice is void — un-void is not supported; create a new invoice.')
 
-  const beforeData = await applyEntitlement(inv.uid, {
-    plan:    inv.plan,
-    credits: inv.credits ?? 1,
-    years:   inv.years ?? 1,
-  })
+  // Route the grant by product: org-profile subscription → org doc; else the
+  // person-keyed entitlement.
+  let previousPlan = 'none'
+  if (inv.kind === 'orgProfile') {
+    await applyProfileSubscription(inv.orgId, { years: inv.years ?? 1, lastPaymentId: id })
+  } else {
+    const beforeData = await applyEntitlement(inv.uid, {
+      plan:    inv.plan,
+      credits: inv.credits ?? 1,
+      years:   inv.years ?? 1,
+    })
+    previousPlan = beforeData.entitlement ?? 'none'
+  }
 
   await invRef.update({
     status:    'paid',
@@ -604,12 +665,14 @@ exports.markInvoicePaid = onCall({ region: REGION }, async (request) => {
     invoiceId:     id,
     invoiceNumber: inv.number,
     uid:           inv.uid,
+    orgId:         inv.orgId ?? null,
+    kind:          inv.kind ?? 'plan',
     email:         inv.accountEmail ?? inv.billTo?.email ?? null,
     plan:          inv.plan,
     amountGross:   inv.amount,
     creditsSet:    inv.plan === 'event' ? (inv.credits ?? 1) : null,
-    years:         inv.plan === 'pro' ? (inv.years ?? 1) : null,
-    previousPlan:  beforeData.entitlement ?? 'none',
+    years:         inv.years ?? null,
+    previousPlan,
     adminUid:      request.auth.uid,
     paymentStatus: 'MANUAL',
     receivedAt:    admin.firestore.FieldValue.serverTimestamp(),
@@ -1034,4 +1097,113 @@ exports.centralActivateHockeyOrgs = onCall({ region: REGION, timeoutSeconds: 300
   }
   logger.info('Hockey orgs activated', { count: results.length })
   return { count: results.length, results }
+})
+
+// ── adminSetProfileSubscription ──────────────────────────────────────────────
+// Admin grant/revoke of an org's cross-sport profile subscription (comp, EFT
+// received off-invoice, correction). Grant extends by `years`; revoke locks it.
+exports.adminSetProfileSubscription = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const orgId  = String(request.data?.orgId || '').trim()
+  const action = String(request.data?.action || 'grant')
+  const years  = Math.max(1, Math.floor(Number(request.data?.years) || 1))
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+
+  if (action === 'revoke') {
+    await db.doc(`organizations/${orgId}`).set({
+      profileSubscription: { status: 'none', plan: 'annual', expiresAt: null, startedAt: null, lastPaymentId: null },
+    }, { merge: true })
+    logger.info('Profile subscription revoked', { orgId, by: request.auth.uid })
+    return { ok: true, status: 'none' }
+  }
+  await applyProfileSubscription(orgId, { years, lastPaymentId: `admin:${request.auth.uid}` })
+  logger.info('Profile subscription granted', { orgId, years, by: request.auth.uid })
+  return { ok: true, status: 'active' }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CROSS-SPORT ORG PROFILE (Brief #6, Part B) — resolve slug → org, enforce the
+// paid gate, and aggregate fixtures/results across the org's activated sports
+// by reading each sport's `matches` with the Admin SDK. Identity is free; the
+// aggregated matches are the paid feature. Cross-DB reads are cached in-memory
+// per instance (up to 4 sports × 2 queries per view — read cost is real).
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PROFILE_IDENTITY_FIELDS = [...ORG_IDENTITY_FIELDS, 'bannerUrl']
+const MATCH_CAP = 60                              // per sport, per direction
+const AGG_CACHE = new Map()                       // orgId → { at, data }
+const AGG_TTL_MS = 5 * 60 * 1000
+
+function subActive(org) {
+  const s = org.profileSubscription
+  return !!s && s.status === 'active' && (s.expiresAt?.toMillis ? s.expiresAt.toMillis() : 0) > Date.now()
+}
+
+function mapMatch(doc, sport) {
+  const m = doc.data() || {}
+  return {
+    id:         doc.id,
+    sport,
+    status:     m.status ?? null,
+    matchDate:  m.matchDate?.toMillis ? m.matchDate.toMillis() : (typeof m.matchDate === 'number' ? m.matchDate : null),
+    homeDisplay: m.homeDisplay ?? m.homeName ?? null,
+    awayDisplay: m.awayDisplay ?? m.awayName ?? null,
+    homeScore:  m.homeScore ?? null,
+    awayScore:  m.awayScore ?? null,
+    venue:      m.venue ?? null,
+    url:        m.path ? `https://${sport}.matchpulse.co.za${m.path}` : null,
+  }
+}
+
+async function aggregateSportMatches(sport, orgId) {
+  const sportDb = sportDbFor(sport)
+  const col = sportDb.collection('matches')
+  // Two queries (home OR away), unioned + de-duped.
+  const [homeSnap, awaySnap] = await Promise.all([
+    col.where('homeOrgId', '==', orgId).limit(MATCH_CAP).get(),
+    col.where('awayOrgId', '==', orgId).limit(MATCH_CAP).get(),
+  ])
+  const seen = new Map()
+  for (const d of [...homeSnap.docs, ...awaySnap.docs]) if (!seen.has(d.id)) seen.set(d.id, mapMatch(d, sport))
+  const all = [...seen.values()]
+  const results  = all.filter(m => m.status === 'final').sort((a, b) => (b.matchDate ?? 0) - (a.matchDate ?? 0))
+  const fixtures = all.filter(m => m.status !== 'final').sort((a, b) => (a.matchDate ?? Infinity) - (b.matchDate ?? Infinity))
+  return { fixtures, results }
+}
+
+async function aggregateMatches(orgId, sports) {
+  const cached = AGG_CACHE.get(orgId)
+  if (cached && Date.now() - cached.at < AGG_TTL_MS) return cached.data
+  const out = {}
+  await Promise.all(sports.map(async (sport) => {
+    try { out[sport] = await aggregateSportMatches(sport, orgId) }
+    catch (err) { logger.warn('aggregateMatches failed', { orgId, sport, message: err.message }); out[sport] = { fixtures: [], results: [], error: 'unreadable' } }
+  }))
+  AGG_CACHE.set(orgId, { at: Date.now(), data: out })
+  return out
+}
+
+exports.getOrgProfile = onCall({ region: REGION }, async (request) => {
+  const slug = String(request.data?.slug || '').trim().toLowerCase()
+  if (!slug) throw new HttpsError('invalid-argument', 'slug required.')
+
+  // Resolve slug → orgId via the registry, then read the org.
+  const resv = await db.doc(`orgSlugs/${slug}`).get()
+  if (!resv.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const orgSnap = await db.doc(`organizations/${resv.data().orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+  const orgId = orgSnap.id
+
+  const identity = { id: orgId }
+  for (const k of PROFILE_IDENTITY_FIELDS) identity[k] = org[k] ?? null
+
+  const sports = Object.keys(org.activatedSports || {}).filter(isSportKey)
+  const active = subActive(org)
+
+  if (!active) {
+    return { org: identity, activatedSports: sports, locked: true }
+  }
+  const matches = await aggregateMatches(orgId, sports)
+  return { org: identity, activatedSports: sports, locked: false, matches }
 })

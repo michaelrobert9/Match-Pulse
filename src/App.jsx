@@ -13,6 +13,9 @@ import NewInvoice from './pages/NewInvoice'
 import Invoice from './pages/Invoice'
 import Organisations from './pages/Organisations'
 import OrgForm from './pages/OrgForm'
+import OrgProfile from './pages/OrgProfile'
+import OrgRedirect from './pages/OrgRedirect'
+import SubscribeProfile from './pages/SubscribeProfile'
 import Admin from './pages/Admin'
 import Terms from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
@@ -88,6 +91,18 @@ export default function App() {
         <Route path="/organisations/:id/edit" element={
           <ProtectedRoute><OrgForm /></ProtectedRoute>
         } />
+        <Route path="/subscribe/:orgId" element={
+          <ProtectedRoute><SubscribeProfile /></ProtectedRoute>
+        } />
+
+        {/* Public, type-prefixed org profiles (free identity + gated matches). */}
+        <Route path="/schools/:slug"      element={<OrgProfile prefix="schools" />} />
+        <Route path="/clubs/:slug"        element={<OrgProfile prefix="clubs" />} />
+        <Route path="/associations/:slug" element={<OrgProfile prefix="associations" />} />
+        <Route path="/leagues/:slug"      element={<OrgProfile prefix="leagues" />} />
+        {/* Legacy → prefixed redirects. `new` is matched above, so it never hits this. */}
+        <Route path="/o/:slug"            element={<OrgRedirect />} />
+        <Route path="/organisations/:slug" element={<OrgRedirect />} />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
         } />
