@@ -829,8 +829,11 @@ async function activateOrgIntoSport(org, orgId, sport, uid) {
   if (org.activatedSports && org.activatedSports[sport]) {
     return { sport, slug: org.slug, staffCount: null, alreadyActive: true }
   }
-  // c. identity into the sport org doc (merge).
+  // c. identity into the sport org doc (merge). Clear any prior tombstone —
+  // re-activating an org makes it managed again.
   await writeIdentityToSport(sport, orgId, pickIdentity(org), asMillis(org.updatedAt))
+  await sportDbFor(sport).doc(`organizations/${orgId}`).set(
+    { managed: true, deactivatedAt: null }, { merge: true })
 
   // d. copy the ENTIRE central staff subcollection down.
   const staffSnap = await db.collection(`organizations/${orgId}/staff`).get()
@@ -878,6 +881,54 @@ exports.centralOrgActivate = onCall({ region: REGION }, async (request) => {
   }
 
   return activateOrgIntoSport(org, orgId, sport, uid)
+})
+
+// ── centralOrgDeactivate ──────────────────────────────────────────────────────
+// Reverse activation for ONE sport. Clears activatedSports.<sport> centrally
+// (which stops the identity/staff syncs and unblocks central deletion) and
+// TOMBSTONES the sport org copy — the identity doc is kept and marked
+// { managed:false, deactivatedAt }, so historical matches still resolve this
+// org's crest and name on opponents' pages. Never touches matches or teams.
+// Guard: owner|admin. Idempotent (already-inactive → no-op).
+exports.centralOrgDeactivate = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+
+  const orgId = String(request.data?.orgId || '').trim()
+  const sport = String(request.data?.sport || '').trim()
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+  if (!isSportKey(sport)) throw new HttpsError('invalid-argument', `sport must be one of ${SPORT_KEYS.join(', ')}.`)
+
+  const ref = db.doc(`organizations/${orgId}`)
+  const snap = await ref.get()
+  if (!snap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = snap.data()
+
+  const isAdmin = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
+  if (org.ownerUserId !== uid && !isAdmin) {
+    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can deactivate.')
+  }
+
+  if (!org.activatedSports || !org.activatedSports[sport]) {
+    return { sport, alreadyInactive: true }
+  }
+
+  // Tombstone the sport copy (kept so shared matches keep this org's crest/name).
+  try {
+    await sportDbFor(sport).doc(`organizations/${orgId}`).set({
+      managed: false,
+      deactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
+  } catch (err) {
+    logger.warn('deactivate: tombstone write failed', { orgId, sport, message: err.message })
+  }
+
+  // Clear the central activation flag — stops future syncs, unblocks delete.
+  await ref.update({ [`activatedSports.${sport}`]: admin.firestore.FieldValue.delete() })
+
+  logger.info('Org deactivated in sport', { orgId, sport })
+  return { sport, deactivated: true }
 })
 
 // ── centralOrgIdentitySync ───────────────────────────────────────────────────

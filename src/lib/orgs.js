@@ -186,7 +186,7 @@ export async function deleteOrg(orgId) {
   if (!org) return
   if (org.activatedSports && Object.keys(org.activatedSports).length > 0) {
     throw new Error(
-      'This organisation is active on a sport. Its sport copies must be cleaned up before it can be deleted.'
+      'This organisation is still active on a sport. Deactivate each active sport first, then delete. (Matches it played are always kept.)'
     )
   }
   const batch = writeBatch(identityDb)
@@ -223,6 +223,16 @@ export async function adminChangeSlug(orgId, oldSlug, newSlugRaw, uid) {
 // Idempotent server-side. Returns { sport, slug, staffCount, alreadyActive? }.
 export async function activateOrgInSport(orgId, sport) {
   const call = httpsCallable(functions, 'centralOrgActivate')
+  const { data } = await call({ orgId, sport })
+  return data
+}
+
+// ── Deactivation ─────────────────────────────────────────────────────────────
+// Reverse of activation for one sport. Clears activatedSports.<sport> and
+// tombstones the sport copy (kept, so historical matches keep the org's crest
+// and name). Never deletes matches or teams. Owner or platform admin.
+export async function deactivateOrgInSport(orgId, sport) {
+  const call = httpsCallable(functions, 'centralOrgDeactivate')
   const { data } = await call({ orgId, sport })
   return data
 }
