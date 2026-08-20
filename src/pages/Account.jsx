@@ -317,14 +317,35 @@ export default function Account() {
               {plan.key === 'expired' && <p className="plan-meta">Your Pro subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
               {plan.key === 'free'    && <p className="plan-meta">Unlimited teams and matches. Upgrade to run a competition.</p>}
             </div>
-            <a className="btn btn-primary" href="/#plans">
-              {plan.key === 'free' ? 'See plans' : 'Change plan'}
-            </a>
+            <Link className="btn btn-ghost" to="/products">
+              Compare all plans
+            </Link>
           </div>
+
+          {plan.key !== 'pro' && (
+            <div className="upgrade-grid">
+              <p className="upgrade-lede">Upgrade to run competitions. Free covers unlimited teams &amp; matches — a competition (league, tournament or festival) needs a plan:</p>
+              <div className="upgrade-opts">
+                <div className="upgrade-opt">
+                  <p className="upgrade-name">Single Competition</p>
+                  <p className="upgrade-price">{formatRand(2000)} <span>once-off</span></p>
+                  <p className="upgrade-what">One competition, on any one MatchPulse sport. No subscription.</p>
+                  <Link className="btn btn-dark btn-sm" to="/invoice/new?plan=event">Get a Single Competition invoice</Link>
+                </div>
+                <div className="upgrade-opt upgrade-opt-featured">
+                  <p className="upgrade-name">All-In Annual</p>
+                  <p className="upgrade-price">{formatRand(15000)} <span>/ year</span></p>
+                  <p className="upgrade-what">Unlimited competitions across every sport for a full year.</p>
+                  <Link className="btn btn-primary btn-sm" to="/invoice/new?plan=pro">Get an All-In Annual invoice</Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           <p className="acct-fine">
-            Plans are paid by EFT: choose a plan, we generate an invoice with our bank
-            details and a payment reference, and your plan activates once the payment
-            reflects.
+            Plans are paid by EFT: choosing one generates an invoice with our bank
+            details and a payment reference (emailed to you), and your plan activates once
+            the payment reflects.
           </p>
         </Panel>
 

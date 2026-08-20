@@ -1170,3 +1170,15 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 }
 .verify-banner > div { flex: 1; min-width: 220px; line-height: 1.45; }
 .verify-banner strong { color: #92400e; }
+
+/* Upgrade options inside the account "Your plan" panel */
+.upgrade-grid { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 18px; }
+.upgrade-lede { color: #4a545e; font-size: 14px; line-height: 1.5; margin: 0 0 14px; }
+.upgrade-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.upgrade-opt { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.upgrade-opt-featured { border-color: var(--pulse); box-shadow: 0 0 0 1px var(--pulse); }
+.upgrade-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; margin: 0; }
+.upgrade-price { font-size: 20px; font-weight: 800; margin: 0; color: var(--ink); }
+.upgrade-price span { font-size: 12px; font-weight: 600; color: #8a949e; }
+.upgrade-what { font-size: 13px; color: #4a545e; line-height: 1.45; margin: 2px 0 12px; flex: 1; }
+@media (max-width: 560px) { .upgrade-opts { grid-template-columns: 1fr; } }
