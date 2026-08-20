@@ -7,7 +7,7 @@ import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
-  deleteOrg, adminChangeSlug,
+  deactivateOrgInSport, deleteOrg, adminChangeSlug,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -191,9 +191,23 @@ export default function OrgForm() {
       setActivated(a => ({ ...a, [sport]: { activatedAt: Date.now() } }))
       setActMsg({ kind: 'ok', text: res.alreadyActive
         ? `${sport} was already active.`
-        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. The owner can manage it there now.` })
+        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. Use the “Manage on ${sport}” link to set it up and add teams & competitions there.` })
     } catch (e) {
       setActMsg({ kind: 'err', text: e.message || 'Activation failed.' })
+    } finally {
+      setActBusy('')
+    }
+  }
+
+  async function deactivate(sport) {
+    if (!window.confirm(`Deactivate ${sport}? The org's profile stops publishing on this sport, but every match it has played is kept — this does not delete any match or result.`)) return
+    setActBusy(sport); setActMsg(null)
+    try {
+      await deactivateOrgInSport(id, sport)
+      setActivated(a => { const n = { ...a }; delete n[sport]; return n })
+      setActMsg({ kind: 'ok', text: `Deactivated on ${sport}. Matches it played are kept. You can delete the organisation once no sports are active.` })
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Deactivation failed.' })
     } finally {
       setActBusy('')
     }
@@ -351,8 +365,8 @@ export default function OrgForm() {
             <h2 className="inv-edit-h">Activate on sports</h2>
             <p className="adm-field-hint">
               Copies this organisation’s identity and staff into a sport so the owner can
-              manage it there. Additive — a sport stays active once switched on, and central
-              edits flow down automatically.
+              manage it there; central edits flow down automatically. Deactivating a sport
+              stops it publishing there but always keeps every match it has played.
             </p>
             {actMsg && <p className={`notice ${actMsg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{actMsg.text}</p>}
             <ul className="org-activate-list">
@@ -362,8 +376,18 @@ export default function OrgForm() {
                   <li key={s.key} style={{ '--hue': s.hue }}>
                     <span className="org-act-dot" style={{ background: s.hue }} />
                     <span className="org-act-name">{s.name}</span>
+                    <span className="org-act-actions">
                     {on ? (
-                      <span className="pill pill-ok">Active</span>
+                      <>
+                        <a className="btn btn-primary btn-sm" href={`${s.host}/manage/orgs/${id}`} target="_blank" rel="noreferrer">
+                          Manage on {s.name} ↗
+                        </a>
+                        <button type="button" className="btn btn-ghost btn-sm"
+                          disabled={actBusy === s.key}
+                          onClick={() => deactivate(s.key)}>
+                          {actBusy === s.key ? 'Deactivating…' : 'Deactivate'}
+                        </button>
+                      </>
                     ) : (
                       <button type="button" className="btn btn-dark btn-sm"
                         disabled={actBusy === s.key}
@@ -371,6 +395,7 @@ export default function OrgForm() {
                         {actBusy === s.key ? 'Activating…' : 'Activate'}
                       </button>
                     )}
+                    </span>
                   </li>
                 )
               })}
@@ -425,8 +450,8 @@ export default function OrgForm() {
             <h2 className="inv-edit-h">Delete organisation</h2>
             <p className="adm-field-hint">
               {isActivated
-                ? 'Active on a sport — deletion is blocked until the sport copies are cleaned up.'
-                : 'Permanently deletes this organisation and frees its slug for reuse. This cannot be undone.'}
+                ? 'Active on a sport — deactivate each active sport above first (matches are always kept), then this unlocks.'
+                : 'Deletes this organisation’s profile and frees its slug for reuse. Matches it has played stay on the sport sites as historical records. This cannot be undone.'}
             </p>
             <button type="button" className="btn btn-danger" disabled={delBusy || isActivated} onClick={remove}>
               {delBusy ? 'Deleting…' : 'Delete organisation'}
