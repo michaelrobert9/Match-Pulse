@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile as fbUpdateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut as fbSignOut,
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
@@ -97,6 +98,9 @@ export function AuthProvider({ children }) {
   async function signUp(email, password, displayName) {
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     if (displayName) await fbUpdateProfile(cred.user, { displayName })
+    // Confirm the address is real and reachable. Non-blocking — the account
+    // works, but we nudge them to verify (Account shows a banner + resend).
+    sendEmailVerification(cred.user).catch(() => {})
     await setDoc(doc(identityDb, 'users', cred.user.uid), {
       email:         (email ?? '').toLowerCase(),
       displayName:   displayName ?? '',
@@ -115,6 +119,7 @@ export function AuthProvider({ children }) {
   const login           = (email, password) => signInWithEmailAndPassword(auth, email, password)
   const signInWithGoogle = () => signInWithPopup(auth, googleProvider)
   const resetPassword   = (email) => sendPasswordResetEmail(auth, email)
+  const resendVerification = () => (auth.currentUser ? sendEmailVerification(auth.currentUser) : Promise.reject(new Error('Not signed in')))
   const logout          = () => fbSignOut(auth)
 
   return (
@@ -124,7 +129,7 @@ export function AuthProvider({ children }) {
       profile,
       plan: planStatus(entitlementOf(profile)),
       loading,
-      login, signUp, signInWithGoogle, resetPassword, logout, refresh,
+      login, signUp, signInWithGoogle, resetPassword, resendVerification, logout, refresh,
     }}>
       {children}
     </AuthContext.Provider>

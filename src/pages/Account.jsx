@@ -95,7 +95,20 @@ function Panel({ title, description, children }) {
 }
 
 export default function Account() {
-  const { user, profile, plan, refresh, logout } = useAuth()
+  const { user, profile, plan, refresh, logout, resendVerification } = useAuth()
+  const [verifyBusy, setVerifyBusy] = useState(false)
+
+  async function resendVerify() {
+    setVerifyBusy(true)
+    try {
+      await resendVerification()
+      setMsg({ kind: 'ok', text: `Verification email sent to ${user?.email}. Check your inbox (and spam).` })
+    } catch {
+      setMsg({ kind: 'err', text: 'Could not send the verification email just now. Please try again shortly.' })
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
   const navigate = useNavigate()
 
   const [name,    setName]    = useState(profile?.displayName || user?.displayName || '')
@@ -233,6 +246,18 @@ export default function Account() {
           <h1>{profile?.displayName || user?.displayName || 'Your account'}</h1>
           <p className="acct-email">{user?.email}</p>
         </header>
+
+        {user && !user.emailVerified && (
+          <div className="verify-banner" role="status">
+            <div>
+              <strong>Verify your email.</strong> We sent a confirmation link to {user.email}. Please
+              click it to confirm your address — it keeps your account and any invoices reaching you.
+            </div>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={verifyBusy} onClick={resendVerify}>
+              {verifyBusy ? 'Sending…' : 'Resend email'}
+            </button>
+          </div>
+        )}
 
         {msg && (
           <p className={`notice ${msg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`} role="status">

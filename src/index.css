@@ -1161,3 +1161,12 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .trn-body h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16.5px; line-height: 1.2; margin: 0; }
 .trn-meta { margin: 8px 0 0; font-size: 13px; color: #6b7580; }
 .trn-dates { margin: 4px 0 0; font-size: 12.5px; color: #8a949e; }
+
+/* Email-verification reminder on the account page */
+.verify-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.35);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 14px; color: #7c4a03;
+}
+.verify-banner > div { flex: 1; min-width: 220px; line-height: 1.45; }
+.verify-banner strong { color: #92400e; }
