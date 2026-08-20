@@ -638,6 +638,15 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     years   = planKey === 'pro'   ? 1 : null
   }
 
+  // Free profile subscription (price not set → amount 0): don't raise a zero
+  // invoice. Grant it directly and return. Owner/admin was already verified for
+  // orgProfile above. (Person plans always have a non-zero price.)
+  if (kind === 'orgProfile' && !(amount > 0)) {
+    await applyProfileSubscription(orgId, { years: years || 1, lastPaymentId: `free:${uid}` })
+    logger.info('Profile subscription granted free — no invoice raised', { orgId, uid })
+    return { ok: true, free: true, orgId }
+  }
+
   const billTo = cleanBillTo(request.data?.billTo)
   if (!billTo.name || !billTo.email) {
     throw new HttpsError('invalid-argument', 'Invoice name and email are required.')
