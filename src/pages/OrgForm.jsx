@@ -191,7 +191,7 @@ export default function OrgForm() {
       setActivated(a => ({ ...a, [sport]: { activatedAt: Date.now() } }))
       setActMsg({ kind: 'ok', text: res.alreadyActive
         ? `${sport} was already active.`
-        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. The owner can manage it there now.` })
+        : `Activated on ${sport} — identity + ${res.staffCount ?? 0} staff copied. Use the “Manage on ${sport}” link to set it up and add teams & competitions there.` })
     } catch (e) {
       setActMsg({ kind: 'err', text: e.message || 'Activation failed.' })
     } finally {
@@ -376,9 +376,12 @@ export default function OrgForm() {
                   <li key={s.key} style={{ '--hue': s.hue }}>
                     <span className="org-act-dot" style={{ background: s.hue }} />
                     <span className="org-act-name">{s.name}</span>
+                    <span className="org-act-actions">
                     {on ? (
                       <>
-                        <span className="pill pill-ok">Active</span>
+                        <a className="btn btn-primary btn-sm" href={`${s.host}/manage/orgs/${id}`} target="_blank" rel="noreferrer">
+                          Manage on {s.name} ↗
+                        </a>
                         <button type="button" className="btn btn-ghost btn-sm"
                           disabled={actBusy === s.key}
                           onClick={() => deactivate(s.key)}>
@@ -392,6 +395,7 @@ export default function OrgForm() {
                         {actBusy === s.key ? 'Activating…' : 'Activate'}
                       </button>
                     )}
+                    </span>
                   </li>
                 )
               })}

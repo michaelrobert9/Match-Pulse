@@ -984,11 +984,12 @@ section#sports.block { padding: 84px 0; }
 .org-activate { border-top: 1px solid var(--line); padding-top: 22px; margin-top: 8px; }
 .org-activate-list { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
 .org-activate-list li {
-  display: flex; align-items: center; gap: 12px; padding: 12px 15px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 15px; flex-wrap: wrap;
   background: var(--card); border: 1px solid var(--line); border-radius: 10px;
 }
 .org-act-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-.org-act-name { flex: 1; font-weight: 600; }
+.org-act-name { flex: 1; font-weight: 600; min-width: 90px; }
+.org-act-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ── Danger action ───────────────────────────────────────────────────────── */
 .btn-danger { background: #b91c1c; color: #fff; }
