@@ -27,6 +27,11 @@ export default function Nav() {
   // Collapse the mobile menu whenever the route changes.
   useEffect(() => { setOpen(false) }, [location.pathname, location.hash])
 
+  const name    = user?.displayName || profile?.displayName || user?.email?.split('@')[0] || 'Account'
+  const initial = (name || '?').slice(0, 1).toUpperCase()
+  const photo   = profile?.photoURL || user?.photoURL || null
+  const isActive = (to) => (to === '/' ? location.pathname === '/' : location.pathname.startsWith(to))
+
   return (
     <header className={scrolled ? 'scrolled' : ''}>
       <div className="wrap nav">
@@ -36,24 +41,25 @@ export default function Nav() {
 
         <nav className="nav-links" aria-label="Primary">
           {SECTIONS.map(s => (
-            <Link
-              key={s.to}
-              className={'link' + (location.pathname === s.to ? ' active' : '')}
-              to={s.to}
-            >{s.label}</Link>
+            <Link key={s.to} className={'link' + (isActive(s.to) ? ' active' : '')} to={s.to}>{s.label}</Link>
           ))}
+          {isAdmin && (
+            <Link className={'link nav-admin' + (location.pathname.startsWith('/admin') ? ' active' : '')} to="/admin">Admin</Link>
+          )}
         </nav>
 
         <div className="nav-cta">
           {loading ? null : user ? (
-            <>
-              {isAdmin && <Link className="btn btn-ghost btn-sm" to="/admin">Admin</Link>}
-              <Link className="btn btn-primary btn-sm" to="/account">My account</Link>
-            </>
+            <Link className="nav-acct" to="/account" aria-label="Your account">
+              {photo
+                ? <img className="nav-acct-av" src={photo} alt="" />
+                : <span className="nav-acct-av">{initial}</span>}
+              <span className="nav-acct-name">{name}</span>
+            </Link>
           ) : (
             <>
-              <Link className="btn btn-ghost btn-sm" to="/login">Sign In</Link>
-              <Link className="btn btn-primary btn-sm" to="/signup">Create an Account</Link>
+              <Link className="btn btn-ghost btn-sm nav-signin" to="/login">Sign In</Link>
+              <Link className="btn btn-primary btn-sm nav-signup" to="/signup">Create an Account</Link>
             </>
           )}
           <button
@@ -73,11 +79,10 @@ export default function Nav() {
         <div id="mnav">
           <div className="wrap">
             {SECTIONS.map(s => <Link key={s.to} to={s.to}>{s.label}</Link>)}
+            {isAdmin && <Link className="mnav-admin" to="/admin">Admin</Link>}
+            <div className="mnav-sep" />
             {user ? (
-              <>
-                {isAdmin && <Link to="/admin">Admin</Link>}
-                <Link to="/account">My account</Link>
-              </>
+              <Link to="/account">{name} — My account</Link>
             ) : (
               <><Link to="/login">Sign In</Link><Link to="/signup">Create an Account</Link></>
             )}

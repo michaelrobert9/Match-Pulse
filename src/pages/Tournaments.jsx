@@ -76,7 +76,7 @@ export default function Tournaments() {
         <header className="dir-head">
           <p className="label">Across every sport</p>
           <h1>Tournaments &amp; competitions</h1>
-          <p className="dir-sub">Every published competition on MatchPulse, from every sport. Open any one to see its full standings, fixtures and results on its sport site.</p>
+          <p className="dir-sub">Every published competition on MatchPulse, from every sport. Open any one to see its full standings, matches and results on its sport site.</p>
         </header>
 
         <div className="dir-tabs" role="tablist">

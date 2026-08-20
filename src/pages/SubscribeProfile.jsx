@@ -56,7 +56,7 @@ export default function SubscribeProfile() {
           <p className="label">Subscription</p>
           <h1>Cross-sport profile — {org.name}</h1>
           <p className="acct-email">
-            Publishes {org.name}’s fixtures &amp; results across every activated sport on its public
+            Publishes {org.name}’s matches &amp; results across every activated sport on its public
             page (<Link to={orgPublicPath(org)}>{orgPublicPath(org)}</Link>). Annual, billed by EFT invoice.
           </p>
         </header>
