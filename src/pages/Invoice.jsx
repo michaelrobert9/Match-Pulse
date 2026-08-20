@@ -181,9 +181,11 @@ export default function Invoice() {
                 <td>
                   <strong>MatchPulse — {inv.planLabel}</strong>
                   <div className="inv-line-detail">
-                    {inv.plan === 'pro'
-                      ? `Unlimited competitions across every MatchPulse sport for ${inv.years === 1 ? 'one year' : `${inv.years} years`}.`
-                      : `${inv.credits === 1 ? 'One competition' : `${inv.credits} competitions`}, usable on any MatchPulse sport.`}
+                    {inv.kind === 'orgProfile'
+                      ? 'Publishes this organisation’s matches & results across every MatchPulse sport it plays, for one year.'
+                      : inv.plan === 'pro'
+                        ? `Unlimited competitions across every MatchPulse sport for ${inv.years === 1 ? 'one year' : `${inv.years} years`}.`
+                        : `${inv.credits === 1 ? 'One competition' : `${inv.credits} competitions`}, usable on any MatchPulse sport.`}
                   </div>
                 </td>
                 <td className="num tnum">{formatRand(inv.amount)}</td>

@@ -38,8 +38,14 @@ export default function SubscribeProfile() {
     e.preventDefault()
     setBusy(true); setErr('')
     try {
-      const { id } = await createProfileInvoice(orgId, billTo)
-      navigate(`/invoices/${id}`, { replace: true })
+      const res = await createProfileInvoice(orgId, billTo)
+      // Price not set → the profile is free; the server activates it directly
+      // instead of raising a zero invoice. Send them to the now-unlocked page.
+      if (res?.free) {
+        navigate(orgPublicPath(org), { replace: true })
+        return
+      }
+      navigate(`/invoices/${res.id}`, { replace: true })
     } catch (e) {
       setErr(e.message || 'Could not create the invoice.')
       setBusy(false)

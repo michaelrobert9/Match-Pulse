@@ -12,9 +12,26 @@ import { planStatus } from '../contexts/AuthContext'
 // The admin panel is a single page with tab-switched sections rather than
 // nested routes — every section fetches its own data on demand, and users
 // hit F5 rarely enough that URL-persisted tabs aren't worth the wiring.
+// Sidebar icons — inline single-path SVGs (20×20, stroke = currentColor), so the
+// admin shell matches the sport sites' AppShell rail without a new dependency.
+const I = (d) => (props) => (
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+    strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}><path d={d} /></svg>
+)
+const ICONS = {
+  users:    I('M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75'),
+  orgs:     I('M3 21h18 M5 21V7l7-4 7 4v14 M9 9h.01 M15 9h.01 M9 13h.01 M15 13h.01 M9 17h.01 M15 17h.01'),
+  invoices: I('M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13h6 M9 17h6'),
+  messages: I('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'),
+  payments: I('M1 4h22v16H1z M1 10h22'),
+  activity: I('M22 12h-4l-3 9L9 3l-3 9H2'),
+  access:   I('M12 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 8h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1 M7 8V6a5 5 0 0 1 10 0v2'),
+  seo:      I('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35'),
+}
+
 const TABS = [
   { key: 'users',    label: 'Users' },
-  { key: 'orgs',     label: 'Orgs' },
+  { key: 'orgs',     label: 'Organisations' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
@@ -942,42 +959,94 @@ function SeoTab() {
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────
+function AdminNav({ tab, onPick }) {
+  return (
+    <nav className="adm-nav" role="tablist" aria-label="Admin sections">
+      {TABS.map(t => {
+        const Icon = ICONS[t.key]
+        return (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
+            className={'adm-nav-item' + (tab === t.key ? ' active' : '')}
+            onClick={() => onPick(t.key)}
+          >
+            {Icon && <Icon />}
+            <span>{t.label}</span>
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
 export default function Admin() {
   const [tab, setTab] = useState('users')
-  const { profile } = useAuth()
+  const [open, setOpen] = useState(false)
+  const { user, profile } = useAuth()
+
+  const pick = (k) => { setTab(k); setOpen(false) }
+  const name = profile?.displayName || user?.displayName || profile?.email || 'Admin'
+  const initial = (name || '?').slice(0, 1).toUpperCase()
+
+  const Brand = () => (
+    <Link to="/" className="adm-brand">
+      <span className="adm-brand-mark"><span className="m">Match</span><span className="p">Pulse</span></span>
+      <span className="adm-brand-badge">Admin</span>
+    </Link>
+  )
+  const Foot = () => (
+    <div className="adm-side-foot">
+      <Link to="/" className="adm-foot-link">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5 M12 19l-7-7 7-7" /></svg>
+        Public site
+      </Link>
+      <Link to="/account" className="adm-foot-acct">
+        <span className="adm-foot-av">{initial}</span>
+        <span className="adm-foot-email">{profile?.email || user?.email}</span>
+      </Link>
+    </div>
+  )
 
   return (
-    <main className="adm">
-      <div className="wrap">
-        <header className="acct-head">
-          <p className="label">Admin</p>
-          <h1>Master admin</h1>
-          <p className="acct-email">Signed in as {profile?.email}</p>
+    <div className="adm-shell">
+      {/* Desktop sidebar */}
+      <aside className="adm-side">
+        <div className="adm-side-head"><Brand /></div>
+        <AdminNav tab={tab} onPick={pick} />
+        <Foot />
+      </aside>
+
+      {/* Content */}
+      <div className="adm-body">
+        {/* Mobile top bar */}
+        <header className="adm-mobtop">
+          <Brand />
+          <button className="menu-btn" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+            </svg>
+          </button>
         </header>
+        {open && (
+          <div className="adm-mobnav">
+            <AdminNav tab={tab} onPick={pick} />
+            <Foot />
+          </div>
+        )}
 
-        <nav className="adm-tabs" role="tablist">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={tab === t.key}
-              className={tab === t.key ? 'active' : ''}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-
-        {tab === 'users'    && <UsersTab />}
-        {tab === 'orgs'     && <OrgsTab />}
-        {tab === 'invoices' && <InvoicesTab />}
-        {tab === 'messages' && <MessagesTab />}
-        {tab === 'payments' && <PaymentsTab />}
-        {tab === 'activity' && <ActivityTab />}
-        {tab === 'access'   && <AccessTab />}
-        {tab === 'seo'      && <SeoTab />}
+        <main className="adm-main">
+          {tab === 'users'    && <UsersTab />}
+          {tab === 'orgs'     && <OrgsTab />}
+          {tab === 'invoices' && <InvoicesTab />}
+          {tab === 'messages' && <MessagesTab />}
+          {tab === 'payments' && <PaymentsTab />}
+          {tab === 'activity' && <ActivityTab />}
+          {tab === 'access'   && <AccessTab />}
+          {tab === 'seo'      && <SeoTab />}
+        </main>
       </div>
-    </main>
+    </div>
   )
 }

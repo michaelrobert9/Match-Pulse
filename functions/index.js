@@ -497,6 +497,76 @@ const INVOICE_PLANS = {
   pro:   { amount: 15000, label: 'All-In Annual',                      once: false },
 }
 
+// EFT bank details for invoice emails — mirror src/lib/billing.js. Keep in step.
+const EFT = {
+  bank:        'First National Bank (FNB)',
+  accountName: 'MatchPulse',
+  accountType: 'Cheque Account',
+  accountNo:   '6279 101 3982',
+  branchCode:  '250655',
+}
+const SITE_URL = process.env.SITE_URL || 'https://matchpulse.co.za'
+const randFmt = (n) => 'R' + Number(n || 0).toLocaleString('en-ZA')
+
+// Renders the invoice email. Written in the shape the Firebase "Trigger Email"
+// extension consumes ({ to, cc, message:{subject,html,text} }); once that
+// extension is installed on the mailQueue collection, these send automatically.
+function invoiceEmail({ number, planLabel, amount, billTo, invoiceId, accountEmail }) {
+  const viewUrl = `${SITE_URL}/invoices/${invoiceId}`
+  const subject = `Your MatchPulse invoice ${number} — ${planLabel}`
+  const row = (k, v) => `<tr><td style="padding:4px 16px 4px 0;color:#6b7580">${k}</td><td style="padding:4px 0;font-weight:600;color:#0B1220">${v}</td></tr>`
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0B1220">
+    <h2 style="font-size:20px;margin:0 0 4px">MatchPulse invoice ${number}</h2>
+    <p style="color:#4a545e;line-height:1.5;margin:0 0 18px">
+      Hi${billTo.contact ? ' ' + billTo.contact : ''}, thanks for choosing <strong>${planLabel}</strong>.
+      Please pay by EFT using the details below. Your plan activates as soon as the payment reflects.
+    </p>
+    <table style="border-collapse:collapse;font-size:14px;margin-bottom:18px">
+      ${row('Amount due', `<strong>${randFmt(amount)}</strong> (VAT incl.)`)}
+      ${row('Invoiced to', billTo.name)}
+      ${row('Reference (use exactly)', `<strong>${number}</strong>`)}
+    </table>
+    <div style="background:#f5f7f9;border:1px solid #E6E8EC;border-radius:12px;padding:16px 18px;margin-bottom:18px">
+      <p style="margin:0 0 10px;font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#047857">Banking details</p>
+      <table style="border-collapse:collapse;font-size:14px">
+        ${row('Bank', EFT.bank)}
+        ${row('Account name', EFT.accountName)}
+        ${row('Account type', EFT.accountType)}
+        ${row('Account number', EFT.accountNo)}
+        ${row('Branch code', EFT.branchCode)}
+        ${row('Payment reference', `<strong>${number}</strong>`)}
+      </table>
+    </div>
+    <p style="margin:0 0 18px">
+      <a href="${viewUrl}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-weight:600;padding:11px 20px;border-radius:10px">View your invoice online</a>
+    </p>
+    <p style="color:#8a949e;font-size:12px;line-height:1.5;margin:0">
+      Please use <strong>${number}</strong> as your payment reference so we can match your payment.
+      Questions? Reply to this email or use the contact form at ${SITE_URL}.
+    </p>
+  </div>`
+  const text = [
+    `MatchPulse invoice ${number} — ${planLabel}`,
+    ``,
+    `Amount due: ${randFmt(amount)} (VAT incl.)`,
+    `Invoiced to: ${billTo.name}`,
+    `Payment reference (use exactly): ${number}`,
+    ``,
+    `Banking details:`,
+    `  Bank: ${EFT.bank}`,
+    `  Account name: ${EFT.accountName}`,
+    `  Account type: ${EFT.accountType}`,
+    `  Account number: ${EFT.accountNo}`,
+    `  Branch code: ${EFT.branchCode}`,
+    `  Reference: ${number}`,
+    ``,
+    `View your invoice: ${viewUrl}`,
+    `Your plan activates as soon as the payment reflects.`,
+  ].join('\n')
+  return { subject, html, text }
+}
+
 // Org-level cross-sport profile subscription (Brief #6) — the platform's first
 // ORG-level paid feature, distinct from the person-keyed plans above. Price is
 // TBD: set PROFILE_SUB_AMOUNT (Rand/yr, VAT incl.) via env when decided; the
@@ -568,6 +638,15 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     years   = planKey === 'pro'   ? 1 : null
   }
 
+  // Free profile subscription (price not set → amount 0): don't raise a zero
+  // invoice. Grant it directly and return. Owner/admin was already verified for
+  // orgProfile above. (Person plans always have a non-zero price.)
+  if (kind === 'orgProfile' && !(amount > 0)) {
+    await applyProfileSubscription(orgId, { years: years || 1, lastPaymentId: `free:${uid}` })
+    logger.info('Profile subscription granted free — no invoice raised', { orgId, uid })
+    return { ok: true, free: true, orgId }
+  }
+
   const billTo = cleanBillTo(request.data?.billTo)
   if (!billTo.name || !billTo.email) {
     throw new HttpsError('invalid-argument', 'Invoice name and email are required.')
@@ -606,17 +685,20 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
   }
   const ref = await db.collection('invoices').add(invoice)
 
-  // Email stub: queue the send. Nothing drains this queue yet — when an email
-  // sender is wired (Trigger Email extension on `mailQueue`, or a nodemailer/
-  // SendGrid function), queued invoices start going out with no further change.
+  // Queue the invoice email in the shape the Firebase "Trigger Email" extension
+  // consumes ({ to, cc, message }). Until that extension is installed on the
+  // mailQueue collection these docs just accumulate; once it is, they send with
+  // no further code change. cc's the account owner when they differ from bill-to.
+  const cc = accountEmail && accountEmail !== billTo.email ? accountEmail : null
   await db.collection('mailQueue').add({
-    kind:      'invoice',
     to:        billTo.email,
-    cc:        accountEmail && accountEmail !== billTo.email ? accountEmail : null,
+    ...(cc ? { cc } : {}),
+    message:   invoiceEmail({ number, planLabel, amount, billTo, invoiceId: ref.id, accountEmail }),
+    // Metadata (ignored by the extension, handy for admin/debugging).
+    kind:      'invoice',
     invoiceId: ref.id,
     number,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    sent:      false,
   })
 
   logger.info('Invoice created', { number, uid, plan: planKey })

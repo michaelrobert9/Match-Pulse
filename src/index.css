@@ -1161,3 +1161,75 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .trn-body h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16.5px; line-height: 1.2; margin: 0; }
 .trn-meta { margin: 8px 0 0; font-size: 13px; color: #6b7580; }
 .trn-dates { margin: 4px 0 0; font-size: 12.5px; color: #8a949e; }
+
+/* Email-verification reminder on the account page */
+.verify-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.35);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 14px; color: #7c4a03;
+}
+.verify-banner > div { flex: 1; min-width: 220px; line-height: 1.45; }
+.verify-banner strong { color: #92400e; }
+
+/* Upgrade options inside the account "Your plan" panel */
+.upgrade-grid { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 18px; }
+.upgrade-lede { color: #4a545e; font-size: 14px; line-height: 1.5; margin: 0 0 14px; }
+.upgrade-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.upgrade-opt { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.upgrade-opt-featured { border-color: var(--pulse); box-shadow: 0 0 0 1px var(--pulse); }
+.upgrade-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; margin: 0; }
+.upgrade-price { font-size: 20px; font-weight: 800; margin: 0; color: var(--ink); }
+.upgrade-price span { font-size: 12px; font-weight: 600; color: #8a949e; }
+.upgrade-what { font-size: 13px; color: #4a545e; line-height: 1.45; margin: 2px 0 12px; flex: 1; }
+@media (max-width: 560px) { .upgrade-opts { grid-template-columns: 1fr; } }
+
+/* ── Admin shell — left sidebar (desktop) + hamburger (mobile), matching the
+   sport sites' AppShell rail. ─────────────────────────────────────────────── */
+.adm-shell { display: flex; min-height: 100vh; background: var(--paper); }
+
+.adm-side {
+  width: 244px; flex: none; display: flex; flex-direction: column;
+  background: var(--card); border-right: 1px solid var(--line);
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.adm-side-head { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+
+.adm-brand { display: block; text-decoration: none; }
+.adm-brand-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; color: var(--ink); display: block; line-height: 1; }
+.adm-brand-mark .p { color: var(--pulse-word); }
+.adm-brand-badge { display: block; margin-top: 4px; font-family: 'Roboto', monospace; font-size: 9px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #b45309; }
+
+.adm-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 14px 12px; }
+.adm-nav-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; border-radius: 11px; cursor: pointer;
+  font-size: 14px; font-weight: 500; text-align: left;
+  color: #6b7580; background: none; border: 1px solid transparent; transition: all .15s var(--ease);
+}
+.adm-nav-item:hover { color: var(--ink); background: rgba(11,18,32,.04); }
+.adm-nav-item.active { color: var(--pulse-ink); background: var(--pulse-tint); border-color: color-mix(in srgb, var(--pulse) 30%, var(--line)); font-weight: 600; }
+.adm-nav-item svg { flex: none; }
+
+.adm-side-foot { padding: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.adm-foot-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 11px; color: #6b7580; text-decoration: none; font-size: 14px; font-weight: 500; }
+.adm-foot-link:hover { color: var(--ink); background: rgba(11,18,32,.04); }
+.adm-foot-acct { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 11px; text-decoration: none; }
+.adm-foot-acct:hover { background: rgba(11,18,32,.04); }
+.adm-foot-av { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--pulse-tint); color: var(--pulse-ink); font-size: 11px; font-weight: 800; border: 1px solid color-mix(in srgb, var(--pulse) 30%, var(--line)); }
+.adm-foot-email { font-size: 12px; color: #8a949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.adm-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.adm-main { flex: 1; padding: 28px 32px 64px; min-width: 0; }
+
+/* Mobile top bar + dropdown — hidden on desktop. */
+.adm-mobtop { display: none; }
+.adm-mobnav { display: none; }
+
+@media (max-width: 860px) {
+  .adm-side { display: none; }
+  .adm-mobtop { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  .adm-mobnav { display: block; background: var(--card); border-bottom: 1px solid var(--line); padding: 8px 10px 12px; }
+  .adm-mobnav .adm-nav { padding: 6px 0; }
+  .adm-mobnav .adm-side-foot { border-top: 1px solid var(--line); margin-top: 6px; }
+  .adm-main { padding: 20px 16px 56px; }
+}
