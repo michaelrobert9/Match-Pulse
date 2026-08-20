@@ -1073,28 +1073,25 @@ section#sports.block { padding: 84px 0; }
 .op-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .op-col h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; letter-spacing: .02em; margin: 0 0 12px; color: var(--ink); }
 .opm-row {
-  display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 8px;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   text-decoration: none; color: var(--ink); transition: border-color .2s, transform .2s;
 }
 a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); transform: translateX(2px); }
-.opm-date { font-size: 12px; color: #8a949e; flex: none; width: 66px; }
-.opm-teams { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; font-weight: 600; font-size: 14px; }
-.opm-side { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
-.opm-side-away { flex-direction: row-reverse; text-align: right; }
+.opm-date { font-size: 11.5px; line-height: 1.25; color: #8a949e; flex: none; width: 58px; }
+/* Teams stack vertically — home over away — so names never truncate. */
+.opm-teams { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.opm-side { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .opm-crest { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
 .opm-crest-mono { display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--c, var(--pulse)); border-color: transparent; }
-.opm-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opm-v { color: #b0b8c0; font-weight: 500; flex: none; }
-.opm-score { background: var(--pulse-tint); color: var(--pulse-ink); border-radius: 7px; padding: 2px 8px; font-weight: 700; flex: none; }
-.opm-venue { font-size: 12px; color: #8a949e; flex: none; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; }
+.opm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.opm-sscore { flex: none; font-weight: 700; font-size: 15px; color: #6b7580; min-width: 20px; text-align: right; }
+.opm-sscore.win { color: var(--pulse-ink); }
+.opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; align-self: center; }
 
 @media (max-width: 640px) {
   .op-lists { grid-template-columns: 1fr; gap: 22px; }
   .op-card-body { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px 18px 22px; }
-  .opm-teams { width: 100%; }
-  .opm-venue { display: none; }
 }
 
 /* ── Public directories (Organisations / Tournaments) ────────────────────── */

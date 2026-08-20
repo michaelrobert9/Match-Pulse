@@ -38,24 +38,29 @@ function Crest({ url, name, color }) {
     : <span className="opm-crest opm-crest-mono" style={{ '--c': color || '#059669' }}>{(name || '?').slice(0, 1)}</span>
 }
 
+// One team line: crest + name, with its own score on the right for results.
+function Side({ logo, name, color, score, showScore, win }) {
+  return (
+    <div className="opm-side">
+      <Crest url={logo} name={name} color={color} />
+      <span className="opm-name">{name || '—'}</span>
+      {showScore && <span className={'opm-sscore tnum' + (win ? ' win' : '')}>{score ?? '–'}</span>}
+    </div>
+  )
+}
+
+// Teams stack (home over away) so long names never truncate side-by-side —
+// reads the same on a phone and on the desktop two-column layout.
 function MatchRow({ m, result }) {
+  const hs = m.homeScore, as = m.awayScore
+  const scored = result && typeof hs === 'number' && typeof as === 'number'
   const inner = (
     <>
       <span className="opm-date">{fmtDate(m.matchDate)}</span>
-      <span className="opm-teams">
-        <span className="opm-side">
-          <Crest url={m.homeLogoUrl} name={m.homeDisplay} color={m.homeColor} />
-          <span className="opm-name">{m.homeDisplay || 'Home'}</span>
-        </span>
-        {result
-          ? <span className="opm-score tnum">{m.homeScore ?? '–'} : {m.awayScore ?? '–'}</span>
-          : <span className="opm-v">v</span>}
-        <span className="opm-side opm-side-away">
-          <Crest url={m.awayLogoUrl} name={m.awayDisplay} color={m.awayColor} />
-          <span className="opm-name">{m.awayDisplay || 'Away'}</span>
-        </span>
-      </span>
-      {m.venue && <span className="opm-venue">{m.venue}</span>}
+      <div className="opm-teams">
+        <Side logo={m.homeLogoUrl} name={m.homeDisplay || 'Home'} color={m.homeColor} score={hs} showScore={result} win={scored && hs > as} />
+        <Side logo={m.awayLogoUrl} name={m.awayDisplay || 'Away'} color={m.awayColor} score={as} showScore={result} win={scored && as > hs} />
+      </div>
       {m.url && <span className="opm-go" aria-hidden="true">→</span>}
     </>
   )
