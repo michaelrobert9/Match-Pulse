@@ -9,16 +9,51 @@ function fmtDate(ms) {
   return new Date(ms).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Brand glyphs for the social links (single-path, 24×24, currentColor).
+const SOCIAL_ICONS = {
+  facebook:  'M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.5V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z',
+  instagram: 'M12 2c2.7 0 3 0 4.1.1 1 0 1.7.2 2.3.4.6.2 1.1.6 1.6 1s.8 1 1 1.6c.2.6.4 1.3.4 2.3.1 1.1.1 1.4.1 4.1s0 3-.1 4.1c0 1-.2 1.7-.4 2.3-.2.6-.6 1.1-1 1.6s-1 .8-1.6 1c-.6.2-1.3.4-2.3.4-1.1.1-1.4.1-4.1.1s-3 0-4.1-.1c-1 0-1.7-.2-2.3-.4-.6-.2-1.1-.6-1.6-1s-.8-1-1-1.6c-.2-.6-.4-1.3-.4-2.3C2 15 2 14.7 2 12s0-3 .1-4.1c0-1 .2-1.7.4-2.3.2-.6.6-1.1 1-1.6s1-.8 1.6-1c.6-.2 1.3-.4 2.3-.4C9 2 9.3 2 12 2zm0 1.8c-2.7 0-3 0-4 .1-.8 0-1.2.2-1.5.3-.4.1-.6.3-.9.6-.3.3-.5.5-.6.9-.1.3-.3.7-.3 1.5-.1 1-.1 1.3-.1 4s0 3 .1 4c0 .8.2 1.2.3 1.5.1.4.3.6.6.9.3.3.5.5.9.6.3.1.7.3 1.5.3 1 .1 1.3.1 4 .1s3 0 4-.1c.8 0 1.2-.2 1.5-.3.4-.1.6-.3.9-.6.3-.3.5-.5.6-.9.1-.3.3-.7.3-1.5.1-1 .1-1.3.1-4s0-3-.1-4c0-.8-.2-1.2-.3-1.5-.1-.4-.3-.6-.6-.9-.3-.3-.5-.5-.9-.6-.3-.1-.7-.3-1.5-.3-1-.1-1.3-.1-4-.1zm0 3.1a5.1 5.1 0 1 1 0 10.2 5.1 5.1 0 0 1 0-10.2zm0 1.8a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6zm5.3-3.2a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4z',
+  x:         'M18.9 2H22l-7.5 8.6L23 22h-6.9l-5.4-7-6.2 7H1.4l8-9.2L1 2h7.1l4.9 6.5L18.9 2zm-2.4 18h1.9L7.6 3.9H5.6L16.5 20z',
+  youtube:   'M23 12s0-3.2-.4-4.7a2.5 2.5 0 0 0-1.8-1.8C19 5 12 5 12 5s-7 0-8.8.5A2.5 2.5 0 0 0 1.4 7.3 26 26 0 0 0 1 12a26 26 0 0 0 .4 4.7 2.5 2.5 0 0 0 1.8 1.8C5 19 12 19 12 19s7 0 8.8-.5a2.5 2.5 0 0 0 1.8-1.8c.4-1.5.4-4.7.4-4.7zM10 15V9l5 3-5 3z',
+}
+const SOCIAL_LABEL = { facebook: 'Facebook', instagram: 'Instagram', x: 'X', youtube: 'YouTube' }
+
+function SocialLinks({ links }) {
+  const entries = Object.entries(links || {}).filter(([k, v]) => v && SOCIAL_ICONS[k])
+  if (entries.length === 0) return null
+  return (
+    <div className="op-socials">
+      {entries.map(([k, url]) => (
+        <a key={k} className="op-social" href={url} target="_blank" rel="noreferrer" aria-label={SOCIAL_LABEL[k] || k} title={SOCIAL_LABEL[k] || k}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d={SOCIAL_ICONS[k]} /></svg>
+        </a>
+      ))}
+    </div>
+  )
+}
+
+function Crest({ url, name, color }) {
+  return url
+    ? <img className="opm-crest" src={url} alt="" loading="lazy" />
+    : <span className="opm-crest opm-crest-mono" style={{ '--c': color || '#059669' }}>{(name || '?').slice(0, 1)}</span>
+}
+
 function MatchRow({ m, result }) {
   const inner = (
     <>
       <span className="opm-date">{fmtDate(m.matchDate)}</span>
       <span className="opm-teams">
-        <span className="opm-home">{m.homeDisplay || 'Home'}</span>
+        <span className="opm-side">
+          <Crest url={m.homeLogoUrl} name={m.homeDisplay} color={m.homeColor} />
+          <span className="opm-name">{m.homeDisplay || 'Home'}</span>
+        </span>
         {result
           ? <span className="opm-score tnum">{m.homeScore ?? '–'} : {m.awayScore ?? '–'}</span>
           : <span className="opm-v">v</span>}
-        <span className="opm-away">{m.awayDisplay || 'Away'}</span>
+        <span className="opm-side opm-side-away">
+          <Crest url={m.awayLogoUrl} name={m.awayDisplay} color={m.awayColor} />
+          <span className="opm-name">{m.awayDisplay || 'Away'}</span>
+        </span>
       </span>
       {m.venue && <span className="opm-venue">{m.venue}</span>}
       {m.url && <span className="opm-go" aria-hidden="true">→</span>}
@@ -103,6 +138,7 @@ export default function OrgProfile({ prefix }) {
                   {websiteLabel} <span aria-hidden="true">↗</span>
                 </a>
               )}
+              <SocialLinks links={org.socialLinks} />
             </div>
           </div>
         </article>
@@ -110,10 +146,10 @@ export default function OrgProfile({ prefix }) {
         <div className="op-body">
         {data.locked ? (
           <section className="op-upsell">
-            <h2>See {org.name}’s fixtures &amp; results across all sports</h2>
+            <h2>See {org.name}’s matches &amp; results across all sports</h2>
             <p>
               This organisation plays{data.activatedSports?.length ? ' ' + data.activatedSports.map(k => sportByKey(k)?.name || k).join(', ') : ''} on MatchPulse.
-              Subscribe to see every upcoming fixture and final result for {org.name}, gathered from every sport, in one place.
+              Subscribe to see every upcoming match and final result for {org.name}, gathered from every sport, in one place.
             </p>
             <div className="op-upsell-cta">
               <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Subscribe — cross-sport profile</Link>
@@ -140,9 +176,9 @@ export default function OrgProfile({ prefix }) {
                 {tab && data.matches?.[tab] && (
                   <div className="op-lists">
                     <div className="op-col">
-                      <h3>Upcoming fixtures</h3>
+                      <h3>Upcoming matches</h3>
                       {data.matches[tab].fixtures.length === 0
-                        ? <p className="muted">No upcoming fixtures.</p>
+                        ? <p className="muted">No upcoming matches.</p>
                         : data.matches[tab].fixtures.map(m => <MatchRow key={m.id} m={m} />)}
                     </div>
                     <div className="op-col">

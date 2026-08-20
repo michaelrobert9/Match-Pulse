@@ -58,7 +58,7 @@ export default function OrgDirectory() {
         <header className="dir-head">
           <p className="label">Schools, clubs &amp; competitions</p>
           <h1>Organisations</h1>
-          <p className="dir-sub">Every school, club, association and league on MatchPulse. Open one to see its profile and its fixtures &amp; results across every sport it plays.</p>
+          <p className="dir-sub">Every school, club, association and league on MatchPulse. Open one to see its profile and its matches &amp; results across every sport it plays.</p>
         </header>
 
         <div className="dir-tabs" role="tablist">

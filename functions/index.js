@@ -1139,18 +1139,30 @@ function subActive(org) {
   return !!s && s.status === 'active' && (s.expiresAt?.toMillis ? s.expiresAt.toMillis() : 0) > Date.now()
 }
 
+function matchToMillis(v) {
+  if (v == null) return null
+  if (typeof v === 'number') return v
+  if (typeof v.toMillis === 'function') return v.toMillis()
+  const t = new Date(v).getTime()
+  return Number.isNaN(t) ? null : t
+}
+
 function mapMatch(doc, sport) {
   const m = doc.data() || {}
   return {
     id:         doc.id,
     sport,
     status:     m.status ?? null,
-    matchDate:  m.matchDate?.toMillis ? m.matchDate.toMillis() : (typeof m.matchDate === 'number' ? m.matchDate : null),
+    matchDate:  matchToMillis(m.matchDate) ?? matchToMillis(m.scheduledAt),
     homeDisplay: m.homeDisplay ?? m.homeName ?? null,
     awayDisplay: m.awayDisplay ?? m.awayName ?? null,
     homeScore:  m.homeScore ?? null,
     awayScore:  m.awayScore ?? null,
-    venue:      m.venue ?? null,
+    homeOrgId:  m.homeOrgId ?? null,
+    awayOrgId:  m.awayOrgId ?? null,
+    homeColor:  m.homeTeamColor ?? null,
+    awayColor:  m.awayTeamColor ?? null,
+    venue:      m.venue ?? m.pitch ?? null,
     url:        m.path ? `https://${sport}.matchpulse.co.za${m.path}` : null,
   }
 }
@@ -1166,8 +1178,24 @@ async function aggregateSportMatches(sport, orgId) {
   const seen = new Map()
   for (const d of [...homeSnap.docs, ...awaySnap.docs]) if (!seen.has(d.id)) seen.set(d.id, mapMatch(d, sport))
   const all = [...seen.values()]
+
+  // Matches carry org ids, not logos — resolve each side's crest from this
+  // sport's `organizations` (the same source the sport site renders from).
+  const ids = new Set()
+  for (const m of all) { if (m.homeOrgId) ids.add(m.homeOrgId); if (m.awayOrgId) ids.add(m.awayOrgId) }
+  const logos = {}
+  if (ids.size) {
+    const refs = [...ids].map(id => sportDb.doc(`organizations/${id}`))
+    const snaps = await sportDb.getAll(...refs)
+    for (const s of snaps) if (s.exists) logos[s.id] = s.data()?.logoUrl || null
+  }
+  for (const m of all) {
+    m.homeLogoUrl = m.homeOrgId ? (logos[m.homeOrgId] || null) : null
+    m.awayLogoUrl = m.awayOrgId ? (logos[m.awayOrgId] || null) : null
+  }
+
   const results  = all.filter(m => m.status === 'final').sort((a, b) => (b.matchDate ?? 0) - (a.matchDate ?? 0))
-  const fixtures = all.filter(m => m.status !== 'final').sort((a, b) => (a.matchDate ?? Infinity) - (b.matchDate ?? Infinity))
+  const fixtures = all.filter(m => m.status !== 'final' && m.status !== 'cancelled').sort((a, b) => (a.matchDate ?? Infinity) - (b.matchDate ?? Infinity))
   return { fixtures, results }
 }
 

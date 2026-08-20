@@ -1061,7 +1061,15 @@ section#sports.block { padding: 84px 0; }
 .op-tabs button:hover { border-color: color-mix(in srgb, var(--hue, var(--pulse)) 45%, var(--line)); }
 .op-tabs button.active { background: var(--hue, var(--pulse)); color: #fff; border-color: transparent; }
 
-/* Two-column fixtures / results */
+/* Social links on the identity card */
+.op-socials { display: flex; gap: 8px; margin-top: 16px; }
+.op-social {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px;
+  color: #5a6572; background: var(--card); border: 1px solid var(--line); transition: all .18s var(--ease);
+}
+.op-social:hover { color: var(--pulse-ink); border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); background: var(--pulse-tint); transform: translateY(-2px); }
+
+/* Two-column matches / results */
 .op-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .op-col h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; letter-spacing: .02em; margin: 0 0 12px; color: var(--ink); }
 .opm-row {
@@ -1070,17 +1078,23 @@ section#sports.block { padding: 84px 0; }
   text-decoration: none; color: var(--ink); transition: border-color .2s, transform .2s;
 }
 a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); transform: translateX(2px); }
-.opm-date { font-size: 12px; color: #8a949e; flex: none; width: 74px; }
-.opm-teams { display: flex; align-items: center; gap: 8px; flex: 1; font-weight: 600; font-size: 14px; flex-wrap: wrap; }
-.opm-v { color: #b0b8c0; font-weight: 500; }
-.opm-score { background: var(--pulse-tint); color: var(--pulse-ink); border-radius: 7px; padding: 2px 8px; font-weight: 700; }
-.opm-venue { font-size: 12px; color: #8a949e; flex: none; }
+.opm-date { font-size: 12px; color: #8a949e; flex: none; width: 66px; }
+.opm-teams { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; font-weight: 600; font-size: 14px; }
+.opm-side { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
+.opm-side-away { flex-direction: row-reverse; text-align: right; }
+.opm-crest { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.opm-crest-mono { display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--c, var(--pulse)); border-color: transparent; }
+.opm-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opm-v { color: #b0b8c0; font-weight: 500; flex: none; }
+.opm-score { background: var(--pulse-tint); color: var(--pulse-ink); border-radius: 7px; padding: 2px 8px; font-weight: 700; flex: none; }
+.opm-venue { font-size: 12px; color: #8a949e; flex: none; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; }
 
 @media (max-width: 640px) {
   .op-lists { grid-template-columns: 1fr; gap: 22px; }
   .op-card-body { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px 18px 22px; }
   .opm-teams { width: 100%; }
+  .opm-venue { display: none; }
 }
 
 /* ── Public directories (Organisations / Tournaments) ────────────────────── */
