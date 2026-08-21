@@ -7,7 +7,7 @@ import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
-  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName,
+  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -80,7 +80,6 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const [busy,     setBusy]     = useState(false)
   const [msg,      setMsg]      = useState(null)
   const [denied,   setDenied]   = useState(false)
-  const [transfer, setTransfer] = useState('')     // new ownerUserId, transfer only
   const [activated, setActivated] = useState({})   // activatedSports map
   const [actBusy,  setActBusy]  = useState('')     // sport key mid-activation
   const [actMsg,   setActMsg]   = useState(null)
@@ -88,6 +87,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const [slugBusy, setSlugBusy] = useState(false)
   const [delBusy,  setDelBusy]  = useState(false)
   const [dupes,    setDupes]    = useState(null)   // same-name orgs found on create
+  const [people,   setPeople]   = useState(null)   // org roster (owner + staff, all sports)
 
   const isOwner = record?.ownerUserId === user?.uid
   const canDelete = editing && (isAdmin || isOwner)
@@ -131,11 +131,8 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
         if (matches.length > 0) { setDupes(matches); setBusy(false); return }
       }
       if (editing) {
-        await updateOrg(id, f, isAdmin || record?.ownerUserId === user?.uid
-          ? (transfer.trim() ? { transferOwnerUserId: transfer.trim() } : {})
-          : {})
+        await updateOrg(id, f, {})   // ownership transfer is its own action (People list)
         setMsg({ kind: 'ok', text: 'Organisation saved.' })
-        if (transfer.trim()) { exit(); return }
       } else {
         const chosen = slug.trim() || await generateUniqueOrgSlug(f.name)
         if (!(await slugIsFree(chosen))) {
@@ -183,6 +180,31 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
       setMsg({ kind: 'err', text: e.message || 'Could not delete.' })
       setDelBusy(false)
     }
+  }
+
+  const canManagePeople = isAdmin || isOwner
+  async function loadPeople() {
+    if (!editing || !canManagePeople) return
+    try { const res = await getOrgPeople(id); setPeople(res.people || []) }
+    catch { setPeople([]) }
+  }
+  useEffect(() => { loadPeople() }, [editing, id, isAdmin, isOwner])
+
+  // Transfer full ownership to a person already attached to the org. Per-sport
+  // roles (scorer/admin) stay managed inside each sport — only ownership moves here.
+  async function makeOwner(person) {
+    const who = person.name || person.email || person.uid
+    if (!window.confirm(`Make ${who} the owner of ${f.name}?${isOwner && !isAdmin ? ' You will no longer be able to edit this organisation.' : ''}`)) return
+    setActBusy('owner:' + person.uid); setActMsg(null)
+    try {
+      await updateOrg(id, f, { transferOwnerUserId: person.uid })
+      if (isOwner && !isAdmin) { exit(); return }   // handed it off; drop out
+      setRecord(r => ({ ...r, ownerUserId: person.uid }))
+      setActMsg({ kind: 'ok', text: `Ownership transferred to ${who}.` })
+      loadPeople()
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Could not transfer ownership.' })
+    } finally { setActBusy('') }
   }
 
   async function setSub(action) {
@@ -374,16 +396,6 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
             </div>
           </div>
 
-          {/* Ownership transfer (edit; owner or admin) */}
-          {editing && (isAdmin || record?.ownerUserId === user?.uid) && (
-            <div className="field org-transfer">
-              <label htmlFor="o-transfer">Transfer ownership <span className="opt">optional — new owner’s user UID</span></label>
-              <input id="o-transfer" type="text" value={transfer} onChange={e => setTransfer(e.target.value)}
-                placeholder="Paste the new owner’s user UID" />
-              <p className="adm-field-hint">Hands this organisation to another account. You’ll no longer be able to edit it unless you’re a platform admin.</p>
-            </div>
-          )}
-
           {!editing && dupes && dupes.length > 0 && (
             <div className="dup-warn" role="alert">
               <h3>There’s already an organisation called “{f.name.trim()}”</h3>
@@ -416,6 +428,48 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           </button>
           {!editing && <p className="acct-fine">You’ll be able to add a logo and banner right after it’s created.</p>}
         </form>
+
+        {/* People — owner + everyone with a role, across every sport. Transfer
+            ownership by picking a person (per-sport roles are managed in-sport). */}
+        {editing && canManagePeople && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">People</h2>
+            <p className="adm-field-hint">
+              Everyone attached to this organisation — the owner, and anyone with a role in any sport.
+              Only <strong>ownership</strong> is managed here; scorer and sport-specific access is set inside each sport.
+            </p>
+            {people === null ? <p className="adm-loading">Loading…</p>
+              : people.length === 0 ? <p className="muted">No people recorded yet.</p>
+              : (
+                <ul className="org-people">
+                  {people.map(p => (
+                    <li key={p.uid}>
+                      <div className="op-person">
+                        <span className="op-person-av">{(p.name || p.email || '?').slice(0, 1).toUpperCase()}</span>
+                        <div className="op-person-id">
+                          <strong>{p.name || <span className="muted">(no name)</span>}</strong>
+                          <span className="op-person-email">{p.email || p.uid}</span>
+                        </div>
+                      </div>
+                      <div className="op-person-roles">
+                        {p.isOwner && <span className="op-role op-role-owner">Owner</span>}
+                        {p.roles.filter(r => !(p.isOwner && r.role === 'owner')).map((r, i) => (
+                          <span key={i} className="op-role">{r.context === 'central' ? r.role : `${r.context} · ${r.role}`}</span>
+                        ))}
+                      </div>
+                      {!p.isOwner && (
+                        <button type="button" className="btn btn-ghost btn-sm"
+                          disabled={actBusy === 'owner:' + p.uid}
+                          onClick={() => makeOwner(p)}>
+                          {actBusy === 'owner:' + p.uid ? 'Transferring…' : 'Make owner'}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </section>
+        )}
 
         {/* Activation — copy this org down into a sport. Owner or admin. */}
         {editing && (isAdmin || record?.ownerUserId === user?.uid) && (
