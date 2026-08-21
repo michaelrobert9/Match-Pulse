@@ -68,7 +68,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const id = orgIdProp ?? params.id          // undefined on /new
   const editing = !!id
   const embedded = !!orgIdProp
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const isAdmin = profile?.platformAdmin === true
   const navigate = useNavigate()
   const exit = () => { if (embedded) onExit?.(); else navigate('/organisations', { replace: true }) }
@@ -94,9 +94,15 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const isActivated = Object.keys(activated).length > 0
 
   // Load existing org for edit; gate to owner/admin (rules also enforce).
+  // IMPORTANT: wait for auth to finish before deciding access — checking while
+  // `user` is still resolving would wrongly deny the real owner on a fresh load
+  // (e.g. when a sport site links them here). Access is re-evaluated, and the
+  // denied flag reset, every time auth or the target changes.
   useEffect(() => {
     if (!editing) return
+    if (authLoading) return            // don't judge access until we know who they are
     let cancel = false
+    setDenied(false)
     ;(async () => {
       try {
         const org = await getOrg(id)
@@ -113,7 +119,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
       }
     })()
     return () => { cancel = true }
-  }, [editing, id, user?.uid, isAdmin])
+  }, [editing, id, user?.uid, isAdmin, authLoading])
 
   const set   = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
   const setSoc = (k) => (e) => setF(s => ({ ...s, socialLinks: { ...s.socialLinks, [k]: e.target.value } }))
