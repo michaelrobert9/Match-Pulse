@@ -175,6 +175,19 @@ export async function listAllOrgs() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
+// ── Duplicate-name guard ─────────────────────────────────────────────────────
+// Names aren't unique (slugs are), so identical names slip through silently.
+// This finds existing orgs whose name matches (case/space/punctuation-insensitive
+// via slugify) so the create form can warn before making a duplicate.
+export async function findOrgsByName(name) {
+  const key = slugify(name)
+  if (!key) return []
+  const snap = await getDocs(collection(identityDb, 'organizations'))
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(o => slugify(o.name || '') === key)
+}
+
 // ── Delete ──────────────────────────────────────────────────────────────────
 // Deletes the org, its staff subcollection, and RELEASES its slug reservation
 // (so the slug is free to reuse) — atomically in one batch. Refuses if the org
