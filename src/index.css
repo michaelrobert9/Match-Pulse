@@ -1239,3 +1239,19 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .nav-admin-btn:hover { background: rgba(245,158,11,.18); color: #92400e; }
 .nav-admin-btn.active { background: #b45309; color: #fff; border-color: transparent; }
 @media (max-width: 760px) { .nav-admin-btn { display: none; } }
+
+/* Admin — clickable user rows + user detail */
+.adm-table-click tbody tr.adm-row-click { cursor: pointer; transition: background .12s; }
+.adm-table-click tbody tr.adm-row-click:hover { background: rgba(11,18,32,.03); }
+.adm-userdetail { display: flex; flex-direction: column; gap: 16px; }
+.adm-ud-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.adm-ud-head h3 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0; }
+.adm-ud-badges { display: flex; gap: 8px; align-items: center; flex: none; }
+.adm-ud-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.adm-ud-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.adm-ud-card h4 { font-family: 'Space Grotesk', sans-serif; font-size: 14px; margin: 0 0 12px; }
+.adm-ud-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.adm-ud-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.adm-ud-list a { color: var(--pulse-ink); font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-ud-list a:hover { text-decoration: underline; }
+.adm-ud-role { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6b7580; background: rgba(11,18,32,.05); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; flex: none; }

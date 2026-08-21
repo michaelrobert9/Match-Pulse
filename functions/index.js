@@ -483,6 +483,82 @@ exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
   return { ok: true, plan }
 })
 
+// ── adminSetUserName ─────────────────────────────────────────────────────────
+// Platform admin fixes a user's display name — on the Auth profile and both the
+// users/{uid} and userProfiles/{uid} docs so it reads the same everywhere.
+exports.adminSetUserName = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  const displayName = String(request.data?.displayName || '').trim().slice(0, 120)
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  try { await admin.auth().updateUser(uid, { displayName }) }
+  catch (e) { logger.warn('adminSetUserName auth update failed', { uid, message: e.message }) }
+  await db.doc(`users/${uid}`).set({ displayName, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+  await db.doc(`userProfiles/${uid}`).set({ displayName }, { merge: true }).catch(() => {})
+  logger.info('Admin set user name', { uid, by: request.auth.uid })
+  return { ok: true, uid, displayName }
+})
+
+// ── adminDeleteUser ──────────────────────────────────────────────────────────
+// Deletes the sign-in account and the user's central docs. Organisations they
+// own are LEFT in place (they become ownerless until an admin reassigns them);
+// matches and teams in the sport DBs are untouched. Admin only; can't self-delete.
+exports.adminDeleteUser = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  if (uid === request.auth.uid) throw new HttpsError('failed-precondition', 'You cannot delete your own account from here.')
+  await db.doc(`users/${uid}`).delete().catch(() => {})
+  await db.doc(`userProfiles/${uid}`).delete().catch(() => {})
+  try { await admin.auth().deleteUser(uid) }
+  catch (e) {
+    if (e.code !== 'auth/user-not-found') {
+      logger.error('adminDeleteUser auth delete failed', { uid, message: e.message })
+      throw new HttpsError('internal', 'Could not delete the sign-in account: ' + e.message)
+    }
+  }
+  logger.info('Admin deleted user', { uid, by: request.auth.uid })
+  return { ok: true, uid }
+})
+
+// ── getUserCompetitions ──────────────────────────────────────────────────────
+// Cross-sport list of competitions a user is connected to: those they own
+// (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).
+// Admin only. Uses competitionPublicPath (hoisted) for the sport-site links.
+exports.getUserCompetitions = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  const userSnap = await db.doc(`users/${uid}`).get()
+  const orgIds = userSnap.exists ? Object.keys(userSnap.data().orgRoles || {}) : []
+  const out = []
+  await Promise.all(SPORT_KEYS.map(async (sport) => {
+    try {
+      const col = sportDbFor(sport).collection('competitions')
+      const seen = new Map()
+      const mine = await col.where('ownerUserId', '==', uid).limit(100).get()
+      for (const d of mine.docs) seen.set(d.id, d)
+      for (let i = 0; i < orgIds.length; i += 10) {
+        const batch = orgIds.slice(i, i + 10)
+        if (!batch.length) continue
+        const snap = await col.where('ownerOrgId', 'in', batch).limit(100).get()
+        for (const d of snap.docs) if (!seen.has(d.id)) seen.set(d.id, d)
+      }
+      for (const d of seen.values()) {
+        const c = d.data()
+        out.push({
+          id: d.id, sport,
+          name: c.name || 'Untitled competition',
+          season: c.season || null,
+          via: c.ownerUserId === uid ? 'owner' : 'org',
+          url: `https://${sport}.matchpulse.co.za${competitionPublicPath({ id: d.id, ...c })}`,
+        })
+      }
+    } catch (e) { logger.warn('getUserCompetitions sport failed', { sport, uid, message: e.message }) }
+  }))
+  return { competitions: out }
+})
+
 // ── Invoices (EFT billing) ───────────────────────────────────────────────────
 // PayFast is dormant (code kept, UI detached): plans are now sold by invoice.
 // A signed-in user picks a plan and bill-to details → createInvoice writes a
