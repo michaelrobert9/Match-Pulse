@@ -60,10 +60,14 @@ function ScrollToTop() {
 
 export default function App() {
   useSiteSeo()
+  const { pathname } = useLocation()
+  // The admin section is a self-contained shell (its own sidebar + mobile
+  // hamburger), like the sport sites — so the public nav/footer step aside there.
+  const bareChrome = pathname.startsWith('/admin')
   return (
     <>
       <ScrollToTop />
-      <Nav />
+      {!bareChrome && <Nav />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
@@ -119,7 +123,7 @@ export default function App() {
         <Route path="/legal"                element={<Navigate to="/legal/terms" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Footer />
+      {!bareChrome && <Footer />}
     </>
   )
 }

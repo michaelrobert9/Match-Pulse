@@ -483,6 +483,82 @@ exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
   return { ok: true, plan }
 })
 
+// ── adminSetUserName ─────────────────────────────────────────────────────────
+// Platform admin fixes a user's display name — on the Auth profile and both the
+// users/{uid} and userProfiles/{uid} docs so it reads the same everywhere.
+exports.adminSetUserName = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  const displayName = String(request.data?.displayName || '').trim().slice(0, 120)
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  try { await admin.auth().updateUser(uid, { displayName }) }
+  catch (e) { logger.warn('adminSetUserName auth update failed', { uid, message: e.message }) }
+  await db.doc(`users/${uid}`).set({ displayName, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+  await db.doc(`userProfiles/${uid}`).set({ displayName }, { merge: true }).catch(() => {})
+  logger.info('Admin set user name', { uid, by: request.auth.uid })
+  return { ok: true, uid, displayName }
+})
+
+// ── adminDeleteUser ──────────────────────────────────────────────────────────
+// Deletes the sign-in account and the user's central docs. Organisations they
+// own are LEFT in place (they become ownerless until an admin reassigns them);
+// matches and teams in the sport DBs are untouched. Admin only; can't self-delete.
+exports.adminDeleteUser = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  if (uid === request.auth.uid) throw new HttpsError('failed-precondition', 'You cannot delete your own account from here.')
+  await db.doc(`users/${uid}`).delete().catch(() => {})
+  await db.doc(`userProfiles/${uid}`).delete().catch(() => {})
+  try { await admin.auth().deleteUser(uid) }
+  catch (e) {
+    if (e.code !== 'auth/user-not-found') {
+      logger.error('adminDeleteUser auth delete failed', { uid, message: e.message })
+      throw new HttpsError('internal', 'Could not delete the sign-in account: ' + e.message)
+    }
+  }
+  logger.info('Admin deleted user', { uid, by: request.auth.uid })
+  return { ok: true, uid }
+})
+
+// ── getUserCompetitions ──────────────────────────────────────────────────────
+// Cross-sport list of competitions a user is connected to: those they own
+// (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).
+// Admin only. Uses competitionPublicPath (hoisted) for the sport-site links.
+exports.getUserCompetitions = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  const userSnap = await db.doc(`users/${uid}`).get()
+  const orgIds = userSnap.exists ? Object.keys(userSnap.data().orgRoles || {}) : []
+  const out = []
+  await Promise.all(SPORT_KEYS.map(async (sport) => {
+    try {
+      const col = sportDbFor(sport).collection('competitions')
+      const seen = new Map()
+      const mine = await col.where('ownerUserId', '==', uid).limit(100).get()
+      for (const d of mine.docs) seen.set(d.id, d)
+      for (let i = 0; i < orgIds.length; i += 10) {
+        const batch = orgIds.slice(i, i + 10)
+        if (!batch.length) continue
+        const snap = await col.where('ownerOrgId', 'in', batch).limit(100).get()
+        for (const d of snap.docs) if (!seen.has(d.id)) seen.set(d.id, d)
+      }
+      for (const d of seen.values()) {
+        const c = d.data()
+        out.push({
+          id: d.id, sport,
+          name: c.name || 'Untitled competition',
+          season: c.season || null,
+          via: c.ownerUserId === uid ? 'owner' : 'org',
+          url: `https://${sport}.matchpulse.co.za${competitionPublicPath({ id: d.id, ...c })}`,
+        })
+      }
+    } catch (e) { logger.warn('getUserCompetitions sport failed', { sport, uid, message: e.message }) }
+  }))
+  return { competitions: out }
+})
+
 // ── Invoices (EFT billing) ───────────────────────────────────────────────────
 // PayFast is dormant (code kept, UI detached): plans are now sold by invoice.
 // A signed-in user picks a plan and bill-to details → createInvoice writes a
@@ -573,22 +649,32 @@ function invoiceEmail({ number, planLabel, amount, billTo, invoiceId, accountEma
 // plumbing is built now.
 const PROFILE_SUB_AMOUNT = Number(process.env.PROFILE_SUB_AMOUNT || 0)
 const PROFILE_SUB_LABEL  = 'Cross-sport profile — annual'
+// Early-access: while the profile is free, subscriptions are granted through
+// this fixed date rather than a rolling year. Set the real price/term later.
+const EARLY_ACCESS_UNTIL = new Date('2026-12-31T23:59:59Z')
 
 // Set/extend an org's profile subscription. Renewal stacks from the later of
 // now and any remaining term (same rule as the person 'pro' plan). Written on
 // the org doc only — never client-writable (orgBillingUnchanged guards it).
-async function applyProfileSubscription(orgId, { years = 1, lastPaymentId = null }) {
+async function applyProfileSubscription(orgId, { years = 1, until = null, plan = 'annual', lastPaymentId = null }) {
   const ref  = db.doc(`organizations/${orgId}`)
   const snap = await ref.get()
   if (!snap.exists) throw new HttpsError('not-found', 'No such organisation.')
   const cur    = snap.data().profileSubscription || null
   const curExp = cur?.expiresAt?.toDate?.() ?? null
-  const from    = curExp && curExp > new Date() ? curExp : new Date()
-  const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+  // `until` sets a fixed end date (early-access free term); otherwise extend from
+  // the later of now / current expiry by N years (renewals stack).
+  let expires
+  if (until) {
+    expires = until
+  } else {
+    const from = curExp && curExp > new Date() ? curExp : new Date()
+    expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+  }
   await ref.set({
     profileSubscription: {
       status:        'active',
-      plan:          'annual',
+      plan:          plan,
       startedAt:     (cur?.status === 'active' && cur?.startedAt) ? cur.startedAt : admin.firestore.FieldValue.serverTimestamp(),
       expiresAt:     admin.firestore.Timestamp.fromDate(expires),
       lastPaymentId: lastPaymentId,
@@ -642,9 +728,9 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
   // invoice. Grant it directly and return. Owner/admin was already verified for
   // orgProfile above. (Person plans always have a non-zero price.)
   if (kind === 'orgProfile' && !(amount > 0)) {
-    await applyProfileSubscription(orgId, { years: years || 1, lastPaymentId: `free:${uid}` })
-    logger.info('Profile subscription granted free — no invoice raised', { orgId, uid })
-    return { ok: true, free: true, orgId }
+    await applyProfileSubscription(orgId, { until: EARLY_ACCESS_UNTIL, plan: 'earlyAccessFree', lastPaymentId: `free:${uid}` })
+    logger.info('Profile subscription granted (free early access)', { orgId, uid })
+    return { ok: true, free: true, orgId, until: EARLY_ACCESS_UNTIL.toISOString() }
   }
 
   const billTo = cleanBillTo(request.data?.billTo)

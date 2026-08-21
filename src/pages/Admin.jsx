@@ -25,7 +25,6 @@ const ICONS = {
   messages: I('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'),
   payments: I('M1 4h22v16H1z M1 10h22'),
   activity: I('M22 12h-4l-3 9L9 3l-3 9H2'),
-  access:   I('M12 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 8h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1 M7 8V6a5 5 0 0 1 10 0v2'),
   seo:      I('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35'),
 }
 
@@ -36,7 +35,6 @@ const TABS = [
   { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
   { key: 'activity', label: 'Sport activity' },
-  { key: 'access',   label: 'Access' },
   { key: 'seo',      label: 'SEO' },
 ]
 
@@ -59,71 +57,242 @@ function fmtMoney(cents) {
 }
 
 // ── Users ────────────────────────────────────────────────────────────────────
-function UsersTab() {
-  const [rows, setRows] = useState(null)
-  const [err,  setErr]  = useState('')
-  const [q,    setQ]    = useState('')
+function roleLabel(v) {
+  const r = typeof v === 'string' ? v : (v?.role ?? '')
+  return r ? r.charAt(0).toUpperCase() + r.slice(1) : 'Member'
+}
+
+// Full per-user view: identity + name edit, plan change, org access,
+// cross-sport competitions, and delete. Folds in the old Access tab.
+function UserDetail({ user, orgsById, onBack, onChanged }) {
+  const [name, setName] = useState(user.displayName || '')
+  const [form, setForm] = useState(() => ({
+    plan:    user.raw.entitlement ?? 'none',
+    credits: Math.max(1, user.raw.eventCredits ?? 1),
+    years:   1, method: 'eft', note: '',
+  }))
+  const [busy, setBusy] = useState('')
+  const [msg,  setMsg]  = useState(null)
+  const [comps, setComps] = useState(null)
 
   useEffect(() => {
     let cancel = false
     ;(async () => {
       try {
-        const snap = await getDocs(collection(identityDb, 'users'))
-        if (cancel) return
-        const list = snap.docs.map(d => {
-          const data = d.data()
-          return {
-            uid:            d.id,
-            email:          data.email ?? '',
-            displayName:    data.displayName ?? '',
-            plan:           planStatus(data),
-            createdAt:      data.createdAt ?? null,
-            platformAdmin:  data.platformAdmin === true,
-          }
-        })
-        list.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
-        setRows(list)
-      } catch (e) {
-        if (!cancel) setErr(e.message || 'Could not load users.')
-      }
+        const { data } = await httpsCallable(functions, 'getUserCompetitions')({ uid: user.uid })
+        if (!cancel) setComps(data.competitions || [])
+      } catch { if (!cancel) setComps([]) }
     })()
     return () => { cancel = true }
-  }, [])
+  }, [user.uid])
+
+  // Orgs this user relates to: owner (from org doc) + any orgRoles grant.
+  const orgRel = {}
+  for (const o of Object.values(orgsById)) if (o.ownerUserId === user.uid) orgRel[o.id] = 'Owner'
+  for (const [oid, grant] of Object.entries(user.raw.orgRoles || {})) if (!orgRel[oid]) orgRel[oid] = roleLabel(grant)
+  const orgList = Object.entries(orgRel)
+
+  const bind = (k) => ({ value: form[k], onChange: e => setForm(f => ({ ...f, [k]: e.target.value })) })
+
+  async function saveName() {
+    setBusy('name'); setMsg(null)
+    try {
+      await httpsCallable(functions, 'adminSetUserName')({ uid: user.uid, displayName: name.trim() })
+      setMsg({ kind: 'ok', text: 'Name updated.' }); onChanged?.()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update name.' }) }
+    finally { setBusy('') }
+  }
+
+  async function applyPlan(e) {
+    e.preventDefault()
+    setBusy('plan'); setMsg(null)
+    try {
+      await httpsCallable(functions, 'adminSetEntitlement')({
+        uid: user.uid, plan: form.plan, credits: Number(form.credits), years: Number(form.years), method: form.method, note: form.note,
+      })
+      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'Free' : form.plan === 'event' ? 'Plus' : 'Pro'}. Reaches the sport sites on their next token refresh.` })
+      setForm(f => ({ ...f, note: '' })); onChanged?.()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not set plan.' }) }
+    finally { setBusy('') }
+  }
+
+  async function removeUser() {
+    if (!window.confirm(`Delete ${user.email || user.uid}? This removes their sign-in and profile. Any organisations they own stay but become ownerless. This cannot be undone.`)) return
+    setBusy('del'); setMsg(null)
+    try {
+      await httpsCallable(functions, 'adminDeleteUser')({ uid: user.uid })
+      onChanged?.(true)
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not delete user.' }); setBusy('') }
+  }
+
+  return (
+    <div className="adm-section adm-userdetail">
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>← All users</button>
+
+      <div className="adm-ud-head">
+        <div>
+          <h3>{user.displayName || <span className="muted">(no name)</span>}</h3>
+          <p className="adm-uid">{user.email || '—'} · {user.uid}</p>
+        </div>
+        <div className="adm-ud-badges">
+          <span className={`plan-badge plan-${user.plan.key}`}>{user.plan.label}</span>
+          {user.platformAdmin && <span className="pill pill-admin">Admin</span>}
+        </div>
+      </div>
+
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+
+      <div className="adm-ud-grid">
+        {/* Identity */}
+        <section className="adm-ud-card">
+          <h4>Name</h4>
+          <div className="adm-inline-form">
+            <input type="text" value={name} placeholder="Full name" onChange={e => setName(e.target.value)} />
+            <button type="button" className="btn btn-dark btn-sm" disabled={busy === 'name' || name.trim() === (user.displayName || '')} onClick={saveName}>
+              {busy === 'name' ? 'Saving…' : 'Save name'}
+            </button>
+          </div>
+        </section>
+
+        {/* Plan */}
+        <section className="adm-ud-card">
+          <h4>Plan</h4>
+          <form className="acct-form" onSubmit={applyPlan}>
+            <div className="field">
+              <label>Plan to set</label>
+              <select {...bind('plan')}>
+                <option value="none">Free — no paid access</option>
+                <option value="event">Plus — competition credits (once-off)</option>
+                <option value="pro">Pro — unlimited competitions (annual)</option>
+              </select>
+            </div>
+            {form.plan === 'event' && (
+              <div className="field"><label>Competition credits</label><input type="number" min="0" max="100" {...bind('credits')} /></div>
+            )}
+            {form.plan === 'pro' && (
+              <div className="field"><label>Years to add</label><input type="number" min="1" max="5" {...bind('years')} /></div>
+            )}
+            <div className="field">
+              <label>Reason</label>
+              <select {...bind('method')}>
+                <option value="eft">EFT payment received</option>
+                <option value="comp">Free of charge</option>
+                <option value="correction">Correction</option>
+                <option value="manual">Other</option>
+              </select>
+            </div>
+            <div className="field"><label>Note <span className="opt">optional</span></label><input type="text" placeholder="e.g. FNB ref 4471" {...bind('note')} /></div>
+            <button className="btn btn-primary btn-sm" disabled={busy === 'plan'}>{busy === 'plan' ? 'Applying…' : 'Apply plan change'}</button>
+          </form>
+        </section>
+
+        {/* Org access */}
+        <section className="adm-ud-card">
+          <h4>Organisation access</h4>
+          {orgList.length === 0 ? <p className="muted">No organisations.</p> : (
+            <ul className="adm-ud-list">
+              {orgList.map(([oid, rel]) => (
+                <li key={oid}>
+                  <Link to={`/organisations/${oid}/edit`}>{orgsById[oid]?.name || oid}</Link>
+                  <span className="adm-ud-role">{rel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Competitions */}
+        <section className="adm-ud-card">
+          <h4>Competitions</h4>
+          {comps === null ? <p className="adm-loading">Loading…</p>
+            : comps.length === 0 ? <p className="muted">None connected.</p>
+            : (
+              <ul className="adm-ud-list">
+                {comps.map(c => (
+                  <li key={`${c.sport}:${c.id}`}>
+                    <a href={c.url} target="_blank" rel="noreferrer">{c.name}{c.season ? ` · ${c.season}` : ''}</a>
+                    <span className="adm-ud-role">{c.sport}{c.via === 'org' ? ' · via org' : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </section>
+      </div>
+
+      {/* Danger */}
+      <section className="org-danger">
+        <h4 className="inv-edit-h">Delete user</h4>
+        <p className="adm-field-hint">Removes their sign-in and profile. Organisations they own stay but become ownerless (reassign later). Matches are never deleted.</p>
+        <button type="button" className="btn btn-danger btn-sm" disabled={busy === 'del'} onClick={removeUser}>
+          {busy === 'del' ? 'Deleting…' : 'Delete user'}
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function UsersTab() {
+  const [rows, setRows] = useState(null)
+  const [orgsById, setOrgsById] = useState({})
+  const [err,  setErr]  = useState('')
+  const [q,    setQ]    = useState('')
+  const [sel,  setSel]  = useState(null)
+
+  async function load() {
+    try {
+      const [snap, orgs] = await Promise.all([
+        getDocs(collection(identityDb, 'users')),
+        listAllOrgs().catch(() => []),
+      ])
+      const list = snap.docs.map(d => {
+        const data = d.data()
+        return {
+          uid: d.id, email: data.email ?? '', displayName: data.displayName ?? '',
+          plan: planStatus(data), createdAt: data.createdAt ?? null,
+          platformAdmin: data.platformAdmin === true, raw: data,
+        }
+      })
+      list.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      setRows(list)
+      const map = {}; for (const o of orgs) map[o.id] = o; setOrgsById(map)
+      return list
+    } catch (e) { setErr(e.message || 'Could not load users.'); return [] }
+  }
+  useEffect(() => { load() }, [])
+
+  async function refresh(deleted) {
+    const list = await load()
+    if (deleted) { setSel(null); return }
+    if (sel) setSel(list.find(r => r.uid === sel.uid) || null)
+  }
 
   const filtered = useMemo(() => {
     if (!rows) return null
     if (!q.trim()) return rows
     const needle = q.trim().toLowerCase()
     return rows.filter(r =>
-      r.email.toLowerCase().includes(needle)
-      || r.displayName.toLowerCase().includes(needle)
-      || r.uid.toLowerCase().includes(needle)
+      r.email.toLowerCase().includes(needle) || r.displayName.toLowerCase().includes(needle) || r.uid.toLowerCase().includes(needle)
     )
   }, [rows, q])
+
+  if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} />
 
   return (
     <div className="adm-section">
       <div className="adm-toolbar">
-        <input
-          type="search"
-          value={q}
-          placeholder="Search by name, email or UID"
-          onChange={e => setQ(e.target.value)}
-        />
+        <input type="search" value={q} placeholder="Search by name, email or UID" onChange={e => setQ(e.target.value)} />
         <span className="adm-count">{filtered ? `${filtered.length} of ${rows.length}` : ''}</span>
       </div>
       <Notice kind="err">{err}</Notice>
       {!filtered ? <p className="adm-loading">Loading…</p> : (
         <div className="adm-table-wrap">
-          <table className="adm-table">
+          <table className="adm-table adm-table-click">
             <thead>
-              <tr>
-                <th>Name</th><th>Email</th><th>Plan</th><th>Created</th><th>Admin</th>
-              </tr>
+              <tr><th>Name</th><th>Email</th><th>Plan</th><th>Created</th><th>Admin</th></tr>
             </thead>
             <tbody>
               {filtered.map(u => (
-                <tr key={u.uid}>
+                <tr key={u.uid} onClick={() => setSel(u)} className="adm-row-click">
                   <td>
                     <div className="adm-name">{u.displayName || <span className="muted">(no name)</span>}</div>
                     <div className="adm-uid">{u.uid}</div>
@@ -134,9 +303,7 @@ function UsersTab() {
                   <td>{u.platformAdmin ? <span className="pill pill-admin">Admin</span> : ''}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={5} className="muted">No users match.</td></tr>
-              )}
+              {filtered.length === 0 && <tr><td colSpan={5} className="muted">No users match.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -647,205 +814,6 @@ function ActivityTab() {
   )
 }
 
-// ── Access management ────────────────────────────────────────────────────────
-// Grant, change or revoke a plan by hand: EFT payers, free/comp accounts,
-// corrections. Calls adminSetEntitlement, which writes the same fields the
-// PayFast webhook writes — so the change flows onto the user's token via
-// syncUserClaims and every sport site honours it automatically.
-function AccessTab() {
-  const [rows,     setRows]     = useState(null)
-  const [err,      setErr]      = useState('')
-  const [q,        setQ]        = useState('')
-  const [selected, setSelected] = useState(null)   // user row being edited
-  const [form,     setForm]     = useState({ plan: 'event', credits: 1, years: 1, method: 'eft', note: '' })
-  const [busy,     setBusy]     = useState(false)
-  const [msg,      setMsg]      = useState(null)
-
-  async function load() {
-    try {
-      const snap = await getDocs(collection(identityDb, 'users'))
-      const list = snap.docs.map(d => {
-        const data = d.data()
-        return {
-          uid:         d.id,
-          email:       data.email ?? '',
-          displayName: data.displayName ?? '',
-          plan:        planStatus(data),
-          raw:         data,
-        }
-      })
-      list.sort((a, b) => (a.email || '').localeCompare(b.email || ''))
-      setRows(list)
-    } catch (e) {
-      setErr(e.message || 'Could not load users.')
-    }
-  }
-
-  useEffect(() => { load() }, [])
-
-  const filtered = useMemo(() => {
-    if (!rows) return null
-    if (!q.trim()) return rows
-    const needle = q.trim().toLowerCase()
-    return rows.filter(r =>
-      r.email.toLowerCase().includes(needle)
-      || r.displayName.toLowerCase().includes(needle)
-      || r.uid.toLowerCase().includes(needle)
-    )
-  }, [rows, q])
-
-  function pick(u) {
-    setSelected(u)
-    setMsg(null)
-    // Sensible starting point: mirror what they already have.
-    const e = u.raw.entitlement ?? 'none'
-    setForm(f => ({
-      ...f,
-      plan:    e === 'none' ? 'event' : e,
-      credits: Math.max(1, u.raw.eventCredits ?? 1),
-    }))
-  }
-
-  async function grant(e) {
-    e.preventDefault()
-    if (!selected) return
-    setBusy(true); setMsg(null)
-    try {
-      const call = httpsCallable(functions, 'adminSetEntitlement')
-      await call({
-        uid:     selected.uid,
-        plan:    form.plan,
-        credits: Number(form.credits),
-        years:   Number(form.years),
-        method:  form.method,
-        note:    form.note,
-      })
-      setMsg({ kind: 'ok', text:
-        `Done — ${selected.email || selected.uid} is now on ${form.plan === 'none' ? 'Free' : form.plan === 'event' ? `Plus (${form.credits} credit${Number(form.credits) === 1 ? '' : 's'})` : 'Pro'}. ` +
-        'It reaches the sport sites when their token refreshes — on their next sign-in or page load, or within about an hour.' })
-      setForm(f => ({ ...f, note: '' }))
-      await load()
-      setSelected(null)
-    } catch (e) {
-      setMsg({ kind: 'err', text: e.message || 'Grant failed.' })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const bind = (key) => ({
-    value:    form[key],
-    onChange: (e) => setForm(f => ({ ...f, [key]: e.target.value })),
-  })
-
-  return (
-    <div className="adm-section">
-      <p className="adm-hint">
-        Allocate a plan by hand — an EFT payment, a free account, a correction.
-        <strong> Plus</strong> = competition credits, each usable on any one sport.
-        <strong> Pro</strong> = unlimited competitions on every sport until the expiry date.
-        Every manual change is recorded in the Payments tab.
-      </p>
-      <Notice kind="err">{err}</Notice>
-      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-
-      {!selected ? (
-        <>
-          <div className="adm-toolbar">
-            <input
-              type="search"
-              value={q}
-              placeholder="Find a user by name, email or UID"
-              onChange={e => setQ(e.target.value)}
-            />
-          </div>
-          {!filtered ? <p className="adm-loading">Loading…</p> : (
-            <div className="adm-table-wrap">
-              <table className="adm-table">
-                <thead>
-                  <tr><th>User</th><th>Current plan</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {filtered.map(u => (
-                    <tr key={u.uid}>
-                      <td>
-                        <div className="adm-name">{u.displayName || <span className="muted">(no name)</span>}</div>
-                        <div className="adm-uid">{u.email || u.uid}</div>
-                      </td>
-                      <td><span className={`plan-badge plan-${u.plan.key}`}>{u.plan.label}</span></td>
-                      <td>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => pick(u)}>
-                          Change plan
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length === 0 && <tr><td colSpan={3} className="muted">No users match.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      ) : (
-        <form className="acct-form adm-grant" onSubmit={grant}>
-          <div className="adm-grant-who">
-            <div>
-              <div className="adm-name">{selected.displayName || '(no name)'}</div>
-              <div className="adm-uid">{selected.email || selected.uid}</div>
-              <div className="adm-grant-current">
-                Current: <span className={`plan-badge plan-${selected.plan.key}`}>{selected.plan.label}</span>
-              </div>
-            </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>
-              Choose someone else
-            </button>
-          </div>
-
-          <div className="field">
-            <label htmlFor="grant-plan">Plan to set</label>
-            <select id="grant-plan" {...bind('plan')}>
-              <option value="event">Plus — competition credits (once-off)</option>
-              <option value="pro">Pro — unlimited competitions (annual)</option>
-              <option value="none">Free — remove paid access</option>
-            </select>
-          </div>
-
-          {form.plan === 'event' && (
-            <div className="field">
-              <label htmlFor="grant-credits">Competition credits</label>
-              <input id="grant-credits" type="number" min="0" max="100" {...bind('credits')} />
-            </div>
-          )}
-          {form.plan === 'pro' && (
-            <div className="field">
-              <label htmlFor="grant-years">Years to add</label>
-              <input id="grant-years" type="number" min="1" max="5" {...bind('years')} />
-            </div>
-          )}
-
-          <div className="field">
-            <label htmlFor="grant-method">Reason</label>
-            <select id="grant-method" {...bind('method')}>
-              <option value="eft">EFT payment received</option>
-              <option value="comp">Free of charge</option>
-              <option value="correction">Correction</option>
-              <option value="manual">Other</option>
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="grant-note">Note <span className="opt">optional — e.g. EFT reference</span></label>
-            <input id="grant-note" type="text" placeholder="e.g. FNB ref 4471, paid 3 Aug" {...bind('note')} />
-          </div>
-
-          <button className="btn btn-primary" disabled={busy}>
-            {busy ? 'Applying…' : 'Apply plan change'}
-          </button>
-        </form>
-      )}
-    </div>
-  )
-}
 
 // ── SEO ──────────────────────────────────────────────────────────────────────
 const SEO_DEFAULTS = {
@@ -1043,7 +1011,6 @@ export default function Admin() {
           {tab === 'messages' && <MessagesTab />}
           {tab === 'payments' && <PaymentsTab />}
           {tab === 'activity' && <ActivityTab />}
-          {tab === 'access'   && <AccessTab />}
           {tab === 'seo'      && <SeoTab />}
         </main>
       </div>
