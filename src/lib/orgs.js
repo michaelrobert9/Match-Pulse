@@ -249,3 +249,11 @@ export async function deactivateOrgInSport(orgId, sport) {
   const { data } = await call({ orgId, sport })
   return data
 }
+
+// Everyone attached to an org (owner + staff, central and per-sport), for the
+// People list + transfer-ownership picker. Owner or platform admin only.
+export async function getOrgPeople(orgId) {
+  const call = httpsCallable(functions, 'getOrgPeople')
+  const { data } = await call({ orgId })
+  return data
+}

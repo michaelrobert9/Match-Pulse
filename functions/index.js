@@ -521,6 +521,62 @@ exports.adminDeleteUser = onCall({ region: REGION }, async (request) => {
   return { ok: true, uid }
 })
 
+// ── getOrgPeople ─────────────────────────────────────────────────────────────
+// Everyone attached to an org: the owner + org staff, centrally and in every
+// sport (roles live in organizations/{orgId}/staff). For the org owner or a
+// platform admin. Powers the org People list + the transfer-ownership picker.
+exports.getOrgPeople = onCall({ region: REGION }, async (request) => {
+  const callerUid = request.auth?.uid
+  if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const orgId = String(request.data?.orgId || '').trim()
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+  const orgSnap = await db.doc(`organizations/${orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+  const isAdmin = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${callerUid}`).get()).data()?.platformAdmin === true
+  if (org.ownerUserId !== callerUid && !isAdmin) {
+    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can view the roster.')
+  }
+
+  const people = new Map()   // uid → { uid, roles: [{context, role}] }
+  const add = (uid, context, role) => {
+    if (!uid) return
+    if (!people.has(uid)) people.set(uid, { uid, roles: [] })
+    if (role) people.get(uid).roles.push({ context, role })
+  }
+  if (org.ownerUserId) add(org.ownerUserId, 'central', 'owner')
+
+  try {
+    const snap = await db.collection(`organizations/${orgId}/staff`).get()
+    for (const d of snap.docs) add(d.id, 'central', d.data()?.role || 'member')
+  } catch (e) { logger.warn('getOrgPeople central staff failed', { orgId, message: e.message }) }
+
+  await Promise.all(SPORT_KEYS.map(async (sport) => {
+    try {
+      const snap = await sportDbFor(sport).collection(`organizations/${orgId}/staff`).get()
+      for (const d of snap.docs) add(d.id, sport, d.data()?.role || 'member')
+    } catch (e) { logger.warn('getOrgPeople sport staff failed', { orgId, sport, message: e.message }) }
+  }))
+
+  const uids = [...people.keys()]
+  if (uids.length) {
+    const snaps = await db.getAll(...uids.map(u => db.doc(`users/${u}`)))
+    for (const s of snaps) {
+      const p = people.get(s.id); if (!p) continue
+      const d = s.exists ? s.data() : {}
+      p.name = d.displayName || ''
+      p.email = d.email || ''
+    }
+  }
+  const out = uids.map(u => {
+    const p = people.get(u)
+    return { uid: u, name: p.name || '', email: p.email || '', isOwner: u === org.ownerUserId, roles: p.roles }
+  })
+  out.sort((a, b) => (Number(b.isOwner) - Number(a.isOwner)) || (a.name || a.email || a.uid).localeCompare(b.name || b.email || b.uid))
+  return { people: out, ownerUserId: org.ownerUserId || null }
+})
+
 // ── getUserCompetitions ──────────────────────────────────────────────────────
 // Cross-sport list of competitions a user is connected to: those they own
 // (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).
