@@ -1279,3 +1279,11 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .op-person-roles { display: flex; gap: 6px; flex-wrap: wrap; }
 .op-role { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: capitalize; color: #6b7580; background: rgba(11,18,32,.05); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
 .op-role-owner { color: var(--pulse-ink); background: var(--pulse-tint); border-color: color-mix(in srgb, var(--pulse) 30%, var(--line)); }
+
+/* Link-styled button (admin user detail org links) */
+.linklike { background: none; border: none; padding: 0; color: var(--pulse-ink); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.linklike:hover { text-decoration: underline; }
+/* People-list per-person actions */
+.op-person-actions { display: flex; gap: 6px; flex: none; }
+.op-remove { color: #b4262a; border-color: rgba(229,72,77,.3); }
+.op-remove:hover { background: rgba(229,72,77,.08); color: #911d20; }

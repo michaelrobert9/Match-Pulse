@@ -65,7 +65,7 @@ function roleLabel(v) {
 
 // Full per-user view: identity + name edit, plan change, org access,
 // cross-sport competitions, and delete. Folds in the old Access tab.
-function UserDetail({ user, orgsById, onBack, onChanged }) {
+function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
   const [name, setName] = useState(user.displayName || '')
   const [form, setForm] = useState(() => ({
     plan:    user.raw.entitlement ?? 'none',
@@ -201,7 +201,7 @@ function UserDetail({ user, orgsById, onBack, onChanged }) {
             <ul className="adm-ud-list">
               {orgList.map(([oid, rel]) => (
                 <li key={oid}>
-                  <Link to={`/organisations/${oid}/edit`}>{orgsById[oid]?.name || oid}</Link>
+                  <button type="button" className="linklike" onClick={() => onEditOrg?.(oid)}>{orgsById[oid]?.name || oid}</button>
                   <span className="adm-ud-role">{rel}</span>
                 </li>
               ))}
@@ -253,7 +253,7 @@ function UserDetail({ user, orgsById, onBack, onChanged }) {
   )
 }
 
-function UsersTab() {
+function UsersTab({ onEditOrg }) {
   const [rows, setRows] = useState(null)
   const [orgsById, setOrgsById] = useState({})
   const [err,  setErr]  = useState('')
@@ -297,7 +297,7 @@ function UsersTab() {
     )
   }, [rows, q])
 
-  if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} />
+  if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} onEditOrg={onEditOrg} />
 
   return (
     <div className="adm-section">
@@ -504,11 +504,10 @@ function HockeyMigrationPanel() {
 // Every central organisation record. Admins can open any into the shared
 // authoring form (rules allow a platform admin to edit any org). Identity is
 // authored here; billing lives elsewhere and is not shown.
-function OrgsTab() {
+function OrgsTab({ onEditOrg }) {
   const [rows, setRows] = useState(null)
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
-  const [editId, setEditId] = useState(null)   // org being edited in-place
 
   async function load() {
     try {
@@ -518,11 +517,6 @@ function OrgsTab() {
     } catch (e) { setErr(e.message || 'Could not load organisations.') }
   }
   useEffect(() => { load() }, [])
-
-  // Edit inside the admin shell — never navigate out to the public front-end.
-  if (editId) {
-    return <OrgForm key={editId} orgId={editId} onExit={() => { setEditId(null); load() }} />
-  }
 
   const typeLabel = (t) => ORG_TYPES.find(x => x.key === t)?.label || t
   const filtered = useMemo(() => {
@@ -562,7 +556,7 @@ function OrgsTab() {
                   <td>{typeLabel(o.type)}</td>
                   <td className="tnum">{o.slug}</td>
                   <td>{o.region || <span className="muted">—</span>}</td>
-                  <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditId(o.id)}>Edit</button></td>
+                  <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => onEditOrg(o.id)}>Edit</button></td>
                 </tr>
               ))}
             </tbody>
@@ -974,9 +968,10 @@ function AdminNav({ tab, onPick }) {
 export default function Admin() {
   const [tab, setTab] = useState('users')
   const [open, setOpen] = useState(false)
+  const [editOrgId, setEditOrgId] = useState(null)   // org open in the shell (from any tab)
   const { user, profile } = useAuth()
 
-  const pick = (k) => { setTab(k); setOpen(false) }
+  const pick = (k) => { setTab(k); setOpen(false); setEditOrgId(null) }
   const name = profile?.displayName || user?.displayName || profile?.email || 'Admin'
   const initial = (name || '?').slice(0, 1).toUpperCase()
 
@@ -1027,13 +1022,19 @@ export default function Admin() {
         )}
 
         <main className="adm-main">
-          {tab === 'users'    && <UsersTab />}
-          {tab === 'orgs'     && <OrgsTab />}
-          {tab === 'invoices' && <InvoicesTab />}
-          {tab === 'messages' && <MessagesTab />}
-          {tab === 'payments' && <PaymentsTab />}
-          {tab === 'activity' && <ActivityTab />}
-          {tab === 'seo'      && <SeoTab />}
+          {editOrgId ? (
+            <OrgForm key={editOrgId} orgId={editOrgId} onExit={() => setEditOrgId(null)} />
+          ) : (
+            <>
+              {tab === 'users'    && <UsersTab onEditOrg={setEditOrgId} />}
+              {tab === 'orgs'     && <OrgsTab onEditOrg={setEditOrgId} />}
+              {tab === 'invoices' && <InvoicesTab />}
+              {tab === 'messages' && <MessagesTab />}
+              {tab === 'payments' && <PaymentsTab />}
+              {tab === 'activity' && <ActivityTab />}
+              {tab === 'seo'      && <SeoTab />}
+            </>
+          )}
         </main>
       </div>
     </div>
