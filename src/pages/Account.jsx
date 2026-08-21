@@ -112,7 +112,11 @@ export default function Account() {
   const navigate = useNavigate()
 
   const [name,    setName]    = useState(profile?.displayName || user?.displayName || '')
+  const [phone,   setPhone]   = useState(profile?.phone || '')
   const [email,   setEmail]   = useState(user?.email || '')
+
+  // profile loads asynchronously — pull the stored phone in once it arrives.
+  useEffect(() => { if (profile?.phone != null) setPhone(profile.phone) }, [profile?.phone])
   const [pw,      setPw]      = useState({ next: '', confirm: '' })
   const [current, setCurrent] = useState('')          // for re-auth
   const [msg,     setMsg]     = useState(null)        // { kind: 'ok'|'err', text }
@@ -147,13 +151,13 @@ export default function Account() {
     try {
       await updateProfile(auth.currentUser, { displayName: name.trim() })
       await setDoc(doc(identityDb, 'users', user.uid), {
-        displayName: name.trim(), updatedAt: serverTimestamp(),
+        displayName: name.trim(), phone: phone.trim(), updatedAt: serverTimestamp(),
       }, { merge: true })
       await setDoc(doc(identityDb, 'userProfiles', user.uid), {
         displayName: name.trim(),
       }, { merge: true }).catch(() => {})
       await refresh()
-      say('ok', 'Name updated.')
+      say('ok', 'Details updated.')
     } catch (err) {
       say('err', err?.friendly || friendlyError(err?.code))
     } finally { setBusy('') }
@@ -393,8 +397,13 @@ export default function Account() {
               <input id="acct-name" type="text" value={name} autoComplete="name"
                 onChange={e => setName(e.target.value)} />
             </div>
+            <div className="field">
+              <label htmlFor="acct-phone">Cellphone number</label>
+              <input id="acct-phone" type="tel" value={phone} autoComplete="tel"
+                onChange={e => setPhone(e.target.value)} placeholder="0821234567" />
+            </div>
             <button className="btn btn-dark" disabled={busy === 'name' || !name.trim()}>
-              {busy === 'name' ? 'Saving…' : 'Save name'}
+              {busy === 'name' ? 'Saving…' : 'Save details'}
             </button>
           </form>
         </Panel>

@@ -66,7 +66,9 @@ function roleLabel(v) {
 // Full per-user view: identity + name edit, plan change, org access,
 // cross-sport competitions, and delete. Folds in the old Access tab.
 function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
-  const [name, setName] = useState(user.displayName || '')
+  const [name,  setName]  = useState(user.displayName || '')
+  const [email, setEmail] = useState(user.email || '')
+  const [phone, setPhone] = useState(user.raw.phone || '')
   const [form, setForm] = useState(() => ({
     plan:    user.raw.entitlement ?? 'none',
     credits: Math.max(1, user.raw.eventCredits ?? 1),
@@ -97,12 +99,21 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
 
   const bind = (k) => ({ value: form[k], onChange: e => setForm(f => ({ ...f, [k]: e.target.value })) })
 
-  async function saveName() {
+  const detailsChanged =
+    name.trim() !== (user.displayName || '') ||
+    email.trim().toLowerCase() !== (user.email || '').toLowerCase() ||
+    phone.trim() !== (user.raw.phone || '')
+
+  async function saveDetails() {
     setBusy('name'); setMsg(null)
+    const payload = { uid: user.uid }
+    if (name.trim() !== (user.displayName || '')) payload.displayName = name.trim()
+    if (email.trim().toLowerCase() !== (user.email || '').toLowerCase()) payload.email = email.trim()
+    if (phone.trim() !== (user.raw.phone || '')) payload.phone = phone.trim()
     try {
-      await httpsCallable(functions, 'adminSetUserName')({ uid: user.uid, displayName: name.trim() })
-      setMsg({ kind: 'ok', text: 'Name updated.' }); onChanged?.()
-    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update name.' }) }
+      await httpsCallable(functions, 'adminSetUserName')(payload)
+      setMsg({ kind: 'ok', text: 'Details updated.' }); onChanged?.()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update details.' }) }
     finally { setBusy('') }
   }
 
@@ -151,15 +162,15 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
 
       <div className="adm-ud-grid">
-        {/* Identity */}
+        {/* Identity — name, sign-in email, cellphone */}
         <section className="adm-ud-card">
-          <h4>Name</h4>
-          <div className="adm-inline-form">
-            <input type="text" value={name} placeholder="Full name" onChange={e => setName(e.target.value)} />
-            <button type="button" className="btn btn-dark btn-sm" disabled={busy === 'name' || name.trim() === (user.displayName || '')} onClick={saveName}>
-              {busy === 'name' ? 'Saving…' : 'Save name'}
-            </button>
-          </div>
+          <h4>Details</h4>
+          <div className="field"><label>Name</label><input type="text" value={name} placeholder="Full name" onChange={e => setName(e.target.value)} /></div>
+          <div className="field"><label>Email <span className="opt">sign-in address</span></label><input type="email" value={email} placeholder="you@example.com" onChange={e => setEmail(e.target.value)} /></div>
+          <div className="field"><label>Cellphone</label><input type="tel" value={phone} placeholder="0821234567" onChange={e => setPhone(e.target.value)} /></div>
+          <button type="button" className="btn btn-dark btn-sm" disabled={busy === 'name' || !detailsChanged} onClick={saveDetails}>
+            {busy === 'name' ? 'Saving…' : 'Save details'}
+          </button>
         </section>
 
         {/* Plan */}

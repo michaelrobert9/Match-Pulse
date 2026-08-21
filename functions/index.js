@@ -484,19 +484,40 @@ exports.adminSetEntitlement = onCall({ region: REGION }, async (request) => {
 })
 
 // ── adminSetUserName ─────────────────────────────────────────────────────────
-// Platform admin fixes a user's display name — on the Auth profile and both the
-// users/{uid} and userProfiles/{uid} docs so it reads the same everywhere.
+// Platform admin edits a user's details — name, sign-in email, and/or cellphone.
+// Only the fields present in the request are changed. Name/email sync to the Auth
+// profile; all three land on users/{uid} (and the public-safe userProfiles copy
+// for name/email) so they read the same everywhere.
 exports.adminSetUserName = onCall({ region: REGION }, async (request) => {
   if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
-  const uid = String(request.data?.uid || '').trim()
-  const displayName = String(request.data?.displayName || '').trim().slice(0, 120)
+  const d = request.data || {}
+  const uid = String(d.uid || '').trim()
   if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
-  try { await admin.auth().updateUser(uid, { displayName }) }
-  catch (e) { logger.warn('adminSetUserName auth update failed', { uid, message: e.message }) }
-  await db.doc(`users/${uid}`).set({ displayName, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
-  await db.doc(`userProfiles/${uid}`).set({ displayName }, { merge: true }).catch(() => {})
-  logger.info('Admin set user name', { uid, by: request.auth.uid })
-  return { ok: true, uid, displayName }
+
+  const authUpdate = {}
+  const docUpdate = { updatedAt: admin.firestore.FieldValue.serverTimestamp() }
+  const profUpdate = {}
+  if ('displayName' in d) {
+    const dn = String(d.displayName || '').trim().slice(0, 120)
+    authUpdate.displayName = dn; docUpdate.displayName = dn; profUpdate.displayName = dn
+  }
+  if ('email' in d && d.email) {
+    const em = String(d.email).trim().toLowerCase()
+    authUpdate.email = em; docUpdate.email = em; profUpdate.email = em
+  }
+  if ('phone' in d) docUpdate.phone = String(d.phone || '').trim().slice(0, 32)
+
+  if (Object.keys(authUpdate).length) {
+    try { await admin.auth().updateUser(uid, authUpdate) }
+    catch (e) {
+      if ('email' in authUpdate) throw new HttpsError('failed-precondition', 'Could not change the email: ' + e.message)
+      logger.warn('adminSetUserName auth (name) update failed', { uid, message: e.message })
+    }
+  }
+  await db.doc(`users/${uid}`).set(docUpdate, { merge: true })
+  if (Object.keys(profUpdate).length) await db.doc(`userProfiles/${uid}`).set(profUpdate, { merge: true }).catch(() => {})
+  logger.info('Admin updated user details', { uid, fields: Object.keys(d), by: request.auth.uid })
+  return { ok: true, uid }
 })
 
 // ── adminDeleteUser ──────────────────────────────────────────────────────────
