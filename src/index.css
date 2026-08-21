@@ -1266,3 +1266,5 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .dup-meta { font-size: 12px; color: #8a949e; text-transform: capitalize; }
 .dup-actions { display: flex; gap: 8px; flex: none; }
 .dup-cta { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.org-embedded { padding: 4px 0 40px; }

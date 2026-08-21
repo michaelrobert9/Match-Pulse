@@ -60,12 +60,18 @@ function AssetField({ label, kind, orgId, url, onChange, hint }) {
   )
 }
 
-export default function OrgForm() {
-  const { id } = useParams()                 // undefined on /new
+// `orgId`/`onExit` let this render EMBEDDED inside the admin shell (so editing an
+// org from Admin never drops back to the public front-end). Standalone route use
+// passes neither and falls back to the URL param + normal navigation.
+export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
+  const params = useParams()
+  const id = orgIdProp ?? params.id          // undefined on /new
   const editing = !!id
+  const embedded = !!orgIdProp
   const { user, profile } = useAuth()
   const isAdmin = profile?.platformAdmin === true
   const navigate = useNavigate()
+  const exit = () => { if (embedded) onExit?.(); else navigate('/organisations', { replace: true }) }
 
   const [f,        setF]        = useState(emptyOrg())
   const [slug,     setSlug]     = useState('')
@@ -129,7 +135,7 @@ export default function OrgForm() {
           ? (transfer.trim() ? { transferOwnerUserId: transfer.trim() } : {})
           : {})
         setMsg({ kind: 'ok', text: 'Organisation saved.' })
-        if (transfer.trim()) { navigate('/organisations', { replace: true }); return }
+        if (transfer.trim()) { exit(); return }
       } else {
         const chosen = slug.trim() || await generateUniqueOrgSlug(f.name)
         if (!(await slugIsFree(chosen))) {
@@ -172,7 +178,7 @@ export default function OrgForm() {
     setDelBusy(true); setMsg(null)
     try {
       await deleteOrg(id)
-      navigate('/organisations', { replace: true })
+      exit()
     } catch (e) {
       setMsg({ kind: 'err', text: e.message || 'Could not delete.' })
       setDelBusy(false)
@@ -253,7 +259,7 @@ export default function OrgForm() {
   )
 
   return (
-    <main className="acct">
+    <main className={'acct' + (embedded ? ' org-embedded' : '')}>
       <div className="wrap org-form-wrap">
         <header className="acct-head">
           <p className="label">Organisation</p>
@@ -527,7 +533,11 @@ export default function OrgForm() {
           </section>
         )}
 
-        <div className="acct-signout"><Link className="btn btn-ghost" to="/organisations">Back to organisations</Link></div>
+        <div className="acct-signout">
+          {embedded
+            ? <button type="button" className="btn btn-ghost" onClick={() => onExit?.()}>← Back to organisations</button>
+            : <Link className="btn btn-ghost" to="/organisations">Back to organisations</Link>}
+        </div>
       </div>
     </main>
   )

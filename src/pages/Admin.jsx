@@ -8,6 +8,7 @@ import { identityDb, functions } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
 import { planStatus } from '../contexts/AuthContext'
+import OrgForm from './OrgForm'
 
 // The admin panel is a single page with tab-switched sections rather than
 // nested routes — every section fetches its own data on demand, and users
@@ -74,6 +75,8 @@ function UserDetail({ user, orgsById, onBack, onChanged }) {
   const [busy, setBusy] = useState('')
   const [msg,  setMsg]  = useState(null)
   const [comps, setComps] = useState(null)
+  const [armDel,  setArmDel]  = useState(false)  // delete fail-safe: reveal + type to confirm
+  const [delText, setDelText] = useState('')
 
   useEffect(() => {
     let cancel = false
@@ -116,8 +119,13 @@ function UserDetail({ user, orgsById, onBack, onChanged }) {
     finally { setBusy('') }
   }
 
+  // Fail-safe: the admin must type the user's exact email (or UID if no email)
+  // before the delete is allowed — no accidental one-click deletions.
+  const delTarget = (user.email || user.uid || '').trim()
+  const delReady = delText.trim().toLowerCase() === delTarget.toLowerCase()
+
   async function removeUser() {
-    if (!window.confirm(`Delete ${user.email || user.uid}? This removes their sign-in and profile. Any organisations they own stay but become ownerless. This cannot be undone.`)) return
+    if (!delReady) return
     setBusy('del'); setMsg(null)
     try {
       await httpsCallable(functions, 'adminDeleteUser')({ uid: user.uid })
@@ -219,13 +227,27 @@ function UserDetail({ user, orgsById, onBack, onChanged }) {
         </section>
       </div>
 
-      {/* Danger */}
+      {/* Danger — two-step, type-to-confirm fail-safe */}
       <section className="org-danger">
         <h4 className="inv-edit-h">Delete user</h4>
-        <p className="adm-field-hint">Removes their sign-in and profile. Organisations they own stay but become ownerless (reassign later). Matches are never deleted.</p>
-        <button type="button" className="btn btn-danger btn-sm" disabled={busy === 'del'} onClick={removeUser}>
-          {busy === 'del' ? 'Deleting…' : 'Delete user'}
-        </button>
+        <p className="adm-field-hint">Removes their sign-in and profile. Organisations they own stay but become ownerless (reassign later). Matches are never deleted. This cannot be undone.</p>
+        {!armDel ? (
+          <button type="button" className="btn btn-danger btn-sm" onClick={() => { setArmDel(true); setDelText('') }}>
+            Delete user…
+          </button>
+        ) : (
+          <div className="adm-del-confirm">
+            <p className="adm-field-hint">To confirm, type <strong>{delTarget}</strong> below.</p>
+            <div className="adm-inline-form">
+              <input type="text" value={delText} placeholder={delTarget} autoComplete="off"
+                onChange={e => setDelText(e.target.value)} />
+              <button type="button" className="btn btn-danger btn-sm" disabled={!delReady || busy === 'del'} onClick={removeUser}>
+                {busy === 'del' ? 'Deleting…' : 'Permanently delete'}
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setArmDel(false); setDelText('') }}>Cancel</button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   )
@@ -486,21 +508,21 @@ function OrgsTab() {
   const [rows, setRows] = useState(null)
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
+  const [editId, setEditId] = useState(null)   // org being edited in-place
 
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      try {
-        const list = await listAllOrgs()
-        if (cancel) return
-        list.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-        setRows(list)
-      } catch (e) {
-        if (!cancel) setErr(e.message || 'Could not load organisations.')
-      }
-    })()
-    return () => { cancel = true }
-  }, [])
+  async function load() {
+    try {
+      const list = await listAllOrgs()
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      setRows(list)
+    } catch (e) { setErr(e.message || 'Could not load organisations.') }
+  }
+  useEffect(() => { load() }, [])
+
+  // Edit inside the admin shell — never navigate out to the public front-end.
+  if (editId) {
+    return <OrgForm key={editId} orgId={editId} onExit={() => { setEditId(null); load() }} />
+  }
 
   const typeLabel = (t) => ORG_TYPES.find(x => x.key === t)?.label || t
   const filtered = useMemo(() => {
@@ -540,7 +562,7 @@ function OrgsTab() {
                   <td>{typeLabel(o.type)}</td>
                   <td className="tnum">{o.slug}</td>
                   <td>{o.region || <span className="muted">—</span>}</td>
-                  <td><Link className="btn btn-ghost btn-sm" to={`/organisations/${o.id}/edit`}>Edit</Link></td>
+                  <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditId(o.id)}>Edit</button></td>
                 </tr>
               ))}
             </tbody>
