@@ -573,22 +573,32 @@ function invoiceEmail({ number, planLabel, amount, billTo, invoiceId, accountEma
 // plumbing is built now.
 const PROFILE_SUB_AMOUNT = Number(process.env.PROFILE_SUB_AMOUNT || 0)
 const PROFILE_SUB_LABEL  = 'Cross-sport profile — annual'
+// Early-access: while the profile is free, subscriptions are granted through
+// this fixed date rather than a rolling year. Set the real price/term later.
+const EARLY_ACCESS_UNTIL = new Date('2026-12-31T23:59:59Z')
 
 // Set/extend an org's profile subscription. Renewal stacks from the later of
 // now and any remaining term (same rule as the person 'pro' plan). Written on
 // the org doc only — never client-writable (orgBillingUnchanged guards it).
-async function applyProfileSubscription(orgId, { years = 1, lastPaymentId = null }) {
+async function applyProfileSubscription(orgId, { years = 1, until = null, plan = 'annual', lastPaymentId = null }) {
   const ref  = db.doc(`organizations/${orgId}`)
   const snap = await ref.get()
   if (!snap.exists) throw new HttpsError('not-found', 'No such organisation.')
   const cur    = snap.data().profileSubscription || null
   const curExp = cur?.expiresAt?.toDate?.() ?? null
-  const from    = curExp && curExp > new Date() ? curExp : new Date()
-  const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+  // `until` sets a fixed end date (early-access free term); otherwise extend from
+  // the later of now / current expiry by N years (renewals stack).
+  let expires
+  if (until) {
+    expires = until
+  } else {
+    const from = curExp && curExp > new Date() ? curExp : new Date()
+    expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+  }
   await ref.set({
     profileSubscription: {
       status:        'active',
-      plan:          'annual',
+      plan:          plan,
       startedAt:     (cur?.status === 'active' && cur?.startedAt) ? cur.startedAt : admin.firestore.FieldValue.serverTimestamp(),
       expiresAt:     admin.firestore.Timestamp.fromDate(expires),
       lastPaymentId: lastPaymentId,
@@ -642,9 +652,9 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
   // invoice. Grant it directly and return. Owner/admin was already verified for
   // orgProfile above. (Person plans always have a non-zero price.)
   if (kind === 'orgProfile' && !(amount > 0)) {
-    await applyProfileSubscription(orgId, { years: years || 1, lastPaymentId: `free:${uid}` })
-    logger.info('Profile subscription granted free — no invoice raised', { orgId, uid })
-    return { ok: true, free: true, orgId }
+    await applyProfileSubscription(orgId, { until: EARLY_ACCESS_UNTIL, plan: 'earlyAccessFree', lastPaymentId: `free:${uid}` })
+    logger.info('Profile subscription granted (free early access)', { orgId, uid })
+    return { ok: true, free: true, orgId, until: EARLY_ACCESS_UNTIL.toISOString() }
   }
 
   const billTo = cleanBillTo(request.data?.billTo)

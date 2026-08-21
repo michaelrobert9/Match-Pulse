@@ -697,11 +697,12 @@ function AccessTab() {
   function pick(u) {
     setSelected(u)
     setMsg(null)
-    // Sensible starting point: mirror what they already have.
+    // Start the selector on the user's ACTUAL plan (Free stays Free) so it never
+    // looks like a free user is on Plus. 'none' | 'event' | 'pro'.
     const e = u.raw.entitlement ?? 'none'
     setForm(f => ({
       ...f,
-      plan:    e === 'none' ? 'event' : e,
+      plan:    e,
       credits: Math.max(1, u.raw.eventCredits ?? 1),
     }))
   }

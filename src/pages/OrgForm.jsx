@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
-import { orgPublicPath, adminSetProfileSubscription } from '../lib/orgProfile'
+import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
@@ -181,6 +181,24 @@ export default function OrgForm() {
       setRecord(r => ({ ...r, profileSubscription: { status: res.status } }))
     } catch (e) {
       setActMsg({ kind: 'err', text: e.message || 'Could not update subscription.' })
+    } finally { setActBusy('') }
+  }
+
+  // Owner (or admin) self-subscribe. While the profile is free early access the
+  // server grants it directly (no invoice, active until 31 Dec 2026).
+  async function subscribeProfile() {
+    setActBusy('sub'); setActMsg(null)
+    try {
+      const billTo = { name: f.name || record?.name || '', email: f.contactEmail || user?.email || '' }
+      const res = await createProfileInvoice(id, billTo)
+      if (res?.free) {
+        setActMsg({ kind: 'ok', text: 'Subscribed — free during early access, active until 31 December 2026.' })
+        setRecord(r => ({ ...r, profileSubscription: { status: 'active', plan: 'earlyAccessFree' } }))
+      } else {
+        navigate(`/invoices/${res.id}`)
+      }
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Could not subscribe.' })
     } finally { setActBusy('') }
   }
 
@@ -403,25 +421,41 @@ export default function OrgForm() {
           </section>
         )}
 
-        {/* Admin-only cross-sport profile subscription (Brief #6, Part C). */}
-        {editing && isAdmin && (
-          <section className="org-activate">
-            <h2 className="inv-edit-h">Cross-sport profile subscription <span className="opt">platform admin</span></h2>
-            <p className="adm-field-hint">
-              Status: <strong>{record?.profileSubscription?.status === 'active' ? 'Active' : 'Not subscribed'}</strong>.
-              Grant an annual subscription (comp / EFT received off-invoice) or revoke it. Owners
-              can also self-subscribe from the public page, which raises an EFT invoice.
-            </p>
-            <div className="adm-migrate-actions">
-              <button type="button" className="btn btn-dark btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('grant')}>
-                {actBusy === 'sub' ? 'Working…' : 'Grant +1 year'}
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('revoke')}>
-                Revoke
-              </button>
-            </div>
-          </section>
-        )}
+        {/* Cross-sport profile subscription (Brief #6). Owners self-subscribe;
+            admins also get grant/revoke. Free during early access. */}
+        {editing && (isAdmin || isOwner) && (() => {
+          const subActive = record?.profileSubscription?.status === 'active'
+          return (
+            <section className="org-activate">
+              <h2 className="inv-edit-h">Cross-sport profile subscription</h2>
+              <p className="adm-field-hint">
+                Publishes {f.name || 'this organisation'}’s matches &amp; results across every sport it plays,
+                on one public page. Status: <strong>{subActive ? 'Subscribed' : 'Not subscribed'}</strong>.
+                {' '}<strong>Free during early access — active until 31 December 2026.</strong>
+              </p>
+              <div className="adm-migrate-actions">
+                {!subActive && (
+                  <button type="button" className="btn btn-primary btn-sm" disabled={actBusy === 'sub'} onClick={subscribeProfile}>
+                    {actBusy === 'sub' ? 'Subscribing…' : 'Subscribe — free early access'}
+                  </button>
+                )}
+                {subActive && (
+                  <Link className="btn btn-ghost btn-sm" to={orgPublicPath({ type: f.type, slug })}>View public page →</Link>
+                )}
+                {isAdmin && (
+                  <>
+                    <button type="button" className="btn btn-dark btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('grant')}>
+                      {actBusy === 'sub' ? 'Working…' : 'Grant +1 year'} <span className="opt">admin</span>
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={actBusy === 'sub'} onClick={() => setSub('revoke')}>
+                      Revoke <span className="opt">admin</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+          )
+        })()}
 
         {/* Admin-only slug edit (relaxes Brief #2 immutability, admins only). */}
         {editing && isAdmin && (

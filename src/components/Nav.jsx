@@ -43,12 +43,12 @@ export default function Nav() {
           {SECTIONS.map(s => (
             <Link key={s.to} className={'link' + (isActive(s.to) ? ' active' : '')} to={s.to}>{s.label}</Link>
           ))}
-          {isAdmin && (
-            <Link className={'link nav-admin' + (location.pathname.startsWith('/admin') ? ' active' : '')} to="/admin">Admin</Link>
-          )}
         </nav>
 
         <div className="nav-cta">
+          {isAdmin && (
+            <Link className={'btn btn-sm nav-admin-btn' + (location.pathname.startsWith('/admin') ? ' active' : '')} to="/admin">Admin</Link>
+          )}
           {loading ? null : user ? (
             <Link className="nav-acct" to="/account" aria-label="Your account">
               {photo

@@ -1233,3 +1233,9 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
   .adm-mobnav .adm-side-foot { border-top: 1px solid var(--line); margin-top: 6px; }
   .adm-main { padding: 20px 16px 56px; }
 }
+
+/* Admin button — right side of the nav, next to the account chip. */
+.nav-admin-btn { background: rgba(245,158,11,.12); color: #b45309; border: 1px solid rgba(245,158,11,.35); font-weight: 600; }
+.nav-admin-btn:hover { background: rgba(245,158,11,.18); color: #92400e; }
+.nav-admin-btn.active { background: #b45309; color: #fff; border-color: transparent; }
+@media (max-width: 760px) { .nav-admin-btn { display: none; } }
