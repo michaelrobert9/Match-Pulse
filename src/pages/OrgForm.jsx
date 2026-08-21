@@ -7,7 +7,7 @@ import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
-  deactivateOrgInSport, deleteOrg, adminChangeSlug,
+  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -81,6 +81,7 @@ export default function OrgForm() {
   const [slugEdit, setSlugEdit] = useState('')     // admin slug editor input
   const [slugBusy, setSlugBusy] = useState(false)
   const [delBusy,  setDelBusy]  = useState(false)
+  const [dupes,    setDupes]    = useState(null)   // same-name orgs found on create
 
   const isOwner = record?.ownerUserId === user?.uid
   const canDelete = editing && (isAdmin || isOwner)
@@ -112,11 +113,17 @@ export default function OrgForm() {
   const setSoc = (k) => (e) => setF(s => ({ ...s, socialLinks: { ...s.socialLinks, [k]: e.target.value } }))
   const showMatchName = typeHasMatchName(f.type)
 
-  async function submit(e) {
-    e.preventDefault()
+  async function submit(e, force = false) {
+    e?.preventDefault?.()
     if (!f.name.trim()) { setMsg({ kind: 'err', text: 'Name is required.' }); return }
     setBusy(true); setMsg(null)
     try {
+      // On create, warn (once) if an org with the same name already exists —
+      // slugs dedupe silently, so this is the only guard against duplicates.
+      if (!editing && !force) {
+        const matches = await findOrgsByName(f.name)
+        if (matches.length > 0) { setDupes(matches); setBusy(false); return }
+      }
       if (editing) {
         await updateOrg(id, f, isAdmin || record?.ownerUserId === user?.uid
           ? (transfer.trim() ? { transferOwnerUserId: transfer.trim() } : {})
@@ -368,6 +375,33 @@ export default function OrgForm() {
               <input id="o-transfer" type="text" value={transfer} onChange={e => setTransfer(e.target.value)}
                 placeholder="Paste the new owner’s user UID" />
               <p className="adm-field-hint">Hands this organisation to another account. You’ll no longer be able to edit it unless you’re a platform admin.</p>
+            </div>
+          )}
+
+          {!editing && dupes && dupes.length > 0 && (
+            <div className="dup-warn" role="alert">
+              <h3>There’s already an organisation called “{f.name.trim()}”</h3>
+              <p>Please check it isn’t the same one before creating a duplicate — duplicates split a school or club’s results across two profiles.</p>
+              <ul className="dup-list">
+                {dupes.map(o => (
+                  <li key={o.id}>
+                    <div className="dup-org">
+                      <strong>{o.name}</strong>
+                      <span className="dup-meta">{[o.type, o.region].filter(Boolean).join(' · ') || 'Organisation'}</span>
+                    </div>
+                    <div className="dup-actions">
+                      <a className="btn btn-ghost btn-sm" href={orgPublicPath(o)} target="_blank" rel="noreferrer">View</a>
+                      {o.contactEmail && <a className="btn btn-ghost btn-sm" href={`mailto:${o.contactEmail}`}>Contact owner</a>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="dup-cta">
+                <button type="button" className="btn btn-dark btn-sm" onClick={() => { setDupes(null); submit(null, true) }}>
+                  Mine is different — create anyway
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDupes(null)}>Cancel</button>
+              </div>
             </div>
           )}
 
