@@ -1,28 +1,30 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import Account from './pages/Account'
-import Portal from './pages/Portal'
-import Products from './pages/Products'
-import NewInvoice from './pages/NewInvoice'
-import Invoice from './pages/Invoice'
-import Organisations from './pages/Organisations'
-import OrgForm from './pages/OrgForm'
-import OrgProfile from './pages/OrgProfile'
-import OrgRedirect from './pages/OrgRedirect'
-import OrgDirectory from './pages/OrgDirectory'
-import SubscribeProfile from './pages/SubscribeProfile'
-import Tournaments from './pages/Tournaments'
-import Admin from './pages/Admin'
-import Terms from './pages/legal/Terms'
-import Privacy from './pages/legal/Privacy'
-import AcceptableUse from './pages/legal/AcceptableUse'
-import Cookies from './pages/legal/Cookies'
+// Every route below the landing page is code-split: its JavaScript is fetched
+// only when that page is first visited, so the initial load stays small/fast.
+const Login = lazy(() => import('./pages/Login'))
+const Signup = lazy(() => import('./pages/Signup'))
+const Account = lazy(() => import('./pages/Account'))
+const Portal = lazy(() => import('./pages/Portal'))
+const Products = lazy(() => import('./pages/Products'))
+const NewInvoice = lazy(() => import('./pages/NewInvoice'))
+const Invoice = lazy(() => import('./pages/Invoice'))
+const Organisations = lazy(() => import('./pages/Organisations'))
+const OrgForm = lazy(() => import('./pages/OrgForm'))
+const OrgProfile = lazy(() => import('./pages/OrgProfile'))
+const OrgRedirect = lazy(() => import('./pages/OrgRedirect'))
+const OrgDirectory = lazy(() => import('./pages/OrgDirectory'))
+const SubscribeProfile = lazy(() => import('./pages/SubscribeProfile'))
+const Tournaments = lazy(() => import('./pages/Tournaments'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Terms = lazy(() => import('./pages/legal/Terms'))
+const Privacy = lazy(() => import('./pages/legal/Privacy'))
+const AcceptableUse = lazy(() => import('./pages/legal/AcceptableUse'))
+const Cookies = lazy(() => import('./pages/legal/Cookies'))
 import { configured } from './firebase'
 import { useSiteSeo } from './lib/seo'
 
@@ -68,6 +70,7 @@ export default function App() {
     <>
       <ScrollToTop />
       {!bareChrome && <Nav />}
+      <Suspense fallback={<div className="route-loading">Loading…</div>}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
@@ -123,6 +126,7 @@ export default function App() {
         <Route path="/legal"                element={<Navigate to="/legal/terms" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       {!bareChrome && <Footer />}
     </>
   )
