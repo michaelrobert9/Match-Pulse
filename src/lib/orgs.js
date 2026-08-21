@@ -257,3 +257,10 @@ export async function getOrgPeople(orgId) {
   const { data } = await call({ orgId })
   return data
 }
+
+// Remove a person from an org entirely (central + every sport). Owner|admin.
+export async function removeOrgPerson(orgId, uid) {
+  const call = httpsCallable(functions, 'adminRemoveOrgPerson')
+  const { data } = await call({ orgId, uid })
+  return data
+}

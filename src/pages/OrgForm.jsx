@@ -7,7 +7,7 @@ import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
-  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople,
+  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -204,6 +204,19 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
       loadPeople()
     } catch (e) {
       setActMsg({ kind: 'err', text: e.message || 'Could not transfer ownership.' })
+    } finally { setActBusy('') }
+  }
+
+  async function removePerson(person) {
+    const who = person.name || person.email || person.uid
+    if (!window.confirm(`Remove ${who} from ${f.name}? This removes their access in every sport for this organisation. Their own account and any matches are untouched.`)) return
+    setActBusy('rm:' + person.uid); setActMsg(null)
+    try {
+      await removeOrgPerson(id, person.uid)
+      setActMsg({ kind: 'ok', text: `${who} removed from this organisation.` })
+      loadPeople()
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Could not remove this person.' })
     } finally { setActBusy('') }
   }
 
@@ -458,11 +471,18 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                         ))}
                       </div>
                       {!p.isOwner && (
-                        <button type="button" className="btn btn-ghost btn-sm"
-                          disabled={actBusy === 'owner:' + p.uid}
-                          onClick={() => makeOwner(p)}>
-                          {actBusy === 'owner:' + p.uid ? 'Transferring…' : 'Make owner'}
-                        </button>
+                        <div className="op-person-actions">
+                          <button type="button" className="btn btn-ghost btn-sm"
+                            disabled={actBusy === 'owner:' + p.uid}
+                            onClick={() => makeOwner(p)}>
+                            {actBusy === 'owner:' + p.uid ? 'Transferring…' : 'Make owner'}
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-sm op-remove"
+                            disabled={actBusy === 'rm:' + p.uid}
+                            onClick={() => removePerson(p)}>
+                            {actBusy === 'rm:' + p.uid ? 'Removing…' : 'Remove'}
+                          </button>
+                        </div>
                       )}
                     </li>
                   ))}

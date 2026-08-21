@@ -577,6 +577,35 @@ exports.getOrgPeople = onCall({ region: REGION }, async (request) => {
   return { people: out, ownerUserId: org.ownerUserId || null }
 })
 
+// ── adminRemoveOrgPerson ─────────────────────────────────────────────────────
+// Remove a person from an org entirely: their staff record centrally AND in
+// every sport, plus the orgRoles claim mirror. Owner or platform admin. The
+// owner can't be removed (transfer ownership first). Per-sport role CHANGES stay
+// in-sport; this is the full remove-from-organisation action.
+exports.adminRemoveOrgPerson = onCall({ region: REGION }, async (request) => {
+  const callerUid = request.auth?.uid
+  if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const orgId = String(request.data?.orgId || '').trim()
+  const uid = String(request.data?.uid || '').trim()
+  if (!orgId || !uid) throw new HttpsError('invalid-argument', 'orgId and uid required.')
+  const orgSnap = await db.doc(`organizations/${orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+  const isAdmin = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${callerUid}`).get()).data()?.platformAdmin === true
+  if (org.ownerUserId !== callerUid && !isAdmin) {
+    throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can remove people.')
+  }
+  if (uid === org.ownerUserId) {
+    throw new HttpsError('failed-precondition', 'Transfer ownership before removing the owner.')
+  }
+  await db.doc(`organizations/${orgId}/staff/${uid}`).delete().catch(() => {})
+  await Promise.all(SPORT_KEYS.map(s => sportDbFor(s).doc(`organizations/${orgId}/staff/${uid}`).delete().catch(() => {})))
+  await db.doc(`users/${uid}`).update({ [`orgRoles.${orgId}`]: admin.firestore.FieldValue.delete() }).catch(() => {})
+  logger.info('Removed person from org', { orgId, uid, by: callerUid })
+  return { ok: true, orgId, uid }
+})
+
 // ── getUserCompetitions ──────────────────────────────────────────────────────
 // Cross-sport list of competitions a user is connected to: those they own
 // (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).
