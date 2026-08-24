@@ -318,7 +318,9 @@ service cloud.firestore {
     // all — createVenue / updateVenue / mergeVenues (Admin SDK callables) are the
     // only write path, and the sport apps read but never write.
     match /venues/{venueId} {
-      allow read:  if resource.data.active == true;
+      // Public reads see active venues; a platform admin also reads inactive/
+      // merged ones (for the merge + duplicate-review tools).
+      allow read:  if resource.data.active == true || isPlatformAdmin();
       allow write: if false;
     }
 

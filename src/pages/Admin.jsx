@@ -9,6 +9,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
 import { planStatus } from '../contexts/AuthContext'
 import OrgForm from './OrgForm'
+import VenueManager from '../components/VenueManager'
+import { listAllVenues, mergeVenues } from '../lib/venues'
 
 // The admin panel is a single page with tab-switched sections rather than
 // nested routes — every section fetches its own data on demand, and users
@@ -26,6 +28,7 @@ const ICONS = {
   messages: I('M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'),
   payments: I('M1 4h22v16H1z M1 10h22'),
   activity: I('M22 12h-4l-3 9L9 3l-3 9H2'),
+  venues:   I('M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'),
   seo:      I('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35'),
 }
 
@@ -36,6 +39,7 @@ const TABS = [
   { key: 'messages', label: 'Messages' },
   { key: 'payments', label: 'Payments' },
   { key: 'activity', label: 'Sport activity' },
+  { key: 'venues',   label: 'Venues' },
   { key: 'seo',      label: 'SEO' },
 ]
 
@@ -842,6 +846,72 @@ function ActivityTab() {
 }
 
 
+// ── Venues (master) ──────────────────────────────────────────────────────────
+function GroupMerge({ group, onMerge, busy }) {
+  const [keeper, setKeeper] = useState(group[0].id)
+  return (
+    <ul className="venue-list venue-dupe-group">
+      {group.map(v => (
+        <li key={v.id}>
+          <label className="venue-keeper"><input type="radio" checked={keeper === v.id} onChange={() => setKeeper(v.id)} /> Keep</label>
+          <div className="venue-li-id"><strong>{v.name}</strong><span className="venue-li-meta">{v.address?.city || '—'}{v.verified && <span className="venue-tag venue-tag-ok">verified</span>}</span></div>
+          {keeper !== v.id && <button type="button" className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => onMerge(v.id, keeper)}>{busy === v.id ? 'Merging…' : 'Merge into keeper'}</button>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function VenueDuplicateQueue() {
+  const [groups, setGroups] = useState(null)
+  const [busy, setBusy] = useState('')
+  const [msg,  setMsg]  = useState(null)
+
+  async function load() {
+    const all = await listAllVenues().catch(() => [])
+    const by = {}
+    for (const v of all.filter(v => v.active !== false)) {
+      const k = v.nameNormalised || (v.name || '').toLowerCase()
+      ;(by[k] = by[k] || []).push(v)
+    }
+    setGroups(Object.values(by).filter(g => g.length > 1))
+  }
+  useEffect(() => { load() }, [])
+
+  async function onMerge(sourceId, targetId) {
+    if (!window.confirm('Merge these venues? Match references repoint to the keeper and the duplicate is retired (not deleted).')) return
+    setBusy(sourceId); setMsg(null)
+    try {
+      const r = await mergeVenues(sourceId, targetId)
+      setMsg({ kind: 'ok', text: `Merged — ${r.repointed} match reference(s) repointed to the keeper.` })
+      await load()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Merge failed.' }) }
+    finally { setBusy('') }
+  }
+
+  return (
+    <section className="org-activate">
+      <h2 className="inv-edit-h">Duplicate review</h2>
+      <p className="adm-field-hint">Active venues that share a normalised name. Pick the one to keep, then merge the others into it — match references follow, the duplicate is retired.</p>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      {groups === null ? <p className="adm-loading">Checking…</p>
+        : groups.length === 0 ? <p className="muted">No duplicate names. 🎉</p>
+        : groups.map((g, i) => <GroupMerge key={i} group={g} onMerge={onMerge} busy={busy} />)}
+    </section>
+  )
+}
+
+function VenuesTab() {
+  const [orgs, setOrgs] = useState([])
+  useEffect(() => { listAllOrgs().then(setOrgs).catch(() => {}) }, [])
+  return (
+    <div className="adm-section">
+      <VenueManager master orgOptions={orgs} />
+      <VenueDuplicateQueue />
+    </div>
+  )
+}
+
 // ── SEO ──────────────────────────────────────────────────────────────────────
 const SEO_DEFAULTS = {
   siteTitle:       'MatchPulse | Sports Results for Schools, Clubs and Competitions',
@@ -1043,6 +1113,7 @@ export default function Admin() {
               {tab === 'messages' && <MessagesTab />}
               {tab === 'payments' && <PaymentsTab />}
               {tab === 'activity' && <ActivityTab />}
+              {tab === 'venues'   && <VenuesTab />}
               {tab === 'seo'      && <SeoTab />}
             </>
           )}

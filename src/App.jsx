@@ -20,6 +20,7 @@ const OrgRedirect = lazy(() => import('./pages/OrgRedirect'))
 const OrgDirectory = lazy(() => import('./pages/OrgDirectory'))
 const SubscribeProfile = lazy(() => import('./pages/SubscribeProfile'))
 const Tournaments = lazy(() => import('./pages/Tournaments'))
+const Venue = lazy(() => import('./pages/Venue'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Terms = lazy(() => import('./pages/legal/Terms'))
 const Privacy = lazy(() => import('./pages/legal/Privacy'))
@@ -107,6 +108,7 @@ export default function App() {
         {/* Public directories (front doors), indexable. */}
         <Route path="/organizations" element={<OrgDirectory />} />
         <Route path="/tournaments"   element={<Tournaments />} />
+        <Route path="/venues/:slug"  element={<Venue />} />
 
         {/* Public, type-prefixed org profiles (free identity + gated matches). */}
         <Route path="/schools/:slug"      element={<OrgProfile prefix="schools" />} />

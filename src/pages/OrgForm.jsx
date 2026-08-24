@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
 import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
+import VenueManager from '../components/VenueManager'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
@@ -494,6 +495,18 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                   ))}
                 </ul>
               )}
+          </section>
+        )}
+
+        {/* Venues — this organisation's own grounds (Brief A, step 3). */}
+        {editing && canManagePeople && (
+          <section className="org-activate">
+            <h2 className="inv-edit-h">Venues</h2>
+            <p className="adm-field-hint">
+              Your organisation's own grounds. Add them once here; when a coach types a matching name
+              in any sport, it links to the record. Neutral and municipal grounds are added by MatchPulse.
+            </p>
+            <VenueManager ownerOrgId={id} />
           </section>
         )}
 

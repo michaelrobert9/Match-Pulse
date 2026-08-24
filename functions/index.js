@@ -1787,7 +1787,11 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
   if (!sourceId || !targetId || sourceId === targetId) throw new HttpsError('invalid-argument', 'Distinct source and target venue ids required.')
   const [src, tgt] = await Promise.all([db.doc(`venues/${sourceId}`).get(), db.doc(`venues/${targetId}`).get()])
   if (!src.exists || !tgt.exists) throw new HttpsError('not-found', 'Source or target venue not found.')
+  const targetName = tgt.data().name || ''
 
+  // Repoint venueId AND refresh the denormalised display string (`pitch` in the
+  // sport repos) to the target's name — only on matches that actually pointed at
+  // the source, so free-text-only matches are never touched.
   let repointed = 0
   for (const sport of SPORT_KEYS) {
     try {
@@ -1795,7 +1799,7 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
       const snap = await sportDb.collection('matches').where('venueId', '==', sourceId).limit(1000).get()
       let batch = sportDb.batch(), n = 0
       for (const m of snap.docs) {
-        batch.update(m.ref, { venueId: targetId }); repointed++
+        batch.update(m.ref, { venueId: targetId, pitch: targetName }); repointed++
         if (++n % 400 === 0) { await batch.commit(); batch = sportDb.batch() }
       }
       if (n % 400 !== 0) await batch.commit()
@@ -1814,7 +1818,11 @@ exports.rebuildVenueIndex = onDocumentWritten({ document: 'venues/{venueId}', re
   const snap = await db.collection('venues').where('active', '==', true).get()
   const venues = snap.docs.map(d => {
     const v = d.data()
-    return { id: d.id, name: v.name || '', slug: v.slug || '', city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null }
+    return {
+      id: d.id, name: v.name || '', slug: v.slug || '',
+      nameNormalised: v.nameNormalised || normaliseVenueName(v.name || ''),
+      city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null,
+    }
   })
   venues.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   await VENUE_INDEX_DOC.set({ venues, count: venues.length, updatedAt: nowTs() })

@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getOrgProfile, PREFIX_TYPE, orgPublicPathFrom } from '../lib/orgProfile'
 import { sportByKey } from '../lib/sports'
+import { listVenuesByOrg, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
 
 function fmtDate(ms) {
   if (!ms) return ''
@@ -78,10 +79,11 @@ export default function OrgProfile({ prefix }) {
   const [data, setData] = useState(null)
   const [err,  setErr]  = useState('')
   const [tab,  setTab]  = useState(null)
+  const [venues, setVenues] = useState([])
 
   useEffect(() => {
     let cancel = false
-    setData(null); setErr('')
+    setData(null); setErr(''); setVenues([])
     ;(async () => {
       try {
         const res = await getOrgProfile(slug)
@@ -89,6 +91,7 @@ export default function OrgProfile({ prefix }) {
         setData(res)
         setTab(res.activatedSports?.[0] || null)
         if (res.org?.name) document.title = `${res.org.name} — MatchPulse`
+        if (res.org?.id) { const vs = await listVenuesByOrg(res.org.id).catch(() => []); if (!cancel) setVenues(vs) }
       } catch (e) {
         if (!cancel) setErr(e.message || 'Organisation not found.')
       }
@@ -149,6 +152,25 @@ export default function OrgProfile({ prefix }) {
         </article>
 
         <div className="op-body">
+        {venues.length > 0 && (
+          <section className="op-venues">
+            <h2>Venues</h2>
+            {venueEmbedUrl(venues[0]) && (
+              <div className="op-venue-map"><iframe title={`Map of ${venues[0].name}`} src={venueEmbedUrl(venues[0])} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>
+            )}
+            <ul className="op-venue-list">
+              {venues.map(v => (
+                <li key={v.id}>
+                  <div className="op-venue-id">
+                    <Link to={`/venues/${v.slug}`}>{v.name}</Link>
+                    {formatVenueAddress(v.address) && <span className="op-venue-addr">{formatVenueAddress(v.address)}</span>}
+                  </div>
+                  <a className="btn btn-ghost btn-sm" href={venueDirectionsUrl(v)} target="_blank" rel="noreferrer">Directions →</a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {data.locked ? (
           <section className="op-upsell">
             <h2>See {org.name}’s matches &amp; results across all sports</h2>
