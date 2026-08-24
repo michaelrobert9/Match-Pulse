@@ -1636,3 +1636,187 @@ exports.getTournaments = onCall({ region: REGION }, async () => {
   TOURN_CACHE.at = Date.now()
   return { tournaments }
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VENUE REGISTRY (Brief A). Central venues in the (default) database, READ by
+// every sport app through the same handle they already use for users/
+// userProfiles — getFirestore(app) → (default). Sports never write here.
+// ALL writes go through these callables; firestore.rules denies client writes.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const VENUE_INDEX_DOC = db.doc('venueIndex/current')
+const nowTs = () => admin.firestore.FieldValue.serverTimestamp()
+
+// Lowercased, accent- and punctuation-stripped, single-spaced — for matching.
+function normaliseVenueName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim().replace(/\s+/g, ' ')
+}
+function venueSlugify(name) {
+  return String(name || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+}
+async function uniqueVenueSlug(name) {
+  const base = venueSlugify(name) || 'venue'
+  let slug = base, n = 1
+  while (!(await db.collection('venues').where('slug', '==', slug).limit(1).get()).empty) slug = `${base}-${++n}`
+  return slug
+}
+// The caller's role on an org: owner (org doc), else their staff role, else null.
+async function callerOrgRole(uid, orgId) {
+  if (!orgId) return null
+  const org = await db.doc(`organizations/${orgId}`).get()
+  if (org.exists && org.data().ownerUserId === uid) return 'owner'
+  const staff = await db.doc(`organizations/${orgId}/staff/${uid}`).get()
+  return staff.exists ? (staff.data().role || 'member') : null
+}
+const isOrgAdminRole = (r) => r === 'owner' || r === 'admin'
+
+function cleanVenueAddress(a = {}) {
+  const s = (v, n) => String(v ?? '').trim().slice(0, n)
+  return {
+    line1: s(a.line1, 200), suburb: s(a.suburb, 120), city: s(a.city, 120),
+    province: s(a.province, 120), postalCode: s(a.postalCode, 20),
+    country: s(a.country, 80) || 'South Africa',
+  }
+}
+
+// ── createVenue ──────────────────────────────────────────────────────────────
+// Org admin: ownerOrgId forced to an org they administer, verified forced false,
+// cannot create an unowned venue. Master admin: any ownerOrgId (incl. null) and
+// may set verified. Same-city name-match returns candidates unless confirmed.
+exports.createVenue = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const master = await callerIsAdmin(request)
+  const d = request.data || {}
+  const name = String(d.name || '').trim().slice(0, 160)
+  if (!name) throw new HttpsError('invalid-argument', 'Venue name is required.')
+
+  let ownerOrgId = d.ownerOrgId ? String(d.ownerOrgId).trim() : null
+  let verified = false
+  if (master) {
+    verified = d.verified === true
+  } else {
+    if (!ownerOrgId) throw new HttpsError('permission-denied', 'Choose which of your organisations owns this venue.')
+    if (!isOrgAdminRole(await callerOrgRole(uid, ownerOrgId))) {
+      throw new HttpsError('permission-denied', 'You can only add a venue for an organisation you administer.')
+    }
+  }
+
+  const address = cleanVenueAddress(d.address)
+  const nameNormalised = normaliseVenueName(name)
+
+  // Duplicate defence: same normalised name in the same city (cheap, no index).
+  if (d.confirmDuplicate !== true) {
+    const snap = await db.collection('venues').where('nameNormalised', '==', nameNormalised).limit(10).get()
+    const here = normaliseVenueName(address.city)
+    const candidates = snap.docs.map(s => ({ id: s.id, ...s.data() }))
+      .filter(v => v.active !== false && (!here || !v.address?.city || normaliseVenueName(v.address.city) === here))
+    if (candidates.length) {
+      return { needsConfirm: true, candidates: candidates.map(v => ({ id: v.id, name: v.name, slug: v.slug, city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null })) }
+    }
+  }
+
+  const slug = await uniqueVenueSlug(name)
+  const ref = db.collection('venues').doc()
+  await ref.set({
+    slug, name, nameNormalised,
+    ownerOrgId: ownerOrgId || null,
+    description: String(d.description || '').trim().slice(0, 2000),
+    address,
+    mapQuery: String(d.mapQuery || '').trim().slice(0, 300) || [name, address.suburb, address.city].filter(Boolean).join(', '),
+    location: (d.location && typeof d.location.lat === 'number' && typeof d.location.lng === 'number') ? { lat: d.location.lat, lng: d.location.lng } : null,
+    timezone: 'Africa/Johannesburg',
+    images: Array.isArray(d.images) ? d.images.slice(0, 20).map(String) : [],
+    verified, active: true,
+    createdByUserId: uid,
+    createdAt: nowTs(), updatedAt: nowTs(),
+  })
+  logger.info('Venue created', { venueId: ref.id, slug, ownerOrgId: ownerOrgId || null, master, by: uid })
+  return { ok: true, id: ref.id, slug }
+})
+
+// ── updateVenue ──────────────────────────────────────────────────────────────
+// Owning org admin edits descriptive fields; master edits anything incl.
+// ownerOrgId/verified/active. Slug is never regenerated (stable forever).
+exports.updateVenue = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const d = request.data || {}
+  const venueId = String(d.venueId || '').trim()
+  if (!venueId) throw new HttpsError('invalid-argument', 'venueId required.')
+  const ref = db.doc(`venues/${venueId}`)
+  const snap = await ref.get()
+  if (!snap.exists) throw new HttpsError('not-found', 'No such venue.')
+  const cur = snap.data()
+  const master = await callerIsAdmin(request)
+  if (!master && !isOrgAdminRole(await callerOrgRole(uid, cur.ownerOrgId))) {
+    throw new HttpsError('permission-denied', 'You can only edit a venue your organisation owns.')
+  }
+
+  const p = d.patch || {}
+  const patch = { updatedAt: nowTs() }
+  if ('name' in p) { const nm = String(p.name || '').trim().slice(0, 160); if (nm) { patch.name = nm; patch.nameNormalised = normaliseVenueName(nm) } }
+  if ('description' in p) patch.description = String(p.description || '').trim().slice(0, 2000)
+  if ('address' in p) patch.address = cleanVenueAddress(p.address)
+  if ('mapQuery' in p) patch.mapQuery = String(p.mapQuery || '').trim().slice(0, 300)
+  if ('location' in p) patch.location = (p.location && typeof p.location.lat === 'number' && typeof p.location.lng === 'number') ? { lat: p.location.lat, lng: p.location.lng } : null
+  if ('images' in p) patch.images = Array.isArray(p.images) ? p.images.slice(0, 20).map(String) : []
+  if (master) {
+    if ('ownerOrgId' in p) patch.ownerOrgId = p.ownerOrgId ? String(p.ownerOrgId).trim() : null
+    if ('verified' in p) patch.verified = p.verified === true
+    if ('active' in p) patch.active = p.active === true
+  }
+  await ref.set(patch, { merge: true })   // slug intentionally never touched
+  logger.info('Venue updated', { venueId, fields: Object.keys(patch), master, by: uid })
+  return { ok: true, id: venueId }
+})
+
+// ── mergeVenues ──────────────────────────────────────────────────────────────
+// Master only. Repoints match.venueId across every sport DB from source→target,
+// then marks the source inactive with a mergedInto pointer (never deletes).
+exports.mergeVenues = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const d = request.data || {}
+  const sourceId = String(d.sourceId || '').trim()
+  const targetId = String(d.targetId || '').trim()
+  if (!sourceId || !targetId || sourceId === targetId) throw new HttpsError('invalid-argument', 'Distinct source and target venue ids required.')
+  const [src, tgt] = await Promise.all([db.doc(`venues/${sourceId}`).get(), db.doc(`venues/${targetId}`).get()])
+  if (!src.exists || !tgt.exists) throw new HttpsError('not-found', 'Source or target venue not found.')
+
+  let repointed = 0
+  for (const sport of SPORT_KEYS) {
+    try {
+      const sportDb = sportDbFor(sport)
+      const snap = await sportDb.collection('matches').where('venueId', '==', sourceId).limit(1000).get()
+      let batch = sportDb.batch(), n = 0
+      for (const m of snap.docs) {
+        batch.update(m.ref, { venueId: targetId }); repointed++
+        if (++n % 400 === 0) { await batch.commit(); batch = sportDb.batch() }
+      }
+      if (n % 400 !== 0) await batch.commit()
+    } catch (e) { logger.warn('mergeVenues repoint failed', { sport, message: e.message }) }
+  }
+  await db.doc(`venues/${sourceId}`).set({ active: false, mergedInto: targetId, updatedAt: nowTs() }, { merge: true })
+  logger.info('Venues merged', { sourceId, targetId, repointed })
+  return { ok: true, sourceId, targetId, repointed }
+})
+
+// ── rebuildVenueIndex ────────────────────────────────────────────────────────
+// On any venue write, republish the lightweight typeahead index the sport apps
+// fetch once per session: one doc listing every ACTIVE venue's {id,name,slug,
+// city,ownerOrgId}. Writes venueIndex/current only (no loop on venues).
+exports.rebuildVenueIndex = onDocumentWritten({ document: 'venues/{venueId}', region: REGION }, async () => {
+  const snap = await db.collection('venues').where('active', '==', true).get()
+  const venues = snap.docs.map(d => {
+    const v = d.data()
+    return { id: d.id, name: v.name || '', slug: v.slug || '', city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null }
+  })
+  venues.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+  await VENUE_INDEX_DOC.set({ venues, count: venues.length, updatedAt: nowTs() })
+  logger.info('Venue index rebuilt', { count: venues.length })
+})

@@ -312,5 +312,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Venue registry (Brief A) ──────────────────────────────────────────────
+    // Central venues, read by the public site and every sport app (via the
+    // (default) handle). Public read on ACTIVE venues only. NO client writes at
+    // all — createVenue / updateVenue / mergeVenues (Admin SDK callables) are the
+    // only write path, and the sport apps read but never write.
+    match /venues/{venueId} {
+      allow read:  if resource.data.active == true;
+      allow write: if false;
+    }
+
+    // The lightweight typeahead index (venueIndex/current), rebuilt by a trigger
+    // on every venue write. Public read; written only by the Admin SDK trigger.
+    match /venueIndex/{doc} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
   }
 }
