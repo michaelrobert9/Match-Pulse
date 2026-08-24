@@ -41,7 +41,7 @@ const ROUTES = {
 // Dynamic private routes (e.g. /invoices/:id, /organisations/:id/edit,
 // /subscribe/:orgId). Public /schools|clubs|... profiles are NOT here — they
 // are indexable, with canonical = ORIGIN + their prefixed path.
-const NOINDEX_PREFIXES = ['/invoices/', '/organisations/', '/subscribe/']
+const NOINDEX_PREFIXES = ['/invoices/', '/organisations/', '/subscribe/', '/admin/']
 
 // Cache the fetched settings for the life of the tab so every route change
 // doesn't re-hit Firestore. First read wins; subsequent reads hydrate from cache.
@@ -132,7 +132,11 @@ function applySite(seo) {
 function applyRoute(seo, pathname) {
   const route = ROUTES[pathname] || {}
   const prefixNoindex = NOINDEX_PREFIXES.some(p => pathname.startsWith(p))
-  document.title = route.title || (prefixNoindex ? 'Invoice — MatchPulse' : seo.siteTitle)
+  // Noindex pages that set no explicit title fall back to a neutral name — the
+  // page itself (invoice, org editor, admin) sets a better one once it loads.
+  const noindexTitle = pathname.startsWith('/invoices/') ? 'Invoice — MatchPulse'
+    : pathname.startsWith('/admin') ? 'Admin — MatchPulse' : 'MatchPulse'
+  document.title = route.title || (prefixNoindex ? noindexTitle : seo.siteTitle)
   setLink('canonical', ORIGIN + (pathname === '/' ? '/' : pathname))
   setMeta('meta[property="og:url"]', 'content', ORIGIN + (pathname === '/' ? '/' : pathname))
   setRobots(!!route.noindex || prefixNoindex)

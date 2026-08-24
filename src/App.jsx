@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -29,8 +29,6 @@ const Portal = lazyReload(() => import('./pages/Portal'))
 const Products = lazyReload(() => import('./pages/Products'))
 const NewInvoice = lazyReload(() => import('./pages/NewInvoice'))
 const Invoice = lazyReload(() => import('./pages/Invoice'))
-const Organisations = lazyReload(() => import('./pages/Organisations'))
-const OrgForm = lazyReload(() => import('./pages/OrgForm'))
 const OrgProfile = lazyReload(() => import('./pages/OrgProfile'))
 const OrgRedirect = lazyReload(() => import('./pages/OrgRedirect'))
 const OrgDirectory = lazyReload(() => import('./pages/OrgDirectory'))
@@ -65,6 +63,12 @@ function NotConfigured() {
 // scroll depth, so a short page opened from deep in the homepage renders with
 // its heading stranded above the sticky nav. Hash links (/#pricing) scroll to
 // their section instead — React Router doesn't do that on its own either.
+// Old bookmarked org-edit links → the new in-shell editor.
+function LegacyOrgEdit() {
+  const { id } = useParams()
+  return <Navigate to={`/admin/orgs/${id}`} replace />
+}
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
   useEffect(() => {
@@ -108,15 +112,10 @@ export default function App() {
         <Route path="/invoices/:id" element={
           <ProtectedRoute><Invoice /></ProtectedRoute>
         } />
-        <Route path="/organisations" element={
-          <ProtectedRoute><Organisations /></ProtectedRoute>
-        } />
-        <Route path="/organisations/new" element={
-          <ProtectedRoute><OrgForm /></ProtectedRoute>
-        } />
-        <Route path="/organisations/:id/edit" element={
-          <ProtectedRoute><OrgForm /></ProtectedRoute>
-        } />
+        {/* Org management moved under the /admin shell — redirect old links. */}
+        <Route path="/organisations"          element={<Navigate to="/admin" replace />} />
+        <Route path="/organisations/new"      element={<Navigate to="/admin/orgs/new" replace />} />
+        <Route path="/organisations/:id/edit" element={<LegacyOrgEdit />} />
         <Route path="/subscribe/:orgId" element={
           <ProtectedRoute><SubscribeProfile /></ProtectedRoute>
         } />
@@ -134,8 +133,10 @@ export default function App() {
         {/* Legacy → prefixed redirects. `new` is matched above, so it never hits this. */}
         <Route path="/o/:slug"            element={<OrgRedirect />} />
         <Route path="/organisations/:slug" element={<OrgRedirect />} />
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
+        {/* Management shell — platform admins AND org owners. Content is role-
+            filtered inside; everything under /admin is noindex. */}
+        <Route path="/admin/*" element={
+          <ProtectedRoute><Admin /></ProtectedRoute>
         } />
         <Route path="/legal/terms"          element={<Terms />} />
         <Route path="/legal/privacy"        element={<Privacy />} />

@@ -46,8 +46,8 @@ export default function Nav() {
         </nav>
 
         <div className="nav-cta">
-          {isAdmin && (
-            <Link className={'btn btn-sm nav-admin-btn' + (location.pathname.startsWith('/admin') ? ' active' : '')} to="/admin">Admin</Link>
+          {user && (
+            <Link className={'btn btn-sm nav-admin-btn' + (location.pathname.startsWith('/admin') ? ' active' : '')} to="/admin">{isAdmin ? 'Admin' : 'Manage'}</Link>
           )}
           {loading ? null : user ? (
             <Link className="nav-acct" to="/account" aria-label="Your account">
@@ -79,7 +79,7 @@ export default function Nav() {
         <div id="mnav">
           <div className="wrap">
             {SECTIONS.map(s => <Link key={s.to} to={s.to}>{s.label}</Link>)}
-            {isAdmin && <Link className="mnav-admin" to="/admin">Admin</Link>}
+            {user && <Link className="mnav-admin" to="/admin">{isAdmin ? 'Admin' : 'Manage'}</Link>}
             <div className="mnav-sep" />
             {user ? (
               <Link to="/account">{name} — My account</Link>
