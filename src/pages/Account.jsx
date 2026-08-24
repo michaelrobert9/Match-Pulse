@@ -356,12 +356,12 @@ export default function Account() {
         {/* ── Invoices ──────────────────────────────────────────────────── */}
         <InvoicesPanel uid={user?.uid} />
 
-        {/* ── Organisations ─────────────────────────────────────────────── */}
+        {/* ── Management ────────────────────────────────────────────────── */}
         <Panel
-          title="Your organisations"
-          description="Author a school, club, association or league once — its identity carries to every sport."
+          title="Manage your schools & clubs"
+          description="Author a school, club, association or league once — its identity, venues and people carry to every sport."
         >
-          <Link className="btn btn-dark" to="/organisations">Manage organisations</Link>
+          <Link className="btn btn-dark" to="/admin">Open management</Link>
         </Panel>
 
         {/* ── Sports ────────────────────────────────────────────────────── */}

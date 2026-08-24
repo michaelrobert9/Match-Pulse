@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
-import { listAllOrgs, ORG_TYPES } from '../lib/orgs'
+import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES } from '../lib/orgs'
+import { TYPE_PREFIX } from '../lib/orgProfile'
 import { identityDb, functions } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
@@ -1024,42 +1025,106 @@ function SeoTab() {
 }
 
 // ── Shell ────────────────────────────────────────────────────────────────────
-function AdminNav({ tab, onPick }) {
+const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
+
+// Role-filtered sidebar: platform admins get the platform sections; anyone who
+// owns organisations gets a "My Schools / My Clubs / …" section per type they own.
+function AdminNav({ isAdmin, typesPresent, onNavigate }) {
   return (
-    <nav className="adm-nav" role="tablist" aria-label="Admin sections">
-      {TABS.map(t => {
+    <nav className="adm-nav" aria-label="Sections">
+      {isAdmin && TABS.map(t => {
         const Icon = ICONS[t.key]
         return (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={tab === t.key}
-            className={'adm-nav-item' + (tab === t.key ? ' active' : '')}
-            onClick={() => onPick(t.key)}
-          >
-            {Icon && <Icon />}
-            <span>{t.label}</span>
-          </button>
+          <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
+            {Icon && <Icon />}<span>{t.label}</span>
+          </NavLink>
+        )
+      })}
+      {typesPresent.map(t => {
+        const Icon = ICONS.orgs
+        const seg = TYPE_PREFIX[t.key] || t.key
+        return (
+          <NavLink key={t.key} to={`/admin/${seg}`} className={navCls} onClick={onNavigate}>
+            {Icon && <Icon />}<span>My {cap(seg)}</span>
+          </NavLink>
         )
       })}
     </nav>
   )
 }
 
-export default function Admin() {
-  const [tab, setTab] = useState('users')
-  const [open, setOpen] = useState(false)
-  const [editOrgId, setEditOrgId] = useState(null)   // org open in the shell (from any tab)
-  const { user, profile } = useAuth()
+// A signed-in owner's list of one org type, linking each into the shell editor.
+function MyOrgList({ type, orgs }) {
+  const mine  = orgs.filter(o => o.type === type)
+  const label = ORG_TYPES.find(t => t.key === type)?.label || 'Organisation'
+  const seg   = TYPE_PREFIX[type] || type
+  return (
+    <div className="adm-section">
+      <div className="adm-toolbar">
+        <span className="adm-count">{mine.length} {seg}</span>
+        <Link className="btn btn-primary btn-sm" to="/admin/orgs/new">Add {label.toLowerCase()}</Link>
+      </div>
+      {mine.length === 0 ? <p className="muted">You don't manage any {seg} yet.</p> : (
+        <ul className="org-cards">
+          {mine.map(o => (
+            <li key={o.id}>
+              <Link className="org-card" to={`/admin/orgs/${o.id}`} style={{ '--pc': o.primaryColor || '#059669' }}>
+                <span className="org-card-logo">{o.logoUrl ? <img src={o.logoUrl} alt="" /> : <span>{(o.matchName || o.name || '?').slice(0, 1)}</span>}</span>
+                <span className="org-card-body"><span className="org-card-name">{o.name}</span><span className="org-card-meta">{label} · {o.slug}</span></span>
+                <span className="org-card-edit">Manage →</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
-  const pick = (k) => { setTab(k); setOpen(false); setEditOrgId(null) }
-  const name = profile?.displayName || user?.displayName || profile?.email || 'Admin'
+// /admin index → first available section for the role.
+function AdminHome({ isAdmin, typesPresent }) {
+  if (isAdmin) return <Navigate to="/admin/users" replace />
+  if (typesPresent.length) return <Navigate to={`/admin/${TYPE_PREFIX[typesPresent[0].key]}`} replace />
+  return (
+    <div className="adm-section">
+      <div className="adm-callout">
+        <h3>You don't manage any organisations yet.</h3>
+        <p>Create a school, club, association or league to manage its profile, venues and people.</p>
+        <Link className="btn btn-primary" to="/admin/orgs/new">Create an organisation</Link>
+      </div>
+    </div>
+  )
+}
+
+// Remount OrgForm when the :id changes so its state (loading, roster, activated
+// sports) resets cleanly instead of flashing the previous org while it refetches.
+function OrgFormRoute() {
+  const { id } = useParams()
+  return <OrgForm key={id} />
+}
+
+export default function Admin() {
+  const { user, profile } = useAuth()
+  const isAdmin = profile?.platformAdmin === true
+  const [open,   setOpen]   = useState(false)
+  const [myOrgs, setMyOrgs] = useState([])
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => { if (user?.uid) listOrgsOwnedBy(user.uid).then(setMyOrgs).catch(() => setMyOrgs([])) }, [user?.uid])
+  useEffect(() => { setOpen(false) }, [location.pathname])
+
+  const typesPresent = ORG_TYPES.filter(t => myOrgs.some(o => o.type === t.key))
+  const name    = profile?.displayName || user?.displayName || profile?.email || 'Account'
   const initial = (name || '?').slice(0, 1).toUpperCase()
+  const badge   = isAdmin ? 'Admin' : 'Manage'
+  const editOrg = (id) => navigate(`/admin/orgs/${id}`)
 
   const Brand = () => (
     <Link to="/" className="adm-brand">
       <span className="adm-brand-mark"><span className="m">Match</span><span className="p">Pulse</span></span>
-      <span className="adm-brand-badge">Admin</span>
+      <span className="adm-brand-badge">{badge}</span>
     </Link>
   )
   const Foot = () => (
@@ -1077,16 +1142,13 @@ export default function Admin() {
 
   return (
     <div className="adm-shell">
-      {/* Desktop sidebar */}
       <aside className="adm-side">
         <div className="adm-side-head"><Brand /></div>
-        <AdminNav tab={tab} onPick={pick} />
+        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} />
         <Foot />
       </aside>
 
-      {/* Content */}
       <div className="adm-body">
-        {/* Mobile top bar */}
         <header className="adm-mobtop">
           <Brand />
           <button className="menu-btn" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)}>
@@ -1097,26 +1159,27 @@ export default function Admin() {
         </header>
         {open && (
           <div className="adm-mobnav">
-            <AdminNav tab={tab} onPick={pick} />
+            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} onNavigate={() => setOpen(false)} />
             <Foot />
           </div>
         )}
 
         <main className="adm-main">
-          {editOrgId ? (
-            <OrgForm key={editOrgId} orgId={editOrgId} onExit={() => setEditOrgId(null)} />
-          ) : (
-            <>
-              {tab === 'users'    && <UsersTab onEditOrg={setEditOrgId} />}
-              {tab === 'orgs'     && <OrgsTab onEditOrg={setEditOrgId} />}
-              {tab === 'invoices' && <InvoicesTab />}
-              {tab === 'messages' && <MessagesTab />}
-              {tab === 'payments' && <PaymentsTab />}
-              {tab === 'activity' && <ActivityTab />}
-              {tab === 'venues'   && <VenuesTab />}
-              {tab === 'seo'      && <SeoTab />}
-            </>
-          )}
+          <Routes>
+            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} />} />
+            {isAdmin && <Route path="users"        element={<UsersTab onEditOrg={editOrg} />} />}
+            {isAdmin && <Route path="orgs"         element={<OrgsTab onEditOrg={editOrg} />} />}
+            {isAdmin && <Route path="invoices"     element={<InvoicesTab />} />}
+            {isAdmin && <Route path="messages"     element={<MessagesTab />} />}
+            {isAdmin && <Route path="payments"     element={<PaymentsTab />} />}
+            {isAdmin && <Route path="activity"     element={<ActivityTab />} />}
+            {isAdmin && <Route path="venues"       element={<VenuesTab />} />}
+            {isAdmin && <Route path="seo"          element={<SeoTab />} />}
+            {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} />} />)}
+            <Route path="orgs/new" element={<OrgForm />} />
+            <Route path="orgs/:id" element={<OrgFormRoute />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Routes>
         </main>
       </div>
     </div>

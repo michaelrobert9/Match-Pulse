@@ -1,31 +1,45 @@
 import { useEffect, lazy, Suspense } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 // Every route below the landing page is code-split: its JavaScript is fetched
 // only when that page is first visited, so the initial load stays small/fast.
-const Login = lazy(() => import('./pages/Login'))
-const Signup = lazy(() => import('./pages/Signup'))
-const Account = lazy(() => import('./pages/Account'))
-const Portal = lazy(() => import('./pages/Portal'))
-const Products = lazy(() => import('./pages/Products'))
-const NewInvoice = lazy(() => import('./pages/NewInvoice'))
-const Invoice = lazy(() => import('./pages/Invoice'))
-const Organisations = lazy(() => import('./pages/Organisations'))
-const OrgForm = lazy(() => import('./pages/OrgForm'))
-const OrgProfile = lazy(() => import('./pages/OrgProfile'))
-const OrgRedirect = lazy(() => import('./pages/OrgRedirect'))
-const OrgDirectory = lazy(() => import('./pages/OrgDirectory'))
-const SubscribeProfile = lazy(() => import('./pages/SubscribeProfile'))
-const Tournaments = lazy(() => import('./pages/Tournaments'))
-const Venue = lazy(() => import('./pages/Venue'))
-const Admin = lazy(() => import('./pages/Admin'))
-const Terms = lazy(() => import('./pages/legal/Terms'))
-const Privacy = lazy(() => import('./pages/legal/Privacy'))
-const AcceptableUse = lazy(() => import('./pages/legal/AcceptableUse'))
-const Cookies = lazy(() => import('./pages/legal/Cookies'))
+// After a redeploy an old cached index.html can point at chunk hashes that no
+// longer exist; a failed chunk import then blanks the route. lazyReload catches
+// that and reloads ONCE to pull the fresh index.html, instead of vanishing.
+function lazyReload(factory) {
+  return lazy(() => factory().catch((err) => {
+    const KEY = 'mp-chunk-reload'
+    try {
+      if (!sessionStorage.getItem(KEY)) {
+        sessionStorage.setItem(KEY, String(Date.now()))
+        window.location.reload()
+        return new Promise(() => {})   // hang while the page reloads
+      }
+    } catch { /* storage blocked — fall through and surface the error */ }
+    throw err
+  }))
+}
+const Login = lazyReload(() => import('./pages/Login'))
+const Signup = lazyReload(() => import('./pages/Signup'))
+const Account = lazyReload(() => import('./pages/Account'))
+const Portal = lazyReload(() => import('./pages/Portal'))
+const Products = lazyReload(() => import('./pages/Products'))
+const NewInvoice = lazyReload(() => import('./pages/NewInvoice'))
+const Invoice = lazyReload(() => import('./pages/Invoice'))
+const OrgProfile = lazyReload(() => import('./pages/OrgProfile'))
+const OrgRedirect = lazyReload(() => import('./pages/OrgRedirect'))
+const OrgDirectory = lazyReload(() => import('./pages/OrgDirectory'))
+const SubscribeProfile = lazyReload(() => import('./pages/SubscribeProfile'))
+const Tournaments = lazyReload(() => import('./pages/Tournaments'))
+const Venue = lazyReload(() => import('./pages/Venue'))
+const Admin = lazyReload(() => import('./pages/Admin'))
+const Terms = lazyReload(() => import('./pages/legal/Terms'))
+const Privacy = lazyReload(() => import('./pages/legal/Privacy'))
+const AcceptableUse = lazyReload(() => import('./pages/legal/AcceptableUse'))
+const Cookies = lazyReload(() => import('./pages/legal/Cookies'))
 import { configured } from './firebase'
 import { useSiteSeo } from './lib/seo'
 
@@ -49,6 +63,12 @@ function NotConfigured() {
 // scroll depth, so a short page opened from deep in the homepage renders with
 // its heading stranded above the sticky nav. Hash links (/#pricing) scroll to
 // their section instead — React Router doesn't do that on its own either.
+// Old bookmarked org-edit links → the new in-shell editor.
+function LegacyOrgEdit() {
+  const { id } = useParams()
+  return <Navigate to={`/admin/orgs/${id}`} replace />
+}
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
   useEffect(() => {
@@ -92,15 +112,10 @@ export default function App() {
         <Route path="/invoices/:id" element={
           <ProtectedRoute><Invoice /></ProtectedRoute>
         } />
-        <Route path="/organisations" element={
-          <ProtectedRoute><Organisations /></ProtectedRoute>
-        } />
-        <Route path="/organisations/new" element={
-          <ProtectedRoute><OrgForm /></ProtectedRoute>
-        } />
-        <Route path="/organisations/:id/edit" element={
-          <ProtectedRoute><OrgForm /></ProtectedRoute>
-        } />
+        {/* Org management moved under the /admin shell — redirect old links. */}
+        <Route path="/organisations"          element={<Navigate to="/admin" replace />} />
+        <Route path="/organisations/new"      element={<Navigate to="/admin/orgs/new" replace />} />
+        <Route path="/organisations/:id/edit" element={<LegacyOrgEdit />} />
         <Route path="/subscribe/:orgId" element={
           <ProtectedRoute><SubscribeProfile /></ProtectedRoute>
         } />
@@ -118,8 +133,10 @@ export default function App() {
         {/* Legacy → prefixed redirects. `new` is matched above, so it never hits this. */}
         <Route path="/o/:slug"            element={<OrgRedirect />} />
         <Route path="/organisations/:slug" element={<OrgRedirect />} />
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly><Admin /></ProtectedRoute>
+        {/* Management shell — platform admins AND org owners. Content is role-
+            filtered inside; everything under /admin is noindex. */}
+        <Route path="/admin/*" element={
+          <ProtectedRoute><Admin /></ProtectedRoute>
         } />
         <Route path="/legal/terms"          element={<Terms />} />
         <Route path="/legal/privacy"        element={<Privacy />} />

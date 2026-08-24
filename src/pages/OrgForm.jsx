@@ -72,7 +72,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const { user, profile, loading: authLoading } = useAuth()
   const isAdmin = profile?.platformAdmin === true
   const navigate = useNavigate()
-  const exit = () => { if (embedded) onExit?.(); else navigate('/organisations', { replace: true }) }
+  const exit = () => { if (embedded) onExit?.(); else navigate('/admin', { replace: true }) }
 
   const [f,        setF]        = useState(emptyOrg())
   const [slug,     setSlug]     = useState('')
@@ -147,8 +147,8 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           setSlug(chosen); setBusy(false); return
         }
         const res = await createOrg({ uid: user.uid, slug: chosen, fields: f })
-        // Land on edit so they can now add logo/banner (needs the orgId).
-        navigate(`/organisations/${res.id}/edit`, { replace: true })
+        // Land on edit (inside the shell) so they can now add logo/banner.
+        navigate(`/admin/orgs/${res.id}`, { replace: true })
         return
       }
     } catch (e) {
@@ -628,8 +628,8 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
 
         <div className="acct-signout">
           {embedded
-            ? <button type="button" className="btn btn-ghost" onClick={() => onExit?.()}>← Back to organisations</button>
-            : <Link className="btn btn-ghost" to="/organisations">Back to organisations</Link>}
+            ? <button type="button" className="btn btn-ghost" onClick={() => onExit?.()}>← Back</button>
+            : <button type="button" className="btn btn-ghost" onClick={() => navigate('/admin')}>← Back to management</button>}
         </div>
       </div>
     </main>
