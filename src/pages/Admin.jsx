@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
@@ -362,7 +362,10 @@ function PaymentsTab() {
         const q = query(collection(identityDb, 'payments'), orderBy('receivedAt', 'desc'))
         const snap = await getDocs(q)
         if (cancel) return
-        setRows(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        // Only real payments against an invoice belong in this ledger. Manual
+        // entitlement grants and complimentary access are audited elsewhere and
+        // carry no invoiceId, so they're excluded here.
+        setRows(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.invoiceId))
       } catch (e) {
         if (!cancel) setErr(e.message || 'Could not load payments.')
       }
@@ -373,8 +376,9 @@ function PaymentsTab() {
   return (
     <div className="adm-section">
       <p className="adm-hint">
-        Automated PayFast payments write here directly from the webhook. Once we
-        wire manual/EFT activation, allocations will appear here too.
+        Payments recorded against an invoice. A payment appears only after an
+        invoice has been created and marked paid — complimentary access and
+        manual grants are not payments and don’t show here.
       </p>
       <Notice kind="err">{err}</Notice>
       {!rows ? <p className="adm-loading">Loading…</p> : rows.length === 0 ? (
@@ -384,7 +388,7 @@ function PaymentsTab() {
           <table className="adm-table">
             <thead>
               <tr>
-                <th>Date</th><th>Buyer</th><th>Plan</th><th>Amount</th><th>Status</th><th>Ref</th>
+                <th>Date</th><th>Buyer</th><th>Plan</th><th>Amount</th><th>Method</th><th>Invoice</th>
               </tr>
             </thead>
             <tbody>
@@ -398,11 +402,13 @@ function PaymentsTab() {
                   <td>{p.plan || <span className="muted">—</span>}</td>
                   <td>{fmtMoney(p.amountGross)}</td>
                   <td>
-                    <span className={`pill pill-${p.paymentStatus === 'COMPLETE' ? 'ok' : p.manual ? 'admin' : 'warn'}`}>
-                      {p.manual ? (p.method || 'manual').toUpperCase() : (p.paymentStatus || 'PENDING')}
-                    </span>
+                    <span className="pill pill-ok">{(p.method || 'eft').toUpperCase()}</span>
                   </td>
-                  <td className="adm-uid">{p.manual ? (p.note || '(manual allocation)') : (p.pfPaymentId || p.mPaymentId || p.id)}</td>
+                  <td>
+                    <Link className="adm-uid" to={`/invoices/${p.invoiceId}`}>
+                      {p.invoiceNumber || p.invoiceId}
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -410,109 +416,6 @@ function PaymentsTab() {
         </div>
       )}
     </div>
-  )
-}
-
-// ── Hockey migration (one-time) ──────────────────────────────────────────────
-// Drives the Brief #5 migration: Dry run (read-only preview) → Import (writes
-// central, activatedSports empty) → Activate all in Hockey (the safety gate is
-// eyeballing central between Import and Activate).
-function HockeyMigrationPanel() {
-  const [busy, setBusy] = useState('')
-  const [res,  setRes]  = useState(null)
-  const [err,  setErr]  = useState('')
-
-  async function run(fn, arg, label) {
-    if (label === 'import' && !window.confirm('Write these orgs into the central database? Safe to re-run; nothing is written to Hockey.')) return
-    if (label === 'activate' && !window.confirm('Activate every Hockey org into Hockey now? Only do this after eyeballing the imported central records.')) return
-    setBusy(label); setErr(''); setRes(null)
-    try {
-      const call = httpsCallable(functions, fn)
-      const { data } = await call(arg)
-      setRes({ label, data })
-    } catch (e) {
-      setErr(e.message || 'Failed.')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  return (
-    <details className="adm-migrate">
-      <summary>Hockey org migration (one-time)</summary>
-      <div className="adm-migrate-body">
-        <p className="adm-field-hint">
-          <strong>Dry run</strong> previews what would import (writes nothing).
-          <strong> Import</strong> writes the central records with <code>activatedSports</code> empty —
-          Hockey is untouched. Eyeball the central orgs, then <strong>Activate</strong> to switch on the
-          sync into Hockey.
-        </p>
-        <div className="adm-migrate-actions">
-          <button type="button" className="btn btn-ghost btn-sm" disabled={!!busy}
-            onClick={() => run('centralMigrateHockeyOrgs', { commit: false }, 'dryrun')}>
-            {busy === 'dryrun' ? 'Reading…' : '1. Dry run'}
-          </button>
-          <button type="button" className="btn btn-dark btn-sm" disabled={!!busy}
-            onClick={() => run('centralMigrateHockeyOrgs', { commit: true }, 'import')}>
-            {busy === 'import' ? 'Importing…' : '2. Import to central'}
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={!!busy}
-            onClick={() => run('centralActivateHockeyOrgs', {}, 'activate')}>
-            {busy === 'activate' ? 'Activating…' : '3. Activate all in Hockey'}
-          </button>
-        </div>
-
-        <Notice kind="err">{err}</Notice>
-
-        {res && res.data && (
-          <div className="adm-migrate-result">
-            {res.label !== 'activate' ? (
-              <>
-                <p className="adm-name">
-                  {res.data.commit ? `Imported ${res.data.written} of ${res.data.count}` : `Dry run: ${res.data.count} orgs`}
-                  {res.data.collisions?.length ? ` · ⚠️ ${res.data.collisions.length} slug collision(s)` : ''}
-                  {res.data.ambiguities?.length ? ` · ⚠️ ${res.data.ambiguities.length} ambiguous owner(s)` : ''}
-                </p>
-                {res.data.collisions?.length > 0 && (
-                  <p className="form-err">Collisions (nothing written): {res.data.collisions.map(c => c.slug).join(', ')} — resolve by hand.</p>
-                )}
-                <div className="adm-table-wrap">
-                  <table className="adm-table">
-                    <thead><tr><th>Org</th><th>Slug</th><th>Owner</th><th>Staff</th><th>Flags</th></tr></thead>
-                    <tbody>
-                      {res.data.orgs.map(o => (
-                        <tr key={o.orgId}>
-                          <td><div className="adm-name">{o.name || '(no name)'}</div><div className="adm-uid">{o.orgId}</div></td>
-                          <td className="tnum">{o.slug || '—'}</td>
-                          <td className="adm-uid">{o.ownerUserId || '—'}<div className="muted">{o.ownerSource}</div></td>
-                          <td>{o.staffCount}</td>
-                          <td>{o.collision ? <span className="pill pill-warn">slug clash</span> : o.ownerSource?.includes('ambiguous') ? <span className="pill pill-warn">owner?</span> : ''}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="adm-table-wrap">
-                <table className="adm-table">
-                  <thead><tr><th>Org</th><th>Result</th><th>Staff copied</th></tr></thead>
-                  <tbody>
-                    {res.data.results.map(r => (
-                      <tr key={r.orgId}>
-                        <td className="adm-uid">{r.orgId}</td>
-                        <td>{r.error ? <span className="form-err">{r.error}</span> : r.alreadyActive ? 'already active' : r.skipped ? r.skipped : `activated (${r.sport})`}</td>
-                        <td>{r.staffCount ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </details>
   )
 }
 
@@ -547,11 +450,10 @@ function OrgsTab({ onEditOrg }) {
 
   return (
     <div className="adm-section">
-      <HockeyMigrationPanel />
       <div className="adm-toolbar">
         <input type="search" value={q} placeholder="Search by name, slug or region"
           onChange={e => setQ(e.target.value)} />
-        <Link className="btn btn-primary btn-sm" to="/organisations/new">Create org</Link>
+        <Link className="btn btn-primary btn-sm" to="/admin/orgs/new">Create org</Link>
       </div>
       <Notice kind="err">{err}</Notice>
       {!filtered ? <p className="adm-loading">Loading…</p> : filtered.length === 0 ? (
@@ -1031,25 +933,32 @@ const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
 // Role-filtered sidebar: platform admins get the platform sections; anyone who
 // owns organisations gets a "My Schools / My Clubs / …" section per type they own.
 function AdminNav({ isAdmin, typesPresent, onNavigate }) {
+  // Owners' "My Schools / Clubs / …" links. For a platform admin these sit
+  // directly beneath the "Organisations" tab; for an owner (no platform tabs)
+  // they are the whole nav.
+  const myLinks = typesPresent.map(t => {
+    const Icon = ICONS.orgs
+    const seg = TYPE_PREFIX[t.key] || t.key
+    return (
+      <NavLink key={`my-${t.key}`} to={`/admin/${seg}`} className={navCls} onClick={onNavigate}>
+        {Icon && <Icon />}<span>My {cap(seg)}</span>
+      </NavLink>
+    )
+  })
   return (
     <nav className="adm-nav" aria-label="Sections">
-      {isAdmin && TABS.map(t => {
-        const Icon = ICONS[t.key]
-        return (
-          <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
-            {Icon && <Icon />}<span>{t.label}</span>
-          </NavLink>
-        )
-      })}
-      {typesPresent.map(t => {
-        const Icon = ICONS.orgs
-        const seg = TYPE_PREFIX[t.key] || t.key
-        return (
-          <NavLink key={t.key} to={`/admin/${seg}`} className={navCls} onClick={onNavigate}>
-            {Icon && <Icon />}<span>My {cap(seg)}</span>
-          </NavLink>
-        )
-      })}
+      {isAdmin
+        ? TABS.map(t => {
+            const Icon = ICONS[t.key]
+            const link = (
+              <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
+                {Icon && <Icon />}<span>{t.label}</span>
+              </NavLink>
+            )
+            // Slot the owner's own orgs right under the Organisations tab.
+            return t.key === 'orgs' ? [link, ...myLinks] : link
+          })
+        : myLinks}
     </nav>
   )
 }

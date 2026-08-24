@@ -296,7 +296,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   if (denied)  return (
     <main className="acct"><div className="wrap">
       <p className="notice notice-err" style={{ marginTop: 40 }}>You don’t have access to edit this organisation.</p>
-      <p><Link to="/organisations">Back to your organisations</Link></p>
+      <p><Link to="/admin">Back to management</Link></p>
     </div></main>
   )
 
