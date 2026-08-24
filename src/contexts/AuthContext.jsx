@@ -95,7 +95,7 @@ export function AuthProvider({ children }) {
     } catch { /* keep the last good profile */ }
   }, [])
 
-  async function signUp(email, password, displayName) {
+  async function signUp(email, password, displayName, phone = '') {
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     if (displayName) await fbUpdateProfile(cred.user, { displayName })
     // Confirm the address is real and reachable. Non-blocking — the account
@@ -104,6 +104,7 @@ export function AuthProvider({ children }) {
     await setDoc(doc(identityDb, 'users', cred.user.uid), {
       email:         (email ?? '').toLowerCase(),
       displayName:   displayName ?? '',
+      phone:         (phone ?? '').trim(),
       platformAdmin: false,
       orgRoles:      {},
       createdAt:     serverTimestamp(),

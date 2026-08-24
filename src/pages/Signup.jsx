@@ -15,6 +15,7 @@ function friendlyError(code) {
 export default function Signup() {
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
+  const [phone,    setPhone]    = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [busy,     setBusy]     = useState(false)
@@ -40,7 +41,7 @@ export default function Signup() {
     if (busy) return
     setBusy(true); setError('')
     try {
-      const cred = await signUp(email.trim(), password, name.trim())
+      const cred = await signUp(email.trim(), password, name.trim(), phone.trim())
       await onward(cred)
     } catch (err) {
       setError(friendlyError(err?.code))
@@ -78,6 +79,11 @@ export default function Signup() {
             <label htmlFor="email">Email address</label>
             <input id="email" type="email" required autoComplete="email"
               value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+          </div>
+          <div className="field">
+            <label htmlFor="phone">Cellphone number</label>
+            <input id="phone" type="tel" required autoComplete="tel"
+              value={phone} onChange={e => setPhone(e.target.value)} placeholder="0821234567" />
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
