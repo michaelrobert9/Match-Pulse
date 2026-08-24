@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { getVenueBySlug, getOrgLite, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
+import { Link, Navigate, useParams } from 'react-router-dom'
+import { getVenueBySlug, getVenueRedirect, getOrgLite, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
 import { orgPublicPath } from '../lib/orgProfile'
 
 // SportsActivityLocation structured data — helps venues surface in search.
@@ -28,19 +28,29 @@ export default function Venue() {
   const { slug } = useParams()
   const [venue, setVenue] = useState(undefined)  // undefined=loading, null=not found
   const [org,   setOrg]   = useState(null)
+  const [redirect, setRedirect] = useState(null) // target slug when this one was merged away
 
   useEffect(() => {
     let cancel = false
-    setVenue(undefined); setOrg(null)
+    setVenue(undefined); setOrg(null); setRedirect(null)
     ;(async () => {
       const v = await getVenueBySlug(slug).catch(() => null)
       if (cancel) return
+      if (!v) {
+        // Merged-away slug → send old links to the target's page.
+        const rd = await getVenueRedirect(slug).catch(() => null)
+        if (cancel) return
+        if (rd?.toSlug && rd.toSlug !== slug) { setRedirect(rd.toSlug); return }
+        setVenue(null); return
+      }
       setVenue(v)
       if (v?.name) document.title = `${v.name} — MatchPulse`
       if (v?.ownerOrgId) { const o = await getOrgLite(v.ownerOrgId).catch(() => null); if (!cancel) setOrg(o) }
     })()
     return () => { cancel = true }
   }, [slug])
+
+  if (redirect) return <Navigate to={`/venues/${redirect}`} replace />
 
   useEffect(() => {
     if (!venue) return

@@ -28,6 +28,11 @@ export async function getOrgLite(orgId) {
   const s = await getDoc(doc(identityDb, 'organizations', orgId))
   return s.exists() ? { id: s.id, ...s.data() } : null
 }
+// A retired (merged) slug → its target slug, or null. Public.
+export async function getVenueRedirect(slug) {
+  const s = await getDoc(doc(identityDb, 'venueRedirects', slug))
+  return s.exists() ? s.data() : null
+}
 
 // ── Map + address helpers ────────────────────────────────────────────────────
 // Maps Embed API behind an env key (referrer-restricted). When absent, callers

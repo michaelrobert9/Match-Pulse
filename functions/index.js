@@ -1788,10 +1788,13 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
   const [src, tgt] = await Promise.all([db.doc(`venues/${sourceId}`).get(), db.doc(`venues/${targetId}`).get()])
   if (!src.exists || !tgt.exists) throw new HttpsError('not-found', 'Source or target venue not found.')
   const targetName = tgt.data().name || ''
+  const targetSlug = tgt.data().slug || ''
+  const sourceSlug = src.data().slug || ''
 
-  // Repoint venueId AND refresh the denormalised display string (`pitch` in the
-  // sport repos) to the target's name — only on matches that actually pointed at
-  // the source, so free-text-only matches are never touched.
+  // Repoint venueId AND refresh the denormalised snapshot the sport repos keep
+  // (`pitch` = display name, `venueSlug` = link to /venues/:slug) to the target —
+  // only on matches that actually pointed at the source, so free-text-only
+  // matches are never touched.
   let repointed = 0
   for (const sport of SPORT_KEYS) {
     try {
@@ -1799,13 +1802,23 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
       const snap = await sportDb.collection('matches').where('venueId', '==', sourceId).limit(1000).get()
       let batch = sportDb.batch(), n = 0
       for (const m of snap.docs) {
-        batch.update(m.ref, { venueId: targetId, pitch: targetName }); repointed++
+        batch.update(m.ref, { venueId: targetId, pitch: targetName, venueSlug: targetSlug }); repointed++
         if (++n % 400 === 0) { await batch.commit(); batch = sportDb.batch() }
       }
       if (n % 400 !== 0) await batch.commit()
     } catch (e) { logger.warn('mergeVenues repoint failed', { sport, message: e.message }) }
   }
   await db.doc(`venues/${sourceId}`).set({ active: false, mergedInto: targetId, updatedAt: nowTs() }, { merge: true })
+
+  // Public redirect for the retired slug so old links land on the target page.
+  if (sourceSlug && targetSlug && sourceSlug !== targetSlug) {
+    await db.doc(`venueRedirects/${sourceSlug}`).set({ toSlug: targetSlug, targetId, mergedAt: nowTs() })
+    // Follow the chain: repoint any redirects that pointed at the source.
+    const chain = await db.collection('venueRedirects').where('toSlug', '==', sourceSlug).get()
+    let b = db.batch(), n = 0
+    for (const r of chain.docs) { b.update(r.ref, { toSlug: targetSlug, targetId }); if (++n % 400 === 0) { await b.commit(); b = db.batch() } }
+    if (n % 400 !== 0 && n > 0) await b.commit()
+  }
   logger.info('Venues merged', { sourceId, targetId, repointed })
   return { ok: true, sourceId, targetId, repointed }
 })
