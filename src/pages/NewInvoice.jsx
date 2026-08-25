@@ -61,7 +61,7 @@ export default function NewInvoice() {
 
         <div className="inv-plan-summary">
           <div>
-            <p className="inv-plan-name">{planKey === 'pro' ? 'All-In Annual' : 'Single Competition'}</p>
+            <p className="inv-plan-name">{planKey === 'pro' ? 'All-In' : 'Single Competition'}</p>
             <p className="inv-plan-detail">
               {planKey === 'pro'
                 ? 'Unlimited competitions across every sport for one year.'

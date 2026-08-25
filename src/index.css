@@ -596,6 +596,9 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 /* ── Contact ─ Call button + form status ─────────────────────────────────── */
 .ci-call { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 14px; }
 .ci-call svg { flex: none; }
+.ci-wa { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 14px; background: #25D366; border-color: #25D366; color: #06301a; }
+.ci-wa:hover { background: #1fb857; border-color: #1fb857; }
+.ci-wa svg { flex: none; }
 .form-ok  { color: #065f46; }
 .form-err { color: #b91c1c; }
 
@@ -716,7 +719,8 @@ section#sports.block { padding: 84px 0; }
 .net-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 26px 22px 22px; overflow: hidden; display: flex; flex-direction: column; transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s; }
 .net-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--hue) 45%, var(--line)); box-shadow: 0 22px 46px -26px color-mix(in srgb, var(--hue) 60%, transparent); }
 .net-bar { position: absolute; left: 0; top: 0; height: 4px; width: 100%; }
-.net-card h3 { font-family: 'Space Grotesk', sans-serif; font-size: 19px; margin: 8px 0 8px; }
+.net-card h3 { font-family: 'Space Grotesk', sans-serif; font-size: 19px; margin: 8px 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.net-newtag { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 980px; background: color-mix(in srgb, var(--hue, var(--pulse)) 14%, transparent); color: var(--hue, var(--pulse-ink)); }
 .net-card p { font-size: 14px; color: var(--slate); line-height: 1.5; margin: 0 0 18px; flex: 1; }
 .net-go { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; }
 .net-go svg { width: 16px; height: 16px; transition: transform .2s var(--ease); }
@@ -765,6 +769,34 @@ section#sports.block { padding: 84px 0; }
 .pc-footnote p:first-child { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 18px; color: var(--ink); }
 .pc-eft { margin-top: 14px !important; font-size: 14px !important; }
 .pc-eft a { color: var(--pulse-ink); font-weight: 600; }
+
+/* How activation works — shared by the homepage pricing section and /products */
+.pc-activation {
+  max-width: 720px; margin: 40px auto 0; padding: 24px 26px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+}
+.pc-activation h3 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; margin: 0 0 14px; }
+.pc-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+.pc-steps li { font-size: 14.5px; color: var(--slate); line-height: 1.5; }
+.pc-fine { margin: 16px 0 0; font-size: 13.5px; color: var(--slate); }
+
+/* Live scores — homepage feature section */
+.live-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 40px; align-items: center; }
+.live-copy .sub { margin-top: 14px; }
+.live-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b91c1c; background: color-mix(in srgb, #dc2626 12%, var(--card)); border: 1px solid color-mix(in srgb, #dc2626 30%, var(--line)); border-radius: 980px; padding: 6px 12px; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 0 0 rgba(220,38,38,.5); animation: live-pulse 1.6s ease-out infinite; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); } 70% { box-shadow: 0 0 0 8px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.live-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.live-item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+.live-item h3 { font-family: 'Space Grotesk', sans-serif; font-size: 17px; margin: 0 0 6px; }
+.live-item p { font-size: 14.5px; color: var(--slate); line-height: 1.5; margin: 0; }
+@media (max-width: 860px) { .live-grid { grid-template-columns: 1fr; gap: 26px; } }
+
+/* Anchor jumps land clear of the sticky header (both hash links and
+   scrollIntoView honour scroll-margin-top on the target). */
+html { scroll-padding-top: 92px; }
+section[id], [id].products-head { scroll-margin-top: 92px; }
 
 /* ── 12. Benefits ────────────────────────────────────────────────────────── */
 .ben-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 46px; }
@@ -1161,6 +1193,40 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .trn-body h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16.5px; line-height: 1.2; margin: 0; }
 .trn-meta { margin: 8px 0 0; font-size: 13px; color: #6b7580; }
 .trn-dates { margin: 4px 0 0; font-size: 12.5px; color: #8a949e; }
+
+/* "New" tag on a sport tab with no competitions yet */
+.trn-newtag {
+  margin-left: 8px; font-size: 9.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 980px; background: color-mix(in srgb, var(--hue, var(--pulse)) 16%, transparent);
+  color: var(--hue, var(--pulse-ink)); vertical-align: middle;
+}
+.dir-tabs button.active .trn-newtag { background: rgba(255,255,255,.25); color: #fff; }
+
+/* Newly-launched empty state */
+.trn-newstate { border: 1px dashed color-mix(in srgb, var(--hue, var(--pulse)) 40%, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--hue, var(--pulse)) 5%, var(--card)); margin-top: 8px; }
+.trn-newstate h2 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(20px, 3vw, 26px); margin: 0 0 8px; font-weight: 600; }
+.trn-newstate h2 strong { color: var(--hue, var(--pulse-ink)); }
+.trn-newstate .btn { margin-top: 18px; }
+
+/* Skeleton cards while tournaments load */
+.trn-skeleton { pointer-events: none; }
+.sk-block, .sk-line { background: linear-gradient(100deg, color-mix(in srgb, var(--line) 45%, var(--card)) 30%, color-mix(in srgb, var(--line) 20%, var(--card)) 50%, color-mix(in srgb, var(--line) 45%, var(--card)) 70%); background-size: 200% 100%; animation: sk-shimmer 1.3s ease-in-out infinite; border-radius: 8px; }
+.trn-skeleton .trn-banner.sk-block { border-radius: 0; }
+.sk-line { height: 12px; margin-top: 10px; }
+.sk-line-lg { width: 80%; height: 16px; }
+.sk-line-md { width: 55%; }
+.sk-line-sm { width: 35%; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .sk-block, .sk-line { animation: none; } }
+
+/* Schools & Clubs explainer (logged-out) on the directory page */
+.org-explainer { margin: 0 0 26px; padding: 26px 28px; background: color-mix(in srgb, var(--pulse) 6%, var(--card)); border: 1px solid color-mix(in srgb, var(--pulse) 22%, var(--line)); border-radius: 16px; }
+.org-explainer h2 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(20px, 3vw, 26px); margin: 0 0 10px; }
+.org-explainer p { margin: 0 0 14px; color: var(--slate); line-height: 1.55; font-size: 15px; max-width: 62ch; }
+.org-explainer-list { list-style: none; padding: 0; margin: 0 0 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; }
+.org-explainer-list li { position: relative; padding-left: 24px; font-size: 14.5px; color: var(--ink); }
+.org-explainer-list li::before { content: "✓"; position: absolute; left: 0; color: var(--pulse); font-weight: 700; }
+@media (max-width: 620px) { .org-explainer-list { grid-template-columns: 1fr; } }
 
 /* Email-verification reminder on the account page */
 .verify-banner {

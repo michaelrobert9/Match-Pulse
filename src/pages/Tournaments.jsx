@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getTournaments } from '../lib/tournaments'
 import { SPORTS, sportByKey } from '../lib/sports'
 
@@ -36,6 +37,28 @@ function TournamentCard({ t }) {
         {(t.startDate || t.endDate) && <p className="trn-dates">{fmtRange(t.startDate, t.endDate)}</p>}
       </div>
     </a>
+  )
+}
+
+// Empty result → present the sport as newly launched, never a bare empty list.
+function NewSportState({ sportKey }) {
+  const sport = sportKey ? sportByKey(sportKey) : null
+  const name = sport?.name || 'MatchPulse'
+  return (
+    <div className="dir-empty trn-newstate" style={sport ? { '--hue': sport.hue } : undefined}>
+      {sport ? (
+        <>
+          <h2><strong>{name}</strong> is new on MatchPulse.</h2>
+          <p className="muted">Competitions will appear here as schools come on board. Running one?</p>
+        </>
+      ) : (
+        <>
+          <h2>Competitions are coming to MatchPulse.</h2>
+          <p className="muted">Published competitions from every sport will appear here. Running one?</p>
+        </>
+      )}
+      <Link className="btn btn-primary" to="/signup">Start free and be first</Link>
+    </div>
   )
 }
 
@@ -83,25 +106,39 @@ export default function Tournaments() {
           <button role="tab" aria-selected={sportF === ''} className={sportF === '' ? 'active' : ''} onClick={() => setSportF('')}>
             All sports{all ? ` (${all.length})` : ''}
           </button>
-          {SPORTS.map(s => (
-            <button key={s.key} role="tab" aria-selected={sportF === s.key}
-              className={sportF === s.key ? 'active' : ''}
-              style={{ '--hue': s.hue }}
-              onClick={() => setSportF(s.key)}>
-              {s.name}{counts[s.key] ? ` (${counts[s.key]})` : ''}
-            </button>
-          ))}
+          {SPORTS.map(s => {
+            // Once loaded, a sport with no competitions is new, not missing —
+            // keep it visible with a "New" tag so visitors know it exists.
+            const isNew = all !== null && !counts[s.key]
+            return (
+              <button key={s.key} role="tab" aria-selected={sportF === s.key}
+                className={sportF === s.key ? 'active' : ''}
+                style={{ '--hue': s.hue }}
+                onClick={() => setSportF(s.key)}>
+                {s.name}{counts[s.key] ? ` (${counts[s.key]})` : ''}
+                {isNew && <span className="trn-newtag">New</span>}
+              </button>
+            )
+          })}
         </div>
 
         {err ? (
           <p className="notice notice-err" style={{ marginTop: 24 }}>{err}</p>
         ) : all === null ? (
-          <p className="adm-loading" style={{ paddingTop: 32 }}>Loading tournaments…</p>
-        ) : filtered.length === 0 ? (
-          <div className="dir-empty">
-            <p>No {sportF ? `${sportByKey(sportF)?.name} ` : ''}tournaments published yet.</p>
-            <p className="muted">Competitions created on the sport sites appear here once published.</p>
+          <div className="trn-grid" aria-hidden="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="trn-card trn-skeleton">
+                <div className="trn-banner sk-block" />
+                <div className="trn-body">
+                  <div className="sk-line sk-line-lg" />
+                  <div className="sk-line sk-line-md" />
+                  <div className="sk-line sk-line-sm" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          <NewSportState sportKey={sportF} />
         ) : (
           <div className="trn-grid">
             {filtered.map(t => <TournamentCard key={`${t.sport}:${t.id}`} t={t} />)}

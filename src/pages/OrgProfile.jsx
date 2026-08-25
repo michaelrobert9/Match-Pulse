@@ -182,7 +182,7 @@ export default function OrgProfile({ prefix }) {
               <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Subscribe — cross-sport profile</Link>
               {!user && <Link className="btn btn-ghost" to="/login">Sign in</Link>}
             </div>
-            <p className="op-upsell-fine">Annual subscription, billed by EFT invoice. The identity above is always free.</p>
+            <p className="op-upsell-fine">Annual subscription, billed by EFT invoice. The identity above is free.</p>
           </section>
         ) : (
           <section className="op-matches">

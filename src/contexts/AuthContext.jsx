@@ -30,16 +30,16 @@ export function planStatus(e) {
   if (tier === 'pro') {
     const exp = e.entitlementExpiresAt?.toDate?.()
       ?? (e.entitlementExpiresAt ? new Date(e.entitlementExpiresAt) : null)
-    if (exp && exp > new Date()) return { key: 'pro', label: 'Pro', active: true, expiresAt: exp }
-    return { key: 'expired', label: 'Pro (expired)', active: false, expiresAt: exp }
+    if (exp && exp > new Date()) return { key: 'pro', label: 'All-In', active: true, expiresAt: exp }
+    return { key: 'expired', label: 'All-In (expired)', active: false, expiresAt: exp }
   }
   if (tier === 'event') {
     const credits = e?.eventCredits ?? 0
     return credits > 0
-      ? { key: 'plus', label: 'Plus', active: true, credits }
-      : { key: 'plus_spent', label: 'Plus (no credits left)', active: false, credits: 0 }
+      ? { key: 'plus', label: 'Single Competition', active: true, credits }
+      : { key: 'plus_spent', label: 'Single Competition (no credits left)', active: false, credits: 0 }
   }
-  return { key: 'free', label: 'Free', active: true }
+  return { key: 'free', label: 'Everyday MatchPulse', active: true }
 }
 
 export function AuthProvider({ children }) {

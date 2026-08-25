@@ -12,7 +12,7 @@ const DEFAULTS = {
   siteDescription: 'MatchPulse lets coaches enter results directly after the match, saving schools, clubs and competition organisers from collecting and re-entering every score.',
   ogTitle:         'MatchPulse | Sports Results for Schools, Clubs and Competitions',
   ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
-  ogImage:         '',
+  ogImage:         'https://matchpulse.co.za/og-image.png',
   themeColor:      '#059669',
   headCode:        '',
 }
@@ -22,7 +22,7 @@ const DEFAULTS = {
 const ROUTES = {
   '/':                     { title: null },
   '/products':             { title: 'Plans & Pricing — MatchPulse' },
-  '/organizations':        { title: 'Organisations — MatchPulse' },
+  '/organizations':        { title: 'Schools & Clubs — MatchPulse' },
   '/tournaments':          { title: 'Tournaments & Competitions — MatchPulse' },
   '/signup':               { title: 'Create an Account — MatchPulse' },
   '/login':                { title: 'Sign In — MatchPulse' },
@@ -125,6 +125,9 @@ function applySite(seo) {
   setMeta('meta[property="og:title"]',       'content', seo.ogTitle || seo.siteTitle)
   setMeta('meta[property="og:description"]', 'content', seo.ogDescription || seo.siteDescription)
   setMeta('meta[property="og:image"]',       'content', seo.ogImage)
+  setMeta('meta[name="twitter:image"]',      'content', seo.ogImage)
+  setMeta('meta[name="twitter:title"]',      'content', seo.ogTitle || seo.siteTitle)
+  setMeta('meta[name="twitter:description"]','content', seo.ogDescription || seo.siteDescription)
   setMeta('meta[name="theme-color"]',        'content', seo.themeColor)
   injectHeadCode(seo.headCode)
 }

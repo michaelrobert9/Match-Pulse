@@ -19,17 +19,17 @@ const CONFIRM_TO = 'billing@matchpulse.co.za'
 export const PLANS = {
   event: {
     key:    'event',
-    label:  'Plus',
+    label:  'Single Competition',
     amount: 2000,
     once:   true,
-    item:   'MatchPulse Plus',
+    item:   'MatchPulse Single Competition',
   },
   pro: {
     key:       'pro',
-    label:     'Pro',
+    label:     'All-In',
     amount:    15000,
     once:      false,
-    item:      'MatchPulse Pro',
+    item:      'MatchPulse All-In',
     // subscription_type=1 recurring · frequency=6 annual · cycles=0 indefinite
     recurring: { subscription_type: 1, frequency: 6, cycles: 0 },
   },

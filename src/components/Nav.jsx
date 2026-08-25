@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-// Primary nav — real routes (not homepage hash sections).
+// Primary nav — real routes (not homepage hash sections). `authedTo` overrides
+// the destination for signed-in users: "Schools & Clubs" sends a prospect to the
+// public directory (with its explainer), but a signed-in owner to their manage
+// area rather than back out to the directory.
 const SECTIONS = [
   { to: '/',              label: 'Home' },
   { to: '/products',      label: 'Pricing' },
-  { to: '/organizations', label: 'Organisations' },
+  { to: '/organizations', label: 'Schools & Clubs', authedTo: '/admin' },
   { to: '/tournaments',   label: 'Tournaments' },
 ]
 
@@ -40,9 +43,10 @@ export default function Nav() {
         </Link>
 
         <nav className="nav-links" aria-label="Primary">
-          {SECTIONS.map(s => (
-            <Link key={s.to} className={'link' + (isActive(s.to) ? ' active' : '')} to={s.to}>{s.label}</Link>
-          ))}
+          {SECTIONS.map(s => {
+            const to = (user && s.authedTo) ? s.authedTo : s.to
+            return <Link key={s.label} className={'link' + (isActive(s.to) ? ' active' : '')} to={to}>{s.label}</Link>
+          })}
         </nav>
 
         <div className="nav-cta">
@@ -78,7 +82,7 @@ export default function Nav() {
       {open && (
         <div id="mnav">
           <div className="wrap">
-            {SECTIONS.map(s => <Link key={s.to} to={s.to}>{s.label}</Link>)}
+            {SECTIONS.map(s => <Link key={s.label} to={(user && s.authedTo) ? s.authedTo : s.to}>{s.label}</Link>)}
             {user && <Link className="mnav-admin" to="/admin">{isAdmin ? 'Admin' : 'Manage'}</Link>}
             <div className="mnav-sep" />
             {user ? (

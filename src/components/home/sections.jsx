@@ -194,6 +194,29 @@ export function AudienceBenefits() {
   )
 }
 
+/* ── 7b. Live scores — first-class homepage feature ─────────────────────── */
+export function LiveScores() {
+  return (
+    <section className="block tint" id="live">
+      <div className="wrap live-grid">
+        <div className="live-copy">
+          <div className="reveal"><Heading text={C.liveScores.heading} /></div>
+          <p className="sub reveal">{C.liveScores.body}</p>
+          <span className="live-badge reveal"><span className="live-dot" aria-hidden="true" /> Live</span>
+        </div>
+        <ul className="live-list">
+          {C.liveScores.points.map((p, i) => (
+            <li key={i} className="live-item reveal">
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
 /* ── 8. Sports network ─────────────────────────────────────────────────── */
 export function SportsNetwork() {
   return (
@@ -204,7 +227,7 @@ export function SportsNetwork() {
           {SPORTS.map(s => (
             <div key={s.key} className="net-card reveal" style={{ '--hue': s.hue }}>
               <span className="net-bar" style={{ background: s.hue }} />
-              <h3>MatchPulse {s.name}</h3>
+              <h3>MatchPulse {s.name}{s.newlyLaunched && <span className="net-newtag">Newly launched</span>}</h3>
               <p>{C.sportsNetwork.descriptions[s.key] || s.blurb}</p>
               <a className="net-go" href={s.host} style={{ color: s.hue }}>
                 Go to MatchPulse {s.name}
@@ -292,14 +315,37 @@ function PricingCard({ card }) {
   )
 }
 
+// The three pricing cards, shared by the homepage pricing section and /products
+// so naming, pricing and features can never drift apart.
+export function PricingCards() {
+  return (
+    <div className="pc-grid">
+      {C.pricing.cards.map(card => <PricingCard key={card.key} card={card} />)}
+    </div>
+  )
+}
+
+// "How activation works" + fine print, shared by both pricing surfaces.
+export function ActivationNote() {
+  const a = C.pricing.activation
+  return (
+    <div className="pc-activation reveal">
+      <h3>{a.heading}</h3>
+      <ol className="pc-steps">
+        {a.steps.map((s, i) => <li key={i}>{s}</li>)}
+      </ol>
+      <p className="pc-fine">{a.fine}</p>
+    </div>
+  )
+}
+
 export function PricingSection() {
   return (
     <section className="block" id="pricing">
       <div className="wrap">
         <SectionHead label="Pricing" heading={C.pricing.heading} center />
-        <div className="pc-grid">
-          {C.pricing.cards.map(card => <PricingCard key={card.key} card={card} />)}
-        </div>
+        <PricingCards />
+        <ActivationNote />
         <div className="pc-footnote reveal">
           {C.pricing.footnote.map((p, i) => <p key={i}>{p}</p>)}
         </div>
