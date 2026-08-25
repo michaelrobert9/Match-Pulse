@@ -318,7 +318,7 @@ export default function Account() {
               <span className={`plan-badge plan-${plan.key}`}>{plan.label}</span>
               {plan.key === 'plus'    && <p className="plan-meta">{plan.credits} event credit{plan.credits === 1 ? '' : 's'} remaining.</p>}
               {plan.key === 'pro'     && <p className="plan-meta">Renews {plan.expiresAt?.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
-              {plan.key === 'expired' && <p className="plan-meta">Your Pro subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
+              {plan.key === 'expired' && <p className="plan-meta">Your All-In subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
               {plan.key === 'free'    && <p className="plan-meta">Unlimited teams and matches. Upgrade to run a competition.</p>}
             </div>
             <Link className="btn btn-ghost" to="/products">
@@ -328,7 +328,7 @@ export default function Account() {
 
           {plan.key !== 'pro' && (
             <div className="upgrade-grid">
-              <p className="upgrade-lede">Upgrade to run competitions. Free covers unlimited teams &amp; matches — a competition (league, tournament or festival) needs a plan:</p>
+              <p className="upgrade-lede">Upgrade to run competitions. Everyday MatchPulse covers unlimited teams and matches. A competition (league, tournament or festival) needs a plan:</p>
               <div className="upgrade-opts">
                 <div className="upgrade-opt">
                   <p className="upgrade-name">Single Competition</p>
@@ -337,10 +337,10 @@ export default function Account() {
                   <Link className="btn btn-dark btn-sm" to="/invoice/new?plan=event">Get a Single Competition invoice</Link>
                 </div>
                 <div className="upgrade-opt upgrade-opt-featured">
-                  <p className="upgrade-name">All-In Annual</p>
+                  <p className="upgrade-name">All-In</p>
                   <p className="upgrade-price">{formatRand(15000)} <span>/ year</span></p>
                   <p className="upgrade-what">Unlimited competitions across every sport for a full year.</p>
-                  <Link className="btn btn-primary btn-sm" to="/invoice/new?plan=pro">Get an All-In Annual invoice</Link>
+                  <Link className="btn btn-primary btn-sm" to="/invoice/new?plan=pro">Get an All-In invoice</Link>
                 </div>
               </div>
             </div>

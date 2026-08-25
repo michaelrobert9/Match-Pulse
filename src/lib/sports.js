@@ -5,6 +5,11 @@
 //
 // `host` is the deployed origin. Swap to the custom subdomain
 // (hockey.matchpulse.co.za, …) once DNS is wired — nothing else changes.
+//
+// `newlyLaunched: true` shows a small "Newly launched" tag on the homepage sport
+// cards, so a sport that has just finished development reads as new rather than
+// empty. Flip a sport to false once schools are using it. (Hockey already has
+// real competitions.)
 
 export const SPORTS = [
   {
@@ -13,6 +18,7 @@ export const SPORTS = [
     hue:   '#059669',
     host:  'https://hockey.matchpulse.co.za',
     blurb: 'Goals, cards and quarters, with full team and player records.',
+    newlyLaunched: false,
   },
   {
     key:   'netball',
@@ -20,6 +26,7 @@ export const SPORTS = [
     hue:   '#7C3AED',
     host:  'https://netball.matchpulse.co.za',
     blurb: 'Quarters, centre passes and shooting stats, live from courtside.',
+    newlyLaunched: true,
   },
   {
     key:   'rugby',
@@ -27,6 +34,7 @@ export const SPORTS = [
     hue:   '#15803D',
     host:  'https://rugby.matchpulse.co.za',
     blurb: 'Tries, conversions and cards, with log points and bonus rules.',
+    newlyLaunched: true,
   },
   {
     key:   'waterpolo',
@@ -34,6 +42,7 @@ export const SPORTS = [
     hue:   '#2563EB',
     host:  'https://waterpolo.matchpulse.co.za',
     blurb: 'Goals, exclusions and quarters, scored poolside in real time.',
+    newlyLaunched: true,
   },
 ]
 

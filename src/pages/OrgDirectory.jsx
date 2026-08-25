@@ -1,6 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listPublicOrganizations, orgPublicPath } from '../lib/orgProfile'
+import { useAuth } from '../contexts/AuthContext'
+
+// Explainer shown to logged-out visitors: who it's for and what an organisation
+// account gives you, with a Start free CTA — so the nav item never drops a
+// prospect into account management.
+function OrgExplainer() {
+  return (
+    <section className="org-explainer">
+      <div className="org-explainer-copy">
+        <h2>Bring your school or club onto MatchPulse</h2>
+        <p>
+          An organisation account is for heads of sport, sports coordinators and club
+          administrators. It gives your school or club one home for teams, matches and
+          results across every MatchPulse sport you play.
+        </p>
+        <ul className="org-explainer-list">
+          <li>One account for your whole organisation, every sport</li>
+          <li>A public page with your matches and results</li>
+          <li>Coaches enter results directly, so nobody has to collect them</li>
+          <li>Add a paid plan only when you run a competition</li>
+        </ul>
+        <Link className="btn btn-primary" to="/signup">Start free</Link>
+      </div>
+    </section>
+  )
+}
 
 const TYPE_LABEL = { school: 'Schools', club: 'Clubs', association: 'Associations', league: 'Leagues' }
 const TYPE_ORDER = ['school', 'club', 'association', 'league']
@@ -27,6 +53,7 @@ function OrgCard({ o }) {
 }
 
 export default function OrgDirectory() {
+  const { user } = useAuth()
   const [orgs,   setOrgs]   = useState(null)
   const [err,    setErr]    = useState('')
   const [typeF,  setTypeF]  = useState('')   // '' = all types
@@ -57,9 +84,11 @@ export default function OrgDirectory() {
       <div className="wrap">
         <header className="dir-head">
           <p className="label">Schools, clubs &amp; competitions</p>
-          <h1>Organisations</h1>
+          <h1>Schools &amp; Clubs</h1>
           <p className="dir-sub">Every school, club, association and league on MatchPulse. Open one to see its profile and its matches &amp; results across every sport it plays.</p>
         </header>
+
+        {!user && <OrgExplainer />}
 
         <div className="dir-tabs" role="tablist">
           <button role="tab" aria-selected={typeF === ''} className={typeF === '' ? 'active' : ''} onClick={() => setTypeF('')}>

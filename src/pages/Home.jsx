@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import {
   SportFinder, Hero, ProblemSection, HowItWorks, BeforeAfter, AudienceBenefits,
-  SportsNetwork, FreeUse, CompetitionSection, PricingSection, BenefitsSection,
+  LiveScores, SportsNetwork, FreeUse, CompetitionSection, PricingSection, BenefitsSection,
   ProductDemo, SocialProof, FAQ, FinalCTA,
 } from '../components/home/sections'
 import ContactSection from '../components/home/ContactSection'
@@ -32,6 +32,7 @@ export default function Home() {
       <HowItWorks />
       <BeforeAfter />
       <AudienceBenefits />
+      <LiveScores />
       <SportsNetwork />
       <FreeUse />
       <CompetitionSection />

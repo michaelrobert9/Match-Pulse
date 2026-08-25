@@ -129,7 +129,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
       await httpsCallable(functions, 'adminSetEntitlement')({
         uid: user.uid, plan: form.plan, credits: Number(form.credits), years: Number(form.years), method: form.method, note: form.note,
       })
-      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'Free' : form.plan === 'event' ? 'Plus' : 'Pro'}. Reaches the sport sites on their next token refresh.` })
+      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'Everyday MatchPulse' : form.plan === 'event' ? 'Single Competition' : 'All-In'}. Reaches the sport sites on their next token refresh.` })
       setForm(f => ({ ...f, note: '' })); onChanged?.()
     } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not set plan.' }) }
     finally { setBusy('') }
@@ -186,8 +186,8 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
               <label>Plan to set</label>
               <select {...bind('plan')}>
                 <option value="none">Free — no paid access</option>
-                <option value="event">Plus — competition credits (once-off)</option>
-                <option value="pro">Pro — unlimited competitions (annual)</option>
+                <option value="event">Single Competition — competition credits (once-off)</option>
+                <option value="pro">All-In — unlimited competitions (annual)</option>
               </select>
             </div>
             {form.plan === 'event' && (
