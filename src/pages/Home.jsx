@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
 import {
-  SportFinder, Hero, ProblemSection, HowItWorks, BeforeAfter, AudienceBenefits,
-  LiveScores, SportsNetwork, FreeUse, CompetitionSection, PricingSection, BenefitsSection,
-  ProductDemo, SocialProof, FAQ, FinalCTA,
+  SportFinder, Hero, ProblemSection, HowItWorks,
+  WhatYouCanDo, SportsNetwork, PricingSection, FAQ, FinalCTA,
 } from '../components/home/sections'
 import ContactSection from '../components/home/ContactSection'
 
@@ -22,6 +21,8 @@ function useReveal() {
   }, [])
 }
 
+// Nine sections, each with one job: promise (hero), problem, mechanism (how it
+// works), features, ownership, price, FAQ, final CTA + contact. Nothing repeats.
 export default function Home() {
   useReveal()
   return (
@@ -30,16 +31,9 @@ export default function Home() {
       <Hero />
       <ProblemSection />
       <HowItWorks />
-      <BeforeAfter />
-      <AudienceBenefits />
-      <LiveScores />
+      <WhatYouCanDo />
       <SportsNetwork />
-      <FreeUse />
-      <CompetitionSection />
       <PricingSection />
-      <BenefitsSection />
-      <ProductDemo />
-      <SocialProof />
       <FAQ />
       <FinalCTA />
       <ContactSection />
