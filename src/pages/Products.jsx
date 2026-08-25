@@ -12,7 +12,7 @@ export default function Products() {
           <h1>One account. Simple plans. Every sport.</h1>
           <p className="products-sub">
             Buy once on the main site and access unlocks across every MatchPulse sport
-            you play. All prices in South African Rand, VAT inclusive.
+            you play. All prices in South African Rand.
           </p>
         </header>
 

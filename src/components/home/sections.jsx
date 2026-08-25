@@ -143,49 +143,18 @@ export function HowItWorks() {
   )
 }
 
-/* ── 6. Before / after ─────────────────────────────────────────────────── */
-export function BeforeAfter() {
+/* ── 5. What you can do — six real features ────────────────────────────── */
+export function WhatYouCanDo() {
   return (
-    <section className="block tint" id="benefit">
+    <section className="block" id="features">
       <div className="wrap">
-        <div className="ba-head">
-          <div className="reveal"><Heading text={C.beforeAfter.heading} /></div>
-          <p className="sub reveal">{C.beforeAfter.body}</p>
-        </div>
-        <div className="ba-grid">
-          <div className="ba-card ba-before reveal">
-            <h3>{C.beforeAfter.before.title}</h3>
-            <ul>
-              {C.beforeAfter.before.items.map((it, i) => (
-                <li key={i}><span className="ba-x" aria-hidden="true">✕</span>{it}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="ba-card ba-after reveal">
-            <h3>{C.beforeAfter.after.title}</h3>
-            <ul>
-              {C.beforeAfter.after.items.map((it, i) => (
-                <li key={i}><span className="ba-check" aria-hidden="true">✓</span>{it}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 7. Audience benefits ──────────────────────────────────────────────── */
-export function AudienceBenefits() {
-  return (
-    <section className="block" id="audience">
-      <div className="wrap">
-        <div className="aud-grid">
-          {C.audience.map((a, i) => (
-            <div key={i} className="aud-card reveal">
-              <p className="aud-who">{a.who}</p>
-              <p className="aud-line">{a.line}</p>
-              <p className="aud-body">{a.body}</p>
+        <SectionHead label={C.features.eyebrow} heading={C.features.heading} sub={C.features.intro} center />
+        <div className="feat-grid">
+          {C.features.items.map((f, i) => (
+            <div key={i} className="feat-card reveal">
+              <span className="feat-n tnum">{String(i + 1).padStart(2, '0')}</span>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
             </div>
           ))}
         </div>
@@ -194,35 +163,12 @@ export function AudienceBenefits() {
   )
 }
 
-/* ── 7b. Live scores — first-class homepage feature ─────────────────────── */
-export function LiveScores() {
-  return (
-    <section className="block tint" id="live">
-      <div className="wrap live-grid">
-        <div className="live-copy">
-          <div className="reveal"><Heading text={C.liveScores.heading} /></div>
-          <p className="sub reveal">{C.liveScores.body}</p>
-          <span className="live-badge reveal"><span className="live-dot" aria-hidden="true" /> Live</span>
-        </div>
-        <ul className="live-list">
-          {C.liveScores.points.map((p, i) => (
-            <li key={i} className="live-item reveal">
-              <h3>{p.title}</h3>
-              <p>{p.body}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  )
-}
-
-/* ── 8. Sports network ─────────────────────────────────────────────────── */
+/* ── 6. My School. My Club. My Association. — ownership + sport homes ───── */
 export function SportsNetwork() {
   return (
     <section className="block tint" id="sports">
       <div className="wrap">
-        <SectionHead heading={C.sportsNetwork.heading} sub={C.sportsNetwork.body} center />
+        <SectionHead label={C.sportsNetwork.eyebrow} heading={C.sportsNetwork.heading} sub={C.sportsNetwork.body} center />
         <div className="net-grid">
           {SPORTS.map(s => (
             <div key={s.key} className="net-card reveal" style={{ '--hue': s.hue }}>
@@ -242,48 +188,7 @@ export function SportsNetwork() {
   )
 }
 
-/* ── 9. Free use ───────────────────────────────────────────────────────── */
-export function FreeUse() {
-  return (
-    <section className="block" id="free-use">
-      <div className="wrap free-grid">
-        <div className="free-copy">
-          <div className="reveal"><Heading text={C.freeUse.heading} /></div>
-          <p className="sub reveal">{C.freeUse.body}</p>
-          <Cta to={C.freeUse.button.to} className="btn btn-primary reveal">{C.freeUse.button.label}</Cta>
-          <p className="free-support reveal">{C.freeUse.supporting}</p>
-        </div>
-        <ul className="free-list reveal">
-          {C.freeUse.items.map((it, i) => (
-            <li key={i}><span className="free-check" aria-hidden="true">✓</span>{it}</li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  )
-}
-
-/* ── 10. Competition ───────────────────────────────────────────────────── */
-export function CompetitionSection() {
-  return (
-    <section className="block tint" id="competition">
-      <div className="wrap comp-grid">
-        <div className="comp-copy">
-          <div className="reveal"><Heading text={C.competition.heading} /></div>
-          {C.competition.paragraphs.map((p, i) => <p key={i} className="sub reveal">{p}</p>)}
-          <Cta plan={C.competition.button.plan} className="btn btn-dark reveal">{C.competition.button.label}</Cta>
-        </div>
-        <ul className="comp-list reveal">
-          {C.competition.items.map((it, i) => (
-            <li key={i}><span className="comp-check" aria-hidden="true">✓</span>{it}</li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  )
-}
-
-/* ── 11. Pricing ───────────────────────────────────────────────────────── */
+/* ── 7. Pricing ────────────────────────────────────────────────────────── */
 function priceOf(card) {
   if (!card.plan) return { big: card.freeLabel || 'Free', per: null }
   const p = PLANS[card.plan]
@@ -346,72 +251,12 @@ export function PricingSection() {
         <SectionHead label="Pricing" heading={C.pricing.heading} center />
         <PricingCards />
         <ActivationNote />
-        <div className="pc-footnote reveal">
-          {C.pricing.footnote.map((p, i) => <p key={i}>{p}</p>)}
-        </div>
       </div>
     </section>
   )
 }
 
-/* ── 12. Benefits ──────────────────────────────────────────────────────── */
-export function BenefitsSection() {
-  return (
-    <section className="block tint" id="why">
-      <div className="wrap">
-        <SectionHead heading={C.benefits.heading} center />
-        <div className="ben-grid">
-          {C.benefits.items.map((b, i) => (
-            <div key={i} className="ben-card reveal">
-              <h3>{b.title}</h3>
-              <p>{b.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 13. Product demo ──────────────────────────────────────────────────── */
-export function ProductDemo() {
-  return (
-    <section className="block" id="demo">
-      <div className="wrap">
-        <SectionHead heading={C.productDemo.heading} center />
-        <div className="demo-visual reveal"><ProductVisual /></div>
-        <div className="demo-steps">
-          {C.productDemo.steps.map((s, i) => (
-            <div key={i} className="demo-step reveal">
-              <span className="demo-n tnum">{i + 1}</span>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </div>
-          ))}
-        </div>
-        <p className="demo-closing reveal">{C.productDemo.closing}</p>
-        <div className="demo-cta reveal">
-          <Cta to={C.productDemo.button.to} className="btn btn-ghost">{C.productDemo.button.label}</Cta>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 14. Social proof — hidden until real content exists ───────────────── */
-export function SocialProof() {
-  if (!C.socialProof.enabled || C.socialProof.items.length === 0) return null
-  return (
-    <section className="block" id="proof">
-      <div className="wrap">
-        <SectionHead heading={C.socialProof.heading} center />
-        {/* real content rendered here when available */}
-      </div>
-    </section>
-  )
-}
-
-/* ── 15. FAQ ───────────────────────────────────────────────────────────── */
+/* ── 8. FAQ ────────────────────────────────────────────────────────────── */
 function FaqItem({ q, a }) {
   return (
     <details className="faq-item">

@@ -54,71 +54,28 @@ export const howItWorks = {
   closing: 'No collecting. No entering it again. No putting everything together later.',
 }
 
-// § Main benefit — before / after
-export const beforeAfter = {
-  heading: ['Run the sport.', 'Not the results admin.'],
-  body:
-    'Your time should be spent supporting coaches, organising teams and making sport happen, ' +
-    'not gathering information that other people already know. MatchPulse removes the sports ' +
-    'coordinator or administrator as the collection point for every result.',
-  before: {
-    title: 'Before MatchPulse',
-    items: [
-      'Every result comes back to the coordinator',
-      'The coordinator works out what has been received',
-      'Missing results are followed up',
-      'Results are entered again',
-      'A complete results list is sent or published',
-    ],
-  },
-  after: {
-    title: 'With MatchPulse',
-    items: [
-      'Every coach enters one result',
-      'The coordinator sees them all',
-      'Everyone else knows where to find them',
-    ],
-  },
-}
-
-// § Benefits by audience — three cards
-export const audience = [
-  {
-    who: 'For heads of sport and administrators',
-    line: 'See every result without collecting every result.',
-    body: 'Know what has been entered and what may still need attention.',
-  },
-  {
-    who: 'For coaches and scorers',
-    line: 'Enter it once. You’re done.',
-    body: 'Add the result after the match without needing to submit it somewhere else.',
-  },
-  {
-    who: 'For parents, players and supporters',
-    line: 'One place to look.',
-    body: 'Find matches, scores, results and competition information through the relevant MatchPulse sport website.',
-  },
-]
-
-// § Live scores — a first-class homepage feature (was previously only on /products)
-export const liveScores = {
-  heading: 'Live scores while the game is on',
-  body:
-    'Coaches can capture the score as the match runs. Parents on the touchline, and the ' +
-    'ones who couldn’t make it, follow every game live.',
-  points: [
-    { title: 'Live match capture on any device', body: 'Score from a phone at the field, court or poolside — no app to install.' },
-    { title: 'Player pages',                     body: 'Every player has a page that fills up with their matches and results.' },
-    { title: 'Top-scorer tables',                body: 'Scorers and awards update as results come in, across teams and competitions.' },
+// § What you can do — six real features (concrete capability + what it does)
+export const features = {
+  eyebrow: 'What you can do',
+  heading: 'Built for the sporting week.',
+  intro: 'Everything below works from the first free account.',
+  items: [
+    { title: 'Live scores from the sideline',          body: 'Update the score while the game runs. Parents at work and supporters at home watch it change as it happens.' },
+    { title: 'Fixtures ready before the whistle',      body: 'The week’s matches are loaded in advance, so every coach knows exactly where their result goes.' },
+    { title: 'A result takes thirty seconds',          body: 'Team, score, done — from the coach’s phone at the field, before the kit is packed away.' },
+    { title: 'See what’s still outstanding',           body: 'One glance shows which results are in and which are missing. You know who to ask, without asking everyone.' },
+    { title: 'Standings that keep themselves current', body: 'Logs and tables recalculate the moment a result goes in. Nobody updates a spreadsheet on Sunday night.' },
+    { title: 'A public home for every team and player',body: 'Team pages, player pages and top-scorer tables anyone can open in a browser. No app, no login, free to view.' },
   ],
 }
 
-// § Sports network — descriptions layered over the sport registry (lib/sports.js)
+// § Yours — ownership + the four sport homes (descriptions layered over lib/sports.js)
 export const sportsNetwork = {
-  heading: ['One MatchPulse account.', 'A dedicated home for every sport.'],
+  eyebrow: 'Yours',
+  heading: 'My School. My Club. My Association.',
   body:
-    'MatchPulse brings your organisation together under one account while giving every sport ' +
-    'its own place for matches, scores and results.',
+    'MatchPulse belongs to the people who run the sport. Set up your school, your club or your ' +
+    'association once, and every sport you play gets its own public home for matches, scores and results.',
   closing: 'One account. Every sport connected.',
   // keyed by sport.key — longer marketing line than the registry blurb
   descriptions: {
@@ -127,46 +84,6 @@ export const sportsNetwork = {
     rugby:     'Matches, live scores and results for school and club rugby.',
     waterpolo: 'Matches, live scores and results for school and club water polo.',
   },
-}
-
-// § Free use
-export const freeUse = {
-  heading: 'Start with your everyday matches. Free.',
-  body:
-    'Schools and clubs can use MatchPulse for ordinary matches and results without purchasing ' +
-    'a competition package. Create your organisation, add your teams and give coaches a simpler ' +
-    'way to enter results.',
-  items: [
-    'Create teams',
-    'Create ordinary matches',
-    'Enter results',
-    'Publish scores',
-    'Give supporters one place to follow',
-  ],
-  button: { label: 'Start free', to: '/signup' },
-  supporting:
-    'Start using MatchPulse now. Choose a competition plan when you need to run a formal league, ' +
-    'festival, tournament or other competition.',
-}
-
-// § Competition
-export const competition = {
-  heading: 'Running a competition?',
-  paragraphs: [
-    'A competition creates more matches, more teams and more results for someone to manage. ' +
-      'MatchPulse gives every match and result one place to go from the beginning of the ' +
-      'competition to the final match.',
-    'Participating coaches and scorers enter results directly. Organisers see the competition ' +
-      'come together without manually collecting every score.',
-  ],
-  items: [
-    'Matches together',
-    'Results up to date',
-    'Competition tables current',
-    'Teams informed',
-    'Supporters connected',
-  ],
-  button: { label: 'Create one competition', plan: 'event' },
 }
 
 // § Pricing — cards; `plan` maps to lib/payfast.js PLANS (null = free).
@@ -179,13 +96,13 @@ export const pricing = {
       name: 'Everyday MatchPulse',
       plan: null,
       freeLabel: 'Free',
-      description: 'For schools and clubs recording ordinary matches and results.',
+      description: 'For the ordinary sporting week: fixtures, results and live scores.',
       items: [
-        'Organisation and team setup',
-        'Match creation and result entry',
-        'Live match capture on any device',
-        'Public team and player pages',
-        'Published scores on the MatchPulse sport websites',
+        'Your teams and fixtures, loaded once for the season',
+        'Live scoring from any phone',
+        'Results published the moment they’re entered',
+        'Public team and player pages for your community',
+        'Your matches on the MatchPulse sport websites',
       ],
       button: 'Start free',
       featured: false,
@@ -195,15 +112,18 @@ export const pricing = {
       name: 'Single Competition',
       plan: 'event',
       description:
-        'Run a competition when you need one. No subscription. One defined competition within ' +
-        'one sport and one age group (e.g. one U14 rugby league, one U16 girls’ hockey festival).',
+        'Run a competition when you need one. No subscription. One competition, one sport, one ' +
+        'age group — e.g. one U14 rugby league or one U16 girls’ hockey festival.',
+      headline: 'Configure it once. MatchPulse runs the competition from there — you just live score or enter the result.',
       items: [
         'Everything in Everyday MatchPulse',
-        'Competition setup, participating teams and fixtures',
-        'Live standings, matches and results pages',
-        'Team and player awards, top-scorer tables',
-        'Public competition page',
-        'Invoice issued up front, kept on your account',
+        'Fixtures auto-generated for the whole competition',
+        'Player squads for every participating team',
+        'Pool scoring set up your way, including bonus points and custom tie-breakers',
+        'Playoffs generated automatically, with teams allocated as the pools finish',
+        'Knockout formats to fit your event, including fully custom settings',
+        'Team awards, Player of the Match and top-scorer tables',
+        'A dedicated competition page in your competition’s own colours',
       ],
       button: 'Create one competition',
       note: 'Running several age groups or sports? All-In may offer better value.',
@@ -213,14 +133,14 @@ export const pricing = {
       key: 'allin',
       name: 'All-In',
       plan: 'pro',
-      description: 'For schools, clubs and organisations running competitions across several sports or age groups.',
+      description: 'For a school, club or association running competitions across several sports or age groups.',
       items: [
         'Everything in Single Competition',
-        'Unlimited competitions',
-        'Every sport, every age group, one calendar year',
-        'One organisation account',
+        'Unlimited competitions in one calendar year',
+        'Every sport and every age group',
+        'One account for your whole school, club or association',
         'Priority email support',
-        'Annual invoice, VAT inclusive',
+        'One annual invoice',
       ],
       button: 'Choose All-In',
       featured: false,
@@ -233,47 +153,19 @@ export const pricing = {
       'Pay the invoice by EFT.',
       'Your plan activates when the payment reflects, usually within one business day.',
     ],
-    fine: 'All prices in South African Rand, VAT inclusive.',
+    fine: 'All prices in South African Rand.',
   },
-  footnote: [
-    'One way of working across your whole organisation.',
-    'Every coach knows where to enter results. Every sports coordinator knows where to see them. ' +
-      'Every parent and supporter knows where to look.',
-  ],
-}
-
-// § Benefits — five
-export const benefits = {
-  heading: ['Less gathering.', 'More sport.'],
-  items: [
-    { title: 'Save valuable time',                 body: 'Remove the repeated work of collecting, checking, entering and distributing results.' },
-    { title: 'Share the responsibility',           body: 'Each coach enters the one result they already know instead of one person processing every result.' },
-    { title: 'Know what is complete',              body: 'See which results have been entered and where attention may still be needed.' },
-    { title: 'Make results immediately available', body: 'Once a result is entered, people following the sport can find it without waiting for a separate results list.' },
-    { title: 'Create one reliable place to look',  body: 'Matches, scores, results and competitions remain available through the relevant MatchPulse sport website.' },
-  ],
-}
-
-// § Product demo — three steps
-export const productDemo = {
-  heading: 'From final whistle to published result',
-  steps: [
-    { title: 'Match finished',   body: 'The coach or scorer opens the scheduled match.' },
-    { title: 'Result entered',   body: 'The final score is added in a few simple steps.' },
-    { title: 'Result available', body: 'The school, club, organiser and supporters can see it immediately.' },
-  ],
-  closing: 'The person at the match enters the result. MatchPulse takes it from there.',
-  button: { label: 'See How MatchPulse Works', to: '/#how' },
 }
 
 // § FAQ
 export const faqs = [
-  { q: 'Is MatchPulse free?',                          a: 'Everyday MatchPulse is free for ordinary school and club matches. Single Competition and All-In are paid plans for running formal competitions.' },
+  { q: 'Is MatchPulse free?',                          a: 'Everyday MatchPulse is free for the ordinary sporting week — fixtures, results and live scores. Single Competition and All-In are paid plans for running formal competitions.' },
   { q: 'What counts as a competition?',                a: 'A competition is an organised group of matches within a defined sport and age group, such as a league, festival or tournament.' },
-  { q: 'What is included in the Single Competition plan?', a: 'Single Competition covers one defined competition within one sport and one age group. It adds competition setup, participating teams and fixtures, live standings, team and player awards, top-scorer tables and a public competition page on top of everything in Everyday MatchPulse.' },
+  { q: 'What is included in the Single Competition plan?', a: 'You configure one competition once — fixtures are auto-generated, pools score your way with bonus points and tie-breakers, and playoffs and knockouts are generated for you. It also adds player squads, team awards, Player of the Match, top-scorer tables and a competition page in your own colours, on top of everything in Everyday MatchPulse.' },
+  { q: 'Can parents watch a match live?',              a: 'Yes. When a coach or scorer uses live scoring, the score updates on the public match page as the game runs. Anyone can watch it from a browser, with no app and no login.' },
   { q: 'Who enters the results?',                      a: 'The coach, scorer or authorised person at the match enters the result directly into MatchPulse.' },
   { q: 'Where do parents and supporters find results?', a: 'Each sport has its own MatchPulse website where people can find matches, scores, results and competitions.' },
-  { q: 'Do we need a different account for every sport?', a: 'No. An organisation starts with one MatchPulse account and uses it across the relevant MatchPulse sports.' },
+  { q: 'Do we need a different account for every sport?', a: 'No. One account covers your whole school, club or association across every MatchPulse sport.' },
   { q: 'What happens if we run several sports or age groups?', a: 'All-In covers every sport, every age group and unlimited competitions for one calendar year.' },
   { q: 'Can we start free before buying a competition plan?', a: 'Yes. A school or club can begin using Everyday MatchPulse for ordinary matches and choose a competition plan when needed.' },
 ]
@@ -287,13 +179,4 @@ export const finalCta = {
   primary:   { label: 'Start using MatchPulse free', to: '/signup' },
   secondary: { label: 'View competition plans',      to: '/#pricing' },
   supporting: 'Every match. On the record.',
-}
-
-// § Social proof — no real content yet, so the section stays hidden. Flip this
-// to true (and fill `socialProofItems`) only when real competitions, testimonials
-// or figures exist. Never populate with invented data.
-export const socialProof = {
-  enabled: false,
-  heading: 'See MatchPulse in action',
-  items: [], // { type: 'competition'|'testimonial'|'story'|'results', ... }
 }

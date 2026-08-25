@@ -780,6 +780,15 @@ section#sports.block { padding: 84px 0; }
 .pc-steps li { font-size: 14.5px; color: var(--slate); line-height: 1.5; }
 .pc-fine { margin: 16px 0 0; font-size: 13.5px; color: var(--slate); }
 
+/* What you can do — six feature cards */
+.feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 46px; }
+.feat-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px 24px; }
+.feat-n { display: inline-flex; font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: .06em; color: var(--pulse-ink); background: var(--pulse-tint); border-radius: 8px; padding: 4px 8px; margin-bottom: 14px; }
+.feat-card h3 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; margin: 0 0 8px; }
+.feat-card p { font-size: 14.5px; color: var(--slate); line-height: 1.55; margin: 0; }
+@media (max-width: 1000px) { .feat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px)  { .feat-grid { grid-template-columns: 1fr; } }
+
 /* Live scores — homepage feature section */
 .live-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 40px; align-items: center; }
 .live-copy .sub { margin-top: 14px; }
