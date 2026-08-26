@@ -3,8 +3,6 @@ import { Link, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getOrgProfile, PREFIX_TYPE, orgPublicPathFrom } from '../lib/orgProfile'
 import { sportByKey } from '../lib/sports'
-import { formatRand } from '../lib/payfast'
-import { HOME_GROUND_PRICE } from '../lib/config'
 import { listVenuesByOrg, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
 
 // School-level filter: U13 and lower is primary school, U14 and up is high
@@ -112,6 +110,19 @@ export default function OrgProfile({ prefix }) {
     return () => { cancel = true }
   }, [slug])
 
+  // A school/club without Home Ground active holds its URL but must not be
+  // indexed. Toggle a noindex robots tag off the resolved state.
+  useEffect(() => {
+    if (!data) return
+    const noindex = data.active === false
+    let el = document.head.querySelector('meta[name="robots"][data-op]')
+    if (noindex) {
+      if (!el) { el = document.createElement('meta'); el.setAttribute('name', 'robots'); el.setAttribute('data-op', '1'); document.head.appendChild(el) }
+      el.setAttribute('content', 'noindex, nofollow')
+    } else if (el) { el.remove() }
+    return () => { const e = document.head.querySelector('meta[name="robots"][data-op]'); if (e) e.remove() }
+  }, [data])
+
   if (err) {
     return (
       <main className="acct"><div className="wrap">
@@ -130,6 +141,30 @@ export default function OrgProfile({ prefix }) {
     return <Navigate to={orgPublicPathFrom(org.type, org.slug)} replace />
   }
 
+  // Holding state — Home Ground is not active. The URL resolves but publishes
+  // nothing; the owner (or an admin) is offered activation, everyone else sees
+  // a neutral placeholder. Rendered noindex (effect above).
+  const isOwner = user && org.ownerUserId && org.ownerUserId === user.uid
+  if (data.active === false) {
+    const canManage = isAdmin || isOwner
+    return (
+      <main className="acct"><div className="wrap op-holding-wrap">
+        <div className="op-holding">
+          <h1>{canManage ? org.name : 'Page not available'}</h1>
+          {canManage ? (
+            <>
+              <p>Home Ground isn’t active for {org.name}. Activate it to publish this page: matches, results and Match Days from every sport, under your own name and colours.</p>
+              <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Activate Home Ground</Link>
+            </>
+          ) : (
+            <p>This page isn’t published yet.</p>
+          )}
+          <p className="op-holding-back"><Link to="/">Back to MatchPulse</Link></p>
+        </div>
+      </div></main>
+    )
+  }
+
   const pc = org.primaryColor || '#059669'
   const websiteHref  = org.website ? (/^https?:\/\//.test(org.website) ? org.website : `https://${org.website}`) : null
   const websiteLabel = org.website ? org.website.replace(/^https?:\/\//, '') : ''
@@ -137,7 +172,8 @@ export default function OrgProfile({ prefix }) {
   return (
     <main className="orgprofile">
       <div className="wrap">
-        {/* Identity card — matches the sport-site design. Always free / SEO. */}
+        {/* Identity card — matches the sport-site design. Published only while
+            Home Ground is active (this whole page is the Home Ground page). */}
         <article className="op-card" style={{ '--pc': pc }}>
           {org.bannerUrl && (
             <div className="op-banner">
@@ -184,20 +220,6 @@ export default function OrgProfile({ prefix }) {
             </ul>
           </section>
         )}
-        {data.locked ? (
-          <section className="op-upsell">
-            <h2>See {org.name}’s matches &amp; results across all sports</h2>
-            <p>
-              This organisation plays{data.activatedSports?.length ? ' ' + data.activatedSports.map(k => sportByKey(k)?.name || k).join(', ') : ''} on MatchPulse.
-              Subscribe to see every upcoming match and final result for {org.name}, gathered from every sport, in one place.
-            </p>
-            <div className="op-upsell-cta">
-              <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Subscribe to Home Ground</Link>
-              {!user && <Link className="btn btn-ghost" to="/login">Sign in</Link>}
-            </div>
-            <p className="op-upsell-fine">{formatRand(HOME_GROUND_PRICE)} per year, billed by EFT invoice. The identity above is free.</p>
-          </section>
-        ) : (
           <section className="op-matches">
             {data.activatedSports.length === 0 ? (
               <p className="muted">No sports activated for this organisation yet.</p>
@@ -256,7 +278,6 @@ export default function OrgProfile({ prefix }) {
               </>
             )}
           </section>
-        )}
         </div>
       </div>
     </main>
