@@ -100,7 +100,7 @@ function LinkedPlayers({ uid }) {
       const map = new Map()
       ownSnap.docs.forEach(d => map.set(d.id, { id: d.id, rel: 'self', ...d.data() }))
       guardSnap.docs.forEach(d => { if (!map.has(d.id)) map.set(d.id, { id: d.id, rel: 'guardian', ...d.data() }) })
-      setLinked([...map.values()])
+      setLinked([...map.values()].sort((a, b) => personName(a).localeCompare(personName(b), undefined, { sensitivity: 'base' })))
     } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not load players.' }); setLinked([]) }
   }
   useEffect(() => { setLinked(null); setResults([]); setQ(''); setPool(null); loadLinked() }, [uid])
@@ -128,7 +128,10 @@ function LinkedPlayers({ uid }) {
         list = snap.docs.map(d => ({ id: d.id, ...d.data() })); setPool(list)
       }
       const linkedIds = new Set((linked || []).map(p => p.id))
-      setResults(list.filter(p => personName(p).toLowerCase().includes(needle) && !linkedIds.has(p.id)).slice(0, 20))
+      setResults(list
+        .filter(p => personName(p).toLowerCase().includes(needle) && !linkedIds.has(p.id))
+        .sort((a, b) => personName(a).localeCompare(personName(b), undefined, { sensitivity: 'base' }))
+        .slice(0, 20))
     } catch (e) { setMsg({ kind: 'err', text: e.message || 'Search failed.' }) }
     finally { setSearching(false) }
   }
@@ -402,7 +405,8 @@ function UsersTab({ onEditOrg }) {
           platformAdmin: data.platformAdmin === true, raw: data,
         }
       })
-      list.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
+      // Alphabetical by name, falling back to email.
+      list.sort((a, b) => (a.displayName || a.email || '').localeCompare(b.displayName || b.email || '', undefined, { sensitivity: 'base' }))
       setRows(list)
       const map = {}; for (const o of orgs) map[o.id] = o; setOrgsById(map)
       return list
@@ -918,7 +922,11 @@ function VenueDuplicateQueue() {
 
 function VenuesTab() {
   const [orgs, setOrgs] = useState([])
-  useEffect(() => { listAllOrgs().then(setOrgs).catch(() => {}) }, [])
+  useEffect(() => {
+    listAllOrgs()
+      .then(list => setOrgs([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))))
+      .catch(() => {})
+  }, [])
   return (
     <div className="adm-section">
       <VenueManager master orgOptions={orgs} />
@@ -1133,7 +1141,11 @@ export default function Admin() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  useEffect(() => { if (user?.uid) listOrgsOwnedBy(user.uid).then(setMyOrgs).catch(() => setMyOrgs([])) }, [user?.uid])
+  useEffect(() => {
+    if (user?.uid) listOrgsOwnedBy(user.uid)
+      .then(list => setMyOrgs([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))))
+      .catch(() => setMyOrgs([]))
+  }, [user?.uid])
   useEffect(() => { setOpen(false) }, [location.pathname])
 
   const typesPresent = ORG_TYPES.filter(t => myOrgs.some(o => o.type === t.key))

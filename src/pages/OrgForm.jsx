@@ -194,8 +194,11 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const canManagePeople = isAdmin || isOwner
   async function loadPeople() {
     if (!editing || !canManagePeople) return
-    try { const res = await getOrgPeople(id); setPeople(res.people || []) }
-    catch { setPeople([]) }
+    try {
+      const res = await getOrgPeople(id)
+      const roster = [...(res.people || [])].sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', undefined, { sensitivity: 'base' }))
+      setPeople(roster)
+    } catch { setPeople([]) }
   }
   useEffect(() => { loadPeople() }, [editing, id, isAdmin, isOwner])
 
@@ -249,8 +252,8 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
       const billTo = { name: f.name || record?.name || '', email: f.contactEmail || user?.email || '' }
       const res = await createProfileInvoice(id, billTo)
       if (res?.free) {
-        setActMsg({ kind: 'ok', text: 'Subscribed — free during early access, active until 31 December 2026.' })
-        setRecord(r => ({ ...r, profileSubscription: { status: 'active', plan: 'earlyAccessFree' } }))
+        setActMsg({ kind: 'ok', text: 'Home Ground activated.' })
+        setRecord(r => ({ ...r, profileSubscription: { status: 'active', plan: 'homeGround' } }))
       } else {
         navigate(`/invoices/${res.id}`)
       }
@@ -568,12 +571,12 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                 Brings {f.name || 'this school'}’s whole sport together on one public page: matches,
                 results and Match Days from every sport, under its own name and colours.
                 Status: <strong>{subActive ? 'Active' : 'Not active'}</strong>.
-                {' '}<strong>Free during early access, active until 31 December 2026. {formatRand(HOME_GROUND_PRICE)} per year after that.</strong>
+                {' '}<strong>{formatRand(HOME_GROUND_PRICE)} per year, billed by EFT invoice.</strong>
               </p>
               <div className="adm-migrate-actions">
                 {!subActive && (
                   <button type="button" className="btn btn-primary btn-sm" disabled={actBusy === 'sub'} onClick={subscribeProfile}>
-                    {actBusy === 'sub' ? 'Working…' : 'Activate Home Ground — free early access'}
+                    {actBusy === 'sub' ? 'Working…' : `Subscribe to Home Ground — ${formatRand(HOME_GROUND_PRICE)}/yr`}
                   </button>
                 )}
                 {subActive && (

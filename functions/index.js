@@ -833,15 +833,15 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     years   = planKey === 'pro'   ? 1 : null
   }
 
-  // Home Ground is FREE during early access (until 31 Dec 2026), and also if no
-  // price is set. Grant it directly through the early-access end date rather than
-  // raising an invoice. After that date, fall through to the paid EFT invoice.
-  // Owner/admin was already verified above.
-  const inEarlyAccess = Date.now() < EARLY_ACCESS_UNTIL.getTime()
-  if (kind === 'orgProfile' && (!(amount > 0) || inEarlyAccess)) {
-    await applyProfileSubscription(orgId, { until: EARLY_ACCESS_UNTIL, plan: 'earlyAccessFree', lastPaymentId: `free:${uid}` })
-    logger.info('Home Ground granted (free early access)', { orgId, uid })
-    return { ok: true, free: true, orgId, until: EARLY_ACCESS_UNTIL.toISOString() }
+  // Home Ground is a PAID product: no free early access, no temporary free term.
+  // The only ways in are paying the EFT invoice below or a platform-admin
+  // complimentary grant (adminSetProfileSubscription). The one exception is an
+  // explicit price of 0 (admin sets HOME_GROUND_AMOUNT=0), which grants directly
+  // rather than raising a meaningless zero invoice.
+  if (kind === 'orgProfile' && !(amount > 0)) {
+    await applyProfileSubscription(orgId, { years: 1, plan: 'homeGround', lastPaymentId: `free:${uid}` })
+    logger.info('Home Ground granted (price is zero)', { orgId, uid })
+    return { ok: true, free: true, orgId }
   }
 
   const billTo = cleanBillTo(request.data?.billTo)
@@ -1194,21 +1194,31 @@ exports.centralOrgDeactivate = onCall({ region: REGION }, async (request) => {
     return { sport, alreadyInactive: true }
   }
 
-  // Tombstone the sport copy (kept so shared matches keep this org's crest/name).
   try {
-    await sportDbFor(sport).doc(`organizations/${orgId}`).set({
-      managed: false,
-      deactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true })
+    // Tombstone the sport copy (kept so shared matches keep this org's crest/name).
+    // Best-effort: a sport DB that can't be written must not block deactivation.
+    try {
+      await sportDbFor(sport).doc(`organizations/${orgId}`).set({
+        managed: false,
+        deactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true })
+    } catch (err) {
+      logger.warn('deactivate: tombstone write failed', { orgId, sport, message: err.message })
+    }
+
+    // Clear the central activation flag by rewriting the map without this sport
+    // (avoids a nested FieldValue.delete, which is the more fragile path).
+    const rest = { ...(org.activatedSports || {}) }
+    delete rest[sport]
+    await ref.update({ activatedSports: rest })
+
+    logger.info('Org deactivated in sport', { orgId, sport })
+    return { sport, deactivated: true }
   } catch (err) {
-    logger.warn('deactivate: tombstone write failed', { orgId, sport, message: err.message })
+    // Surface the real cause to the client instead of a generic "internal".
+    logger.error('centralOrgDeactivate failed', { orgId, sport, message: err.message, stack: err.stack })
+    throw new HttpsError('internal', `Deactivation failed: ${err.message}`)
   }
-
-  // Clear the central activation flag — stops future syncs, unblocks delete.
-  await ref.update({ [`activatedSports.${sport}`]: admin.firestore.FieldValue.delete() })
-
-  logger.info('Org deactivated in sport', { orgId, sport })
-  return { sport, deactivated: true }
 })
 
 // ── centralOrgIdentitySync ───────────────────────────────────────────────────
