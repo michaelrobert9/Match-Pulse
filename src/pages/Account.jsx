@@ -14,6 +14,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'fi
 import { useAuth } from '../contexts/AuthContext'
 import { auth, identityDb, storage } from '../firebase'
 import { SPORTS } from '../lib/sports'
+import { listGuardianshipsForParent, SPORT_LABEL } from '../lib/guardianships'
 
 // Firebase requires a recent sign-in before changing an email or password. When
 // it asks, we collect the current password and retry rather than dead-ending.
@@ -76,6 +77,31 @@ function InvoicesPanel({ uid }) {
             </li>
           )
         })}
+      </ul>
+    </Panel>
+  )
+}
+
+// Players the signed-in parent has claimed in the sport apps (from the central
+// guardianships bridge). Hidden when there are none.
+function PlayersPanel({ uid }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    if (!uid) return
+    let cancel = false
+    listGuardianshipsForParent(uid).then(r => { if (!cancel) setRows(r) }).catch(() => { if (!cancel) setRows([]) })
+    return () => { cancel = true }
+  }, [uid])
+  if (!rows || rows.length === 0) return null
+  return (
+    <Panel title="Players you manage" description="Player profiles you've claimed as a parent or guardian in the MatchPulse sport apps.">
+      <ul className="acct-players">
+        {rows.map(g => (
+          <li key={g.id}>
+            <span className="acct-player-name">{g.personName || 'Player'}</span>
+            <span className="acct-player-sport">{SPORT_LABEL[g.sport] || g.sport}</span>
+          </li>
+        ))}
       </ul>
     </Panel>
   )
@@ -355,6 +381,9 @@ export default function Account() {
 
         {/* ── Invoices ──────────────────────────────────────────────────── */}
         <InvoicesPanel uid={user?.uid} />
+
+        {/* ── Players you manage (claimed in the sport apps) ────────────── */}
+        <PlayersPanel uid={user?.uid} />
 
         {/* ── Management ────────────────────────────────────────────────── */}
         <Panel
