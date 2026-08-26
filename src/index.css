@@ -219,8 +219,13 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 .foot-bottom .legal-links a:hover { color: #fff; }
 
 /* ── Reveal on scroll ────────────────────────────────────────────────── */
-.reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
-.reveal.in { opacity: 1; transform: none; }
+/* Reveal-on-scroll is a progressive enhancement: content is visible by default,
+   so a page that doesn't run the observer (or a crawler with no JS) still shows
+   everything. The observer adds `.reveal-armed` to hide-then-animate only where
+   it runs. */
+.reveal { transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.reveal.reveal-armed { opacity: 0; transform: translateY(18px); }
+.reveal.reveal-armed.in { opacity: 1; transform: none; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 940px) {
@@ -268,7 +273,7 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal, .reveal.reveal-armed { opacity: 1; transform: none; transition: none; }
   .dot, .status-live i, .netchip .livepill i { animation: none; }
   .btn, .tier, .step, .feat, .sport { transition: none; }
 }

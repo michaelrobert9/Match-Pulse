@@ -1,13 +1,17 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import {
   Hero, AudienceBand, HomeGround, PricingSection, SportRequest, FinalCTA,
 } from '../components/home/sections'
 import { bands } from '../lib/homeContent'
 
-// Reveal-on-scroll: adds `.in` to `.reveal` elements as they enter the viewport.
+// Reveal-on-scroll. `.reveal` is visible by default (so any page renders even
+// without this observer); here we arm the hide-then-animate and add `.in` as
+// each element enters the viewport. useLayoutEffect arms before the first paint
+// so there's no flash of the un-hidden state.
 function useReveal() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const items = document.querySelectorAll('.reveal:not(.in)')
+    items.forEach(el => el.classList.add('reveal-armed'))
     if (!('IntersectionObserver' in window)) {
       items.forEach(el => el.classList.add('in')); return
     }
