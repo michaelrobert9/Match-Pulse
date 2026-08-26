@@ -1477,13 +1477,15 @@ function matchToMillis(v) {
 }
 
 // Pull an age-group number out of a team/age/division string, e.g. "U14A" → 14,
-// "Under 13" → 13, "o/16" → 16. Returns null when there is no age token.
+// "Under 13" → 13, "u/16B" → 16, "O16" → 16. The number may be followed by a
+// team letter (A/B/…), so we forbid only a following DIGIT, not any word char.
+// Returns null when there is no age token.
 function ageNumFromText(s) {
   if (!s) return null
   const t = String(s)
-  const m = t.match(/\bu\/?\s?(\d{1,2})\b/i)
-    || t.match(/\bunder[\s-]?(\d{1,2})\b/i)
-    || t.match(/\bo\/?\s?(\d{1,2})\b/i)
+  const m = t.match(/\bunder[\s-]?(\d{1,2})(?!\d)/i)
+    || t.match(/\bu\/?\s?(\d{1,2})(?!\d)/i)
+    || t.match(/\bo\/?\s?(\d{1,2})(?!\d)/i)
   return m ? parseInt(m[1], 10) : null
 }
 
