@@ -1,42 +1,13 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { SPORTS } from '../../lib/sports'
-import { PLANS, formatRand } from '../../lib/payfast'
-import ProductVisual from './ProductVisual'
+import { CONTACT_EMAIL } from '../../lib/config'
 import * as C from '../../lib/homeContent'
+import { planPrice } from '../../lib/homeContent'
 
 /* ── shared primitives ─────────────────────────────────────────────────── */
 
-// Heading that accepts a string or an array of lines (each on its own line).
-// `tag` picks the element so the page keeps a correct outline (one h1, in the
-// hero; h2 everywhere else).
-function Heading({ text, className = 'h2', tag: Tag = 'h2' }) {
-  const lines = Array.isArray(text) ? text : [text]
-  return (
-    <Tag className={className}>
-      {lines.map((l, i) => (
-        <span key={i} className="hline">{l}{i < lines.length - 1 ? <br /> : null}</span>
-      ))}
-    </Tag>
-  )
-}
-
-function SectionHead({ label, heading, sub, center }) {
-  return (
-    <div className={`sec-head ${center ? 'center' : ''}`}>
-      {label && <p className="label reveal">{label}</p>}
-      <div className="reveal"><Heading text={heading} /></div>
-      {sub && <p className={`sub reveal ${center ? 'center' : ''}`}>{sub}</p>}
-    </div>
-  )
-}
-
-// A CTA that either starts a plan purchase or navigates a route. Plans are sold
-// by EFT invoice: signed out → create an account first (then straight on to the
-// invoice), signed in → the bill-to form. One purchase path, reused everywhere.
-// (The PayFast checkout in lib/payfast.js is dormant, kept for a possible
-// return to card payments — nothing links to it.)
+// Plans are sold by EFT invoice: signed out → create an account first (then on
+// to the invoice), signed in → the bill-to form. One purchase path, reused.
 export function useBuy() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -47,253 +18,256 @@ export function useBuy() {
   }
 }
 
-function Cta({ to, plan, className, children }) {
+// A CTA that either starts a plan purchase, follows a route, or opens a mailto.
+function Cta({ to, plan, mailto, className, children }) {
   const buy = useBuy()
-  if (plan) {
-    return <button type="button" className={className} onClick={() => buy(plan)}>{children}</button>
-  }
-  // hash link on the home page, or a route — Link handles both.
+  if (plan)   return <button type="button" className={className} onClick={() => buy(plan)}>{children}</button>
+  if (mailto) return <a className={className} href={mailto}>{children}</a>
   return <Link className={className} to={to}>{children}</Link>
 }
 
-/* ── 2. Sport finder ───────────────────────────────────────────────────── */
-export function SportFinder() {
+function BandHead({ eyebrow, heading, sub }) {
   return (
-    <section className="sportfinder" id="find" aria-labelledby="find-h">
-      <div className="wrap">
-        <p className="sf-eyebrow">{C.sportFinder.eyebrow}</p>
-        {/* A styled <p>, not a heading: this strip precedes the page's h1 (the
-            hero), and a heading here would put the document outline out of order. */}
-        <p id="find-h" className="sf-heading">{C.sportFinder.heading}</p>
-        <div className="sf-grid">
-          {SPORTS.map(s => (
-            <a key={s.key} className="sf-card" style={{ '--hue': s.hue }} href={s.host}>
-              <span className="sf-dot" style={{ background: s.hue }} />
-              <span className="sf-name">{s.name}</span>
-              <span className="sf-go" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </span>
-            </a>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 3. Hero ───────────────────────────────────────────────────────────── */
-export function Hero() {
-  return (
-    <section className="mp-hero">
-      <div className="wrap mp-hero-grid">
-        <div className="mp-hero-copy">
-          <p className="eyebrow">{C.hero.eyebrow}</p>
-          <Heading text={C.hero.heading} className="mp-hero-h1" tag="h1" />
-          <p className="mp-hero-body">{C.hero.body}</p>
-          <div className="mp-hero-cta">
-            <Cta to={C.hero.primary.to} className="btn btn-primary">{C.hero.primary.label}</Cta>
-            <Cta to={C.hero.secondary.to} className="btn btn-ghost">{C.hero.secondary.label}</Cta>
-          </div>
-          <p className="mp-hero-support">{C.hero.supporting}</p>
-        </div>
-        <div className="mp-hero-visual reveal">
-          <ProductVisual />
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 4. Problem ────────────────────────────────────────────────────────── */
-export function ProblemSection() {
-  return (
-    <section className="block tint" id="problem">
-      <div className="wrap prob">
-        <div className="reveal"><Heading text={C.problem.heading} /></div>
-        <div className="prob-body">
-          {C.problem.paragraphs.map((p, i) => <p key={i} className="reveal">{p}</p>)}
-          <ul className="prob-points reveal">
-            {C.problem.points.map((p, i) => <li key={i}>{p}</li>)}
-          </ul>
-          <p className="prob-closing reveal">{C.problem.closing}</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 5. How it works ───────────────────────────────────────────────────── */
-export function HowItWorks() {
-  return (
-    <section className="block" id="how">
-      <div className="wrap">
-        <SectionHead label="How it works" heading={C.howItWorks.heading} center />
-        <div className="flow">
-          {C.howItWorks.steps.map(s => (
-            <div key={s.n} className="step reveal">
-              <span className="bar" /><span className="idx tnum">{s.n}</span>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </div>
-          ))}
-        </div>
-        <p className="how-closing reveal">{C.howItWorks.closing}</p>
-      </div>
-    </section>
-  )
-}
-
-/* ── 5. What you can do — six real features ────────────────────────────── */
-export function WhatYouCanDo() {
-  return (
-    <section className="block" id="features">
-      <div className="wrap">
-        <SectionHead label={C.features.eyebrow} heading={C.features.heading} sub={C.features.intro} center />
-        <div className="feat-grid">
-          {C.features.items.map((f, i) => (
-            <div key={i} className="feat-card reveal">
-              <span className="feat-n tnum">{String(i + 1).padStart(2, '0')}</span>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 6. My School. My Club. My Association. — ownership + sport homes ───── */
-export function SportsNetwork() {
-  return (
-    <section className="block tint" id="sports">
-      <div className="wrap">
-        <SectionHead label={C.sportsNetwork.eyebrow} heading={C.sportsNetwork.heading} sub={C.sportsNetwork.body} center />
-        <div className="net-grid">
-          {SPORTS.map(s => (
-            <div key={s.key} className="net-card reveal" style={{ '--hue': s.hue }}>
-              <span className="net-bar" style={{ background: s.hue }} />
-              <h3>MatchPulse {s.name}{s.newlyLaunched && <span className="net-newtag">Newly launched</span>}</h3>
-              <p>{C.sportsNetwork.descriptions[s.key] || s.blurb}</p>
-              <a className="net-go" href={s.host} style={{ color: s.hue }}>
-                Go to MatchPulse {s.name}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </a>
-            </div>
-          ))}
-        </div>
-        <p className="net-closing reveal">{C.sportsNetwork.closing}</p>
-      </div>
-    </section>
-  )
-}
-
-/* ── 7. Pricing ────────────────────────────────────────────────────────── */
-function priceOf(card) {
-  if (!card.plan) return { big: card.freeLabel || 'Free', per: null }
-  const p = PLANS[card.plan]
-  return { big: formatRand(p.amount), per: p.once ? 'once-off' : '/ year' }
-}
-
-function PricingCard({ card }) {
-  const { big, per } = priceOf(card)
-  return (
-    <article className={`pc ${card.featured ? 'pc-featured' : ''}`}>
-      {card.featured && <span className="pc-flag">Most chosen</span>}
-      <h3 className="pc-name">{card.name}</h3>
-      <p className="pc-price"><span className="pc-amount">{big}</span>{per && <span className="pc-per">{per}</span>}</p>
-      <p className="pc-desc">{card.description}</p>
-      {card.headline && <p className="pc-headline">{card.headline}</p>}
-      {card.examples && (
-        <p className="pc-examples">e.g. {card.examples.join(' · ')}</p>
-      )}
-      <ul className="pc-features">
-        {card.items.map((it, i) => <li key={i}>{it}</li>)}
-      </ul>
-      <div className="pc-cta">
-        {card.plan
-          ? <Cta plan={card.plan} className="btn btn-primary">{card.button}</Cta>
-          : <Cta to="/signup" className="btn btn-ghost">{card.button}</Cta>}
-      </div>
-      {card.note && <p className="pc-note">{card.note}</p>}
-    </article>
-  )
-}
-
-// The three pricing cards, shared by the homepage pricing section and /products
-// so naming, pricing and features can never drift apart.
-export function PricingCards() {
-  return (
-    <div className="pc-grid">
-      {C.pricing.cards.map(card => <PricingCard key={card.key} card={card} />)}
+    <div className="hband-head">
+      {eyebrow && <p className="eyebrow reveal">{eyebrow}</p>}
+      <h2 className="reveal">{heading}</h2>
+      {sub && <p className="hsub reveal">{sub}</p>}
     </div>
   )
 }
 
-// "How activation works" + fine print, shared by both pricing surfaces.
-export function ActivationNote() {
-  const a = C.pricing.activation
+/* ── 1. Hero ───────────────────────────────────────────────────────────── */
+export function Hero() {
+  const h = C.hero
   return (
-    <div className="pc-activation reveal">
-      <h3>{a.heading}</h3>
-      <ol className="pc-steps">
-        {a.steps.map((s, i) => <li key={i}>{s}</li>)}
-      </ol>
-      <p className="pc-fine">{a.fine}</p>
+    <section className="hband hband--white hhero">
+      <div className="wrap hhero-grid">
+        <div className="hhero-copy">
+          <p className="eyebrow">{h.eyebrow}</p>
+          <h1 className="hhero-h1">{h.headingA} <span className="green">{h.headingB}</span></h1>
+          <p className="hsub hhero-sub">{h.sub}</p>
+          <div className="hhero-ctas">
+            <Cta to={h.primary.to} className="btn btn-primary">{h.primary.label}</Cta>
+            <Cta to={h.secondary.to} className="btn btn-ghost">{h.secondary.label}</Cta>
+          </div>
+          <div className="hjump">
+            <small>{h.jumpLabel}</small>
+            {h.jumps.map(j => <a key={j.to} href={j.to}>{j.label}</a>)}
+          </div>
+        </div>
+        <div className="hboard reveal">
+          <div className="hboard-head"><b>{h.board.title}</b><span className="hboard-live"><span className="hboard-dot" aria-hidden="true" />LIVE</span></div>
+          {h.board.rows.map((r, i) => (
+            <div key={i} className="hboard-row">
+              <span>{r.home} <b>{r.a}</b> – <b>{r.b}</b> {r.away}</span>
+              <span className="hboard-sport">{r.sport}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Match Day spotlight (inside the school band) ──────────────────────── */
+function MatchDay({ md }) {
+  return (
+    <div className="hmd reveal">
+      <div className="hmd-txt">
+        <h3>{md.headingA}<span>{md.headingB}</span></h3>
+        <p>{md.body}</p>
+      </div>
+      <div className="hmd-card">
+        <div className="hmd-top"><span>{md.card.top}</span></div>
+        <div className="hmd-sub">{md.card.sub}</div>
+        {md.card.rows.map((r, i) => (
+          <div key={i} className={'hmd-row' + (r.first ? ' hmd-row--first' : '')}><span>{r.t}</span><span>{r.s}</span></div>
+        ))}
+        <div className="hmd-stats">
+          {md.card.stats.map((s, i) => (
+            <div key={i} className="hmd-stat"><b>{s.b}</b><span>{s.s}</span></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Recommendation blocks ─────────────────────────────────────────────── */
+function RecBlocks({ rec }) {
+  return (
+    <>
+      <p className="hrec-title reveal">{rec.title}</p>
+      <div className={'hrec-grid reveal' + (rec.wide ? ' hrec-grid--wide' : '')}>
+        {rec.cards.map((c, i) => (
+          <div key={i} className={'hrec' + (c.lead ? ' hrec--lead' : '')}>
+            <span className="hrec-plan">{c.plan} · <span className="green">{c.price}</span>{c.suffix || ''}</span>
+            <p>{c.body}</p>
+          </div>
+        ))}
+      </div>
+      {rec.footnote && <p className="hfn reveal">{rec.footnote}</p>}
+    </>
+  )
+}
+
+/* ── Share buttons ─────────────────────────────────────────────────────── */
+function WaIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.2 4.79 1.2h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm4.52 11.99c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.43l-.48-.01c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/>
+    </svg>
+  )
+}
+function ShareRow({ share }) {
+  return (
+    <div className="hshare reveal">
+      <span className="hshare-lead">{share.leadIn}</span>
+      <a className="hshare-wa" href={share.wa.href} target="_blank" rel="noreferrer"><WaIcon />{share.wa.label}</a>
+      <a className="hshare-em" href={share.em.href}>{share.em.label}</a>
+    </div>
+  )
+}
+
+/* ── 2–6. Audience band ────────────────────────────────────────────────── */
+export function AudienceBand({ band }) {
+  return (
+    <section className={`hband hband--${band.tone}`} id={band.id}>
+      <div className="wrap">
+        <BandHead eyebrow={band.eyebrow} heading={band.heading} sub={band.sub} />
+        <div className="hfeat-grid">
+          {band.feats.map((f, i) => (
+            <div key={i} className="hfeat reveal"><h3>{f.h}</h3><p>{f.p}</p></div>
+          ))}
+        </div>
+        {band.matchDay && <MatchDay md={band.matchDay} />}
+        {band.rec && <RecBlocks rec={band.rec} />}
+        {band.note && <p className="hnote reveal">{band.note}</p>}
+        {band.share && <ShareRow share={band.share} />}
+      </div>
+    </section>
+  )
+}
+
+/* ── 7. Home Ground ────────────────────────────────────────────────────── */
+export function HomeGround() {
+  const g = C.homeGround
+  return (
+    <section className="hband hband--dark">
+      <div className="wrap hg">
+        <div className="hg-txt">
+          <p className="eyebrow eyebrow--mint reveal">{g.eyebrow}</p>
+          <h2 className="reveal">{g.headingA}<br />{g.headingB}</h2>
+          <p className="hsub reveal">{g.body}</p>
+          <ul className="hg-list reveal">
+            {g.bullets.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+          <div className="hg-price reveal"><b>{planPrice(C.plans.find(p => p.key === 'homeground'))}</b><span>{g.priceSuffix}</span></div>
+        </div>
+        <div className="hg-visual reveal">
+          <div className="hg-school">{g.visual.school}</div>
+          {g.visual.rows.map((r, i) => (
+            <div key={i} className="hg-row"><span className="hg-nm">{r.nm}</span><span className="hg-res">{r.res}</span></div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── 8. Pricing / plans ────────────────────────────────────────────────── */
+function PlanCard({ plan, showCta }) {
+  return (
+    <article className={'hplan reveal' + (plan.pop ? ' hplan--pop' : '')}>
+      {plan.badge && <span className={'hplan-badge' + (plan.badgeDark ? ' hplan-badge--dark' : '')}>{plan.badge}</span>}
+      <h3>{plan.name}</h3>
+      <div className="hplan-pr">{planPrice(plan)}</div>
+      <div className="hplan-per">{plan.per}</div>
+      <p>{plan.desc}</p>
+      <div className="hplan-for">{plan.for}</div>
+      {showCta && plan.cta && (
+        <div className="hplan-cta">
+          <Cta to={plan.cta.to} plan={plan.cta.plan} className="btn btn-primary btn-sm">{plan.cta.label}</Cta>
+        </div>
+      )}
+    </article>
+  )
+}
+
+// Shared by the homepage pricing band and /products. `showCta` adds buy actions
+// on /products; the homepage grid stays informational to match the draft.
+export function PlansGrid({ showCta = false }) {
+  return (
+    <div className="hplans">
+      {C.plans.map(p => <PlanCard key={p.key} plan={p} showCta={showCta} />)}
     </div>
   )
 }
 
 export function PricingSection() {
   return (
-    <section className="block" id="pricing">
+    <section className="hband hband--white" id="pricing">
       <div className="wrap">
-        <SectionHead label="Pricing" heading={C.pricing.heading} center />
-        <PricingCards />
-        <ActivationNote />
+        <div className="hband-head hband-head--center">
+          <p className="eyebrow reveal">{C.pricing.eyebrow}</p>
+          <h2 className="reveal">{C.pricing.heading}</h2>
+        </div>
+        <PlansGrid />
       </div>
     </section>
   )
 }
 
-/* ── 8. FAQ ────────────────────────────────────────────────────────────── */
+/* ── 9. Sport request strip ────────────────────────────────────────────── */
+export function SportRequest() {
+  const s = C.sportRequest
+  const href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Please add our sport to MatchPulse')}`
+  return (
+    <div className="hsport-ask">
+      <p>{s.text} <a href={href}>{s.linkLabel}</a> {s.tail}</p>
+    </div>
+  )
+}
+
+/* ── 10. Final CTA ─────────────────────────────────────────────────────── */
+export function FinalCTA() {
+  const f = C.finalCta
+  const demo = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Book a demo at our school')}`
+  return (
+    <section className="hband hband--dark hfinal">
+      <div className="wrap">
+        <h2 className="reveal">{f.heading}</h2>
+        <p className="hsub hfinal-sub reveal">{f.body}</p>
+        <div className="hfinal-ctas reveal">
+          <Cta to={f.primary.to} className="btn btn-primary">{f.primary.label}</Cta>
+          <a className="btn btn-ghost btn-ghost-invert" href={demo}>{f.secondary.label}</a>
+        </div>
+        <div className="hfinal-tag reveal">{f.tagline}</div>
+      </div>
+    </section>
+  )
+}
+
+/* ── FAQ (rendered on /products) ───────────────────────────────────────── */
 function FaqItem({ q, a }) {
   return (
     <details className="faq-item">
-      <summary>
-        <span>{q}</span>
-        <span className="faq-mark" aria-hidden="true" />
-      </summary>
+      <summary><span>{q}</span><span className="faq-mark" aria-hidden="true" /></summary>
       <div className="faq-answer"><p>{a}</p></div>
     </details>
   )
 }
-
 export function FAQ() {
   return (
-    <section className="block tint" id="faq">
+    <section className="hband hband--grey" id="faq">
       <div className="wrap faq-wrap">
-        <SectionHead label="Help" heading="Questions, answered." center />
+        <div className="hband-head hband-head--center">
+          <p className="eyebrow">Help</p>
+          <h2>Questions, answered.</h2>
+        </div>
         <div className="faq-list">
           {C.faqs.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)}
         </div>
-      </div>
-    </section>
-  )
-}
-
-/* ── 16. Final CTA ─────────────────────────────────────────────────────── */
-export function FinalCTA() {
-  return (
-    <section className="finalcta">
-      <div className="wrap finalcta-inner">
-        <div className="reveal"><Heading text={C.finalCta.heading} className="finalcta-h" /></div>
-        <p className="finalcta-body reveal">{C.finalCta.body}</p>
-        <div className="finalcta-cta reveal">
-          <Cta to={C.finalCta.primary.to} className="btn btn-primary">{C.finalCta.primary.label}</Cta>
-          <Cta to={C.finalCta.secondary.to} className="btn btn-ghost btn-ghost-invert">{C.finalCta.secondary.label}</Cta>
-        </div>
-        <p className="finalcta-support reveal">{C.finalCta.supporting}</p>
       </div>
     </section>
   )

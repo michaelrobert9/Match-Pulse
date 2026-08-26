@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { SPORTS } from '../lib/sports'
+import { CONTACT_EMAIL } from '../lib/config'
 
 export default function Footer() {
   return (
@@ -26,19 +27,18 @@ export default function Footer() {
           <div className="foot-col">
             <h5>Use MatchPulse</h5>
             <ul>
-              <li><Link to="/#how">How It Works</Link></li>
+              <li><Link to="/products">Plans</Link></li>
               <li><Link to="/organizations">Schools &amp; Clubs</Link></li>
               <li><Link to="/tournaments">Tournaments</Link></li>
-              <li><Link to="/products">Pricing</Link></li>
+              <li><Link to="/products#faq">FAQ</Link></li>
             </ul>
           </div>
 
           <div className="foot-col">
             <h5>Support</h5>
             <ul>
-              <li><Link to="/#faq">Help Centre</Link></li>
-              <li><Link to="/#contact">Contact</Link></li>
-              <li><Link to="/#faq">Frequently Asked Questions</Link></li>
+              <li><Link to="/products#faq">Help Centre</Link></li>
+              <li><a href={`mailto:${CONTACT_EMAIL}`}>Contact</a></li>
             </ul>
           </div>
 
@@ -65,7 +65,7 @@ export default function Footer() {
             <Link to="/legal/terms">Terms</Link>
             <Link to="/legal/privacy">Privacy</Link>
             <Link to="/legal/cookies">Cookies</Link>
-            <Link to="/#contact">Contact</Link>
+            <a href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
           </span>
         </div>
       </div>
