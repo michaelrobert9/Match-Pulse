@@ -33,14 +33,22 @@ export async function resolveOrgPathBySlug(slug) {
   return orgPublicPathFrom(o.type, o.slug)
 }
 
-// Public directory: list every central organisation (rules allow public read
-// of the organizations collection). Sorted by name client-side so a doc missing
-// `name` isn't silently dropped by an orderBy.
+// True when a school/club has Home Ground active (its public page is published).
+export function homeGroundActive(o) {
+  const s = o?.profileSubscription
+  if (!s || s.status !== 'active') return false
+  const exp = s.expiresAt?.toMillis ? s.expiresAt.toMillis()
+    : (s.expiresAt ? new Date(s.expiresAt).getTime() : 0)
+  return exp > Date.now()
+}
+
+// Public directory: only schools/clubs with Home Ground active are published on
+// the main site. Everyone else holds their URL but is neither listed nor linked.
 export async function listPublicOrganizations() {
   const snap = await getDocs(collection(identityDb, 'organizations'))
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .filter(o => o.slug)   // needs a slug for the public link
+    .filter(o => o.slug && homeGroundActive(o))
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
 }
 

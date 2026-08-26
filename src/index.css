@@ -1113,6 +1113,13 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 .op-levels button:hover { color: var(--ink); border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); }
 .op-levels button.active { background: var(--pulse-tint); color: var(--pulse-ink); border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); }
 
+/* Holding page — school/club without Home Ground active */
+.op-holding-wrap { max-width: 620px; }
+.op-holding { text-align: center; padding: 56px 4px; }
+.op-holding h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(26px, 4vw, 36px); margin: 0 0 14px; }
+.op-holding p { color: var(--slate); line-height: 1.6; margin: 0 auto 18px; max-width: 48ch; }
+.op-holding-back { margin-top: 22px; font-size: 14px; }
+
 /* Social links on the identity card */
 .op-socials { display: flex; gap: 8px; margin-top: 16px; }
 .op-social {

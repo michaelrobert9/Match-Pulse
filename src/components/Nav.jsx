@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-// Primary nav — real routes (not homepage hash sections). `authedTo` overrides
-// the destination for signed-in users: "Schools & Clubs" sends a prospect to the
-// public directory (with its explainer), but a signed-in owner to their manage
-// area rather than back out to the directory.
+// Primary nav — real routes (not homepage hash sections). Every item is a public
+// front-end page; "Schools & Clubs" is the public directory for everyone (owners
+// reach management via the separate Manage/Admin button, not this link).
 const SECTIONS = [
   { to: '/',              label: 'Home' },
   { to: '/products',      label: 'Pricing' },
-  { to: '/organizations', label: 'Schools & Clubs', authedTo: '/admin' },
+  { to: '/organizations', label: 'Schools & Clubs' },
   { to: '/tournaments',   label: 'Tournaments' },
 ]
 

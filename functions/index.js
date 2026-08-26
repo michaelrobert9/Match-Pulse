@@ -1585,17 +1585,31 @@ exports.getOrgProfile = onCall({ region: REGION }, async (request) => {
   const org = orgSnap.data()
   const orgId = orgSnap.id
 
-  const identity = { id: orgId }
-  for (const k of PROFILE_IDENTITY_FIELDS) identity[k] = org[k] ?? null
-
   const sports = Object.keys(org.activatedSports || {}).filter(isSportKey)
   const active = subActive(org)
 
+  // Home Ground gates the whole public page. Without it the URL still resolves
+  // but returns a minimal "holding" record — enough for the owner to be offered
+  // activation, nothing public. The page renders a holding state and noindex.
   if (!active) {
-    return { org: identity, activatedSports: sports, locked: true }
+    return {
+      org: {
+        id:          orgId,
+        name:        org.name ?? null,
+        matchName:   org.matchName ?? null,
+        type:        org.type ?? null,
+        slug:        org.slug ?? null,
+        ownerUserId: org.ownerUserId ?? null,
+      },
+      active: false,
+      activatedSports: sports,
+    }
   }
+
+  const identity = { id: orgId, ownerUserId: org.ownerUserId ?? null }
+  for (const k of PROFILE_IDENTITY_FIELDS) identity[k] = org[k] ?? null
   const matches = await aggregateMatches(orgId, sports)
-  return { org: identity, activatedSports: sports, locked: false, matches }
+  return { org: identity, active: true, activatedSports: sports, matches }
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
