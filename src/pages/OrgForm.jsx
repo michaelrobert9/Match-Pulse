@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
 import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
+import { formatRand } from '../lib/payfast'
+import { HOME_GROUND_PRICE } from '../lib/config'
 import VenueManager from '../components/VenueManager'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
@@ -231,7 +233,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
     setActBusy('sub'); setActMsg(null)
     try {
       const res = await adminSetProfileSubscription(id, action, 1)
-      setActMsg({ kind: 'ok', text: action === 'revoke' ? 'Profile subscription revoked.' : 'Profile subscription active (+1 year).' })
+      setActMsg({ kind: 'ok', text: action === 'revoke' ? 'Home Ground revoked.' : 'Home Ground active (+1 year comp).' })
       // reflect optimistically
       setRecord(r => ({ ...r, profileSubscription: { status: res.status } }))
     } catch (e) {
@@ -554,22 +556,24 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           </section>
         )}
 
-        {/* Cross-sport profile subscription (Brief #6). Owners self-subscribe;
-            admins also get grant/revoke. Free during early access. */}
+        {/* Home Ground subscription (the org-level cross-sport public page,
+            stored as profileSubscription). Owners self-subscribe by EFT invoice;
+            admins also get grant/revoke. */}
         {editing && (isAdmin || isOwner) && (() => {
           const subActive = record?.profileSubscription?.status === 'active'
           return (
             <section className="org-activate">
-              <h2 className="inv-edit-h">Cross-sport profile subscription</h2>
+              <h2 className="inv-edit-h">Home Ground</h2>
               <p className="adm-field-hint">
-                Publishes {f.name || 'this organisation'}’s matches &amp; results across every sport it plays,
-                on one public page. Status: <strong>{subActive ? 'Subscribed' : 'Not subscribed'}</strong>.
-                {' '}<strong>Free during early access — active until 31 December 2026.</strong>
+                Brings {f.name || 'this school'}’s whole sport together on one public page: matches,
+                results and Match Days from every sport, under its own name and colours.
+                Status: <strong>{subActive ? 'Active' : 'Not active'}</strong>.
+                {' '}<strong>{formatRand(HOME_GROUND_PRICE)} per month, billed by EFT invoice.</strong>
               </p>
               <div className="adm-migrate-actions">
                 {!subActive && (
                   <button type="button" className="btn btn-primary btn-sm" disabled={actBusy === 'sub'} onClick={subscribeProfile}>
-                    {actBusy === 'sub' ? 'Subscribing…' : 'Subscribe — free early access'}
+                    {actBusy === 'sub' ? 'Working…' : `Subscribe to Home Ground — ${formatRand(HOME_GROUND_PRICE)}/mo`}
                   </button>
                 )}
                 {subActive && (

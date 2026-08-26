@@ -749,33 +749,36 @@ function invoiceEmail({ number, planLabel, amount, billTo, invoiceId, accountEma
   return { subject, html, text }
 }
 
-// Org-level cross-sport profile subscription (Brief #6) — the platform's first
-// ORG-level paid feature, distinct from the person-keyed plans above. Price is
-// TBD: set PROFILE_SUB_AMOUNT (Rand/yr, VAT incl.) via env when decided; the
-// plumbing is built now.
-const PROFILE_SUB_AMOUNT = Number(process.env.PROFILE_SUB_AMOUNT || 0)
-const PROFILE_SUB_LABEL  = 'Cross-sport profile — annual'
-// Early-access: while the profile is free, subscriptions are granted through
-// this fixed date rather than a rolling year. Set the real price/term later.
+// Home Ground — the org-level "every sport, one school, one home" subscription
+// (internally still the `profileSubscription` field on the org doc). It is the
+// platform's first ORG-level paid feature, distinct from the person-keyed plans
+// above. Priced at R5 000 per month; override with HOME_GROUND_AMOUNT (Rand) env.
+const HOME_GROUND_AMOUNT = Number(process.env.HOME_GROUND_AMOUNT || 5000)
+const HOME_GROUND_LABEL  = 'Home Ground (monthly)'
+// A previously granted free early-access term runs to this fixed date. New
+// subscriptions are billed monthly; existing free grants are honoured.
 const EARLY_ACCESS_UNTIL = new Date('2026-12-31T23:59:59Z')
 
-// Set/extend an org's profile subscription. Renewal stacks from the later of
-// now and any remaining term (same rule as the person 'pro' plan). Written on
-// the org doc only — never client-writable (orgBillingUnchanged guards it).
-async function applyProfileSubscription(orgId, { years = 1, until = null, plan = 'annual', lastPaymentId = null }) {
+// Set/extend an org's Home Ground subscription. Renewal stacks from the later of
+// now and any remaining term. Written on the org doc only — never client-writable
+// (orgBillingUnchanged guards it). Term is `months` (billing) or `years`/`until`.
+async function applyProfileSubscription(orgId, { months = 0, years = 0, until = null, plan = 'homeGround', lastPaymentId = null }) {
   const ref  = db.doc(`organizations/${orgId}`)
   const snap = await ref.get()
   if (!snap.exists) throw new HttpsError('not-found', 'No such organisation.')
   const cur    = snap.data().profileSubscription || null
   const curExp = cur?.expiresAt?.toDate?.() ?? null
   // `until` sets a fixed end date (early-access free term); otherwise extend from
-  // the later of now / current expiry by N years (renewals stack).
+  // the later of now / current expiry by the given months/years (renewals stack).
   let expires
   if (until) {
     expires = until
   } else {
     const from = curExp && curExp > new Date() ? curExp : new Date()
-    expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
+    expires = new Date(from)
+    if (years)  expires.setFullYear(expires.getFullYear() + years)
+    if (months) expires.setMonth(expires.getMonth() + months)
+    if (!years && !months) expires.setMonth(expires.getMonth() + 1)   // default one month
   }
   await ref.set({
     profileSubscription: {
@@ -805,10 +808,10 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
   const uid = request.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
 
-  // Two products: a person-keyed plan (event/pro) OR an org-level cross-sport
-  // profile subscription (product:'orgProfile', orgId). Both bill by EFT invoice.
+  // Two products: a person-keyed plan (event/pro) OR the org-level Home Ground
+  // subscription (product:'orgProfile', orgId). Both bill by EFT invoice.
   const product = String(request.data?.product || 'plan')
-  let planKey, planLabel, amount, credits = null, years = null, kind = 'plan', orgId = null
+  let planKey, planLabel, amount, credits = null, years = null, months = null, kind = 'plan', orgId = null
 
   if (product === 'orgProfile') {
     orgId = String(request.data?.orgId || '').trim()
@@ -818,10 +821,10 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     const admin_ = request.auth?.token?.platformAdmin === true
       || (await db.doc(`users/${uid}`).get()).data()?.platformAdmin === true
     if (orgSnap.data().ownerUserId !== uid && !admin_) {
-      throw new HttpsError('permission-denied', 'Only the org owner or a platform admin can subscribe.')
+      throw new HttpsError('permission-denied', 'Only the school owner or a platform admin can subscribe.')
     }
-    kind = 'orgProfile'; planKey = 'profileAnnual'; planLabel = PROFILE_SUB_LABEL
-    amount = PROFILE_SUB_AMOUNT; years = 1
+    kind = 'orgProfile'; planKey = 'homeGround'; planLabel = HOME_GROUND_LABEL
+    amount = HOME_GROUND_AMOUNT; months = 1
   } else {
     const planDef = INVOICE_PLANS[String(request.data?.plan || '')]
     if (!planDef) throw new HttpsError('invalid-argument', 'Unknown plan.')
@@ -830,12 +833,11 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     years   = planKey === 'pro'   ? 1 : null
   }
 
-  // Free profile subscription (price not set → amount 0): don't raise a zero
-  // invoice. Grant it directly and return. Owner/admin was already verified for
-  // orgProfile above. (Person plans always have a non-zero price.)
+  // Home Ground with no price set (amount 0): grant free early-access rather than
+  // raise a zero invoice. Owner/admin already verified above.
   if (kind === 'orgProfile' && !(amount > 0)) {
     await applyProfileSubscription(orgId, { until: EARLY_ACCESS_UNTIL, plan: 'earlyAccessFree', lastPaymentId: `free:${uid}` })
-    logger.info('Profile subscription granted (free early access)', { orgId, uid })
+    logger.info('Home Ground granted (free early access)', { orgId, uid })
     return { ok: true, free: true, orgId, until: EARLY_ACCESS_UNTIL.toISOString() }
   }
 
@@ -867,7 +869,8 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     planLabel,
     credits,
     years,
-    amount,                             // Rand, VAT inclusive where applicable
+    months,                             // set for Home Ground (monthly term)
+    amount,                             // Rand
     status:    'outstanding',           // outstanding | paid | void
     billTo,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -915,7 +918,7 @@ exports.markInvoicePaid = onCall({ region: REGION }, async (request) => {
   // person-keyed entitlement.
   let previousPlan = 'none'
   if (inv.kind === 'orgProfile') {
-    await applyProfileSubscription(inv.orgId, { years: inv.years ?? 1, lastPaymentId: id })
+    await applyProfileSubscription(inv.orgId, { months: inv.months ?? 1, years: inv.years ?? 0, lastPaymentId: id })
   } else {
     const beforeData = await applyEntitlement(inv.uid, {
       plan:    inv.plan,
@@ -1425,8 +1428,9 @@ exports.centralActivateHockeyOrgs = onCall({ region: REGION, timeoutSeconds: 300
 })
 
 // ── adminSetProfileSubscription ──────────────────────────────────────────────
-// Admin grant/revoke of an org's cross-sport profile subscription (comp, EFT
-// received off-invoice, correction). Grant extends by `years`; revoke locks it.
+// Admin grant/revoke of an org's Home Ground subscription (comp, EFT received
+// off-invoice, correction). Grant extends by `years` (a generous comp); revoke
+// locks it.
 exports.adminSetProfileSubscription = onCall({ region: REGION }, async (request) => {
   if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
   const orgId  = String(request.data?.orgId || '').trim()
@@ -1436,9 +1440,9 @@ exports.adminSetProfileSubscription = onCall({ region: REGION }, async (request)
 
   if (action === 'revoke') {
     await db.doc(`organizations/${orgId}`).set({
-      profileSubscription: { status: 'none', plan: 'annual', expiresAt: null, startedAt: null, lastPaymentId: null },
+      profileSubscription: { status: 'none', plan: 'homeGround', expiresAt: null, startedAt: null, lastPaymentId: null },
     }, { merge: true })
-    logger.info('Profile subscription revoked', { orgId, by: request.auth.uid })
+    logger.info('Home Ground revoked', { orgId, by: request.auth.uid })
     return { ok: true, status: 'none' }
   }
   await applyProfileSubscription(orgId, { years, lastPaymentId: `admin:${request.auth.uid}` })
@@ -1472,6 +1476,38 @@ function matchToMillis(v) {
   return Number.isNaN(t) ? null : t
 }
 
+// Pull an age-group number out of a team/age/division string, e.g. "U14A" → 14,
+// "Under 13" → 13, "o/16" → 16. Returns null when there is no age token.
+function ageNumFromText(s) {
+  if (!s) return null
+  const t = String(s)
+  const m = t.match(/\bu\/?\s?(\d{1,2})\b/i)
+    || t.match(/\bunder[\s-]?(\d{1,2})\b/i)
+    || t.match(/\bo\/?\s?(\d{1,2})\b/i)
+  return m ? parseInt(m[1], 10) : null
+}
+
+// Classify a match as 'primary' (U13 and lower) or 'high' (U14 and up) so the
+// public school page can filter without any change to the sport apps. The rule:
+// the first age token found across the match's team / age / competition fields
+// decides it; a senior / open / 1st-team style name with no age token is high
+// school; anything with no signal at all is left null (shown only under "All").
+function deriveMatchLevel(m) {
+  const fields = [
+    m.ageGroup, m.ageGrade, m.age, m.division, m.grade, m.section,
+    m.teamName, m.homeTeamName, m.awayTeamName,
+    m.homeDisplay, m.homeName, m.awayDisplay, m.awayName,
+    m.competition, m.competitionName, m.name,
+  ]
+  for (const f of fields) {
+    const n = ageNumFromText(f)
+    if (n != null) return n <= 13 ? 'primary' : 'high'
+  }
+  const blob = fields.filter(Boolean).join(' ').toLowerCase()
+  if (/\b(1st|2nd|3rd|first|second|third|senior|seniors|open|xv|xi)\b/.test(blob)) return 'high'
+  return null
+}
+
 function mapMatch(doc, sport) {
   const m = doc.data() || {}
   return {
@@ -1488,6 +1524,7 @@ function mapMatch(doc, sport) {
     homeColor:  m.homeTeamColor ?? null,
     awayColor:  m.awayTeamColor ?? null,
     venue:      m.venue ?? m.pitch ?? null,
+    level:      deriveMatchLevel(m),    // 'primary' | 'high' | null
     url:        m.path ? `https://${sport}.matchpulse.co.za${m.path}` : null,
   }
 }

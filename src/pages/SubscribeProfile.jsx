@@ -3,10 +3,12 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getOrg } from '../lib/orgs'
 import { createProfileInvoice, orgPublicPath } from '../lib/orgProfile'
+import { formatRand } from '../lib/payfast'
+import { HOME_GROUND_PRICE } from '../lib/config'
 
-// Owner/admin raises an EFT invoice for the annual cross-sport profile
-// subscription. Price is TBD (config on the function) — if it comes back as
-// R0 the invoice still records; the amount is set once pricing is decided.
+// Owner/admin raises an EFT invoice for Home Ground (the org-level cross-sport
+// public page). R5 000 per month; if the price is set to 0 the server activates
+// it directly instead of raising a zero invoice.
 export default function SubscribeProfile() {
   const { orgId } = useParams()
   const { user, profile } = useAuth()
@@ -52,7 +54,7 @@ export default function SubscribeProfile() {
     }
   }
 
-  if (deny) return <main className="acct"><div className="wrap"><p className="notice notice-err" style={{ marginTop: 40 }}>You can only subscribe an organisation you own.</p><p><Link to="/organisations">Your organisations</Link></p></div></main>
+  if (deny) return <main className="acct"><div className="wrap"><p className="notice notice-err" style={{ marginTop: 40 }}>You can only subscribe a school you own.</p><p><Link to="/admin">Back to management</Link></p></div></main>
   if (!org) return <main className="acct"><div className="wrap"><p className="adm-loading" style={{ paddingTop: 40 }}>Loading…</p></div></main>
 
   return (
@@ -60,10 +62,11 @@ export default function SubscribeProfile() {
       <div className="wrap inv-new-wrap">
         <header className="acct-head">
           <p className="label">Subscription</p>
-          <h1>Cross-sport profile — {org.name}</h1>
+          <h1>Home Ground — {org.name}</h1>
           <p className="acct-email">
-            Publishes {org.name}’s matches &amp; results across every activated sport on its public
-            page (<Link to={orgPublicPath(org)}>{orgPublicPath(org)}</Link>). Annual, billed by EFT invoice.
+            Brings {org.name}’s whole sport together on one public page
+            (<Link to={orgPublicPath(org)}>{orgPublicPath(org)}</Link>): matches, results and Match
+            Days from every activated sport. {formatRand(HOME_GROUND_PRICE)} per month, billed by EFT invoice.
           </p>
         </header>
 
