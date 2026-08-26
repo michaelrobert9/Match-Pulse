@@ -19,7 +19,7 @@ function OrgExplainer() {
         <ul className="org-explainer-list">
           <li>One account for your whole school, club or association, every sport</li>
           <li>A public page with your matches and results</li>
-          <li>Coaches enter results directly, so nobody has to collect them</li>
+          <li>Each team enters its own result, so nobody has to collect them</li>
           <li>Add a paid plan only when you run a competition</li>
         </ul>
         <Link className="btn btn-primary" to="/signup">Start free</Link>

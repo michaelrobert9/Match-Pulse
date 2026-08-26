@@ -8,10 +8,10 @@ const ORIGIN = 'https://matchpulse.co.za'
 // Built-in defaults if the /_meta/seoSettings doc is missing or unreadable.
 // Anything the admin saves in the SEO tab overrides these.
 const DEFAULTS = {
-  siteTitle:       'MatchPulse | Sports Results for Schools, Clubs and Competitions',
-  siteDescription: 'MatchPulse lets coaches enter results directly after the match, saving schools, clubs and competition organisers from collecting and re-entering every score.',
-  ogTitle:         'MatchPulse | Sports Results for Schools, Clubs and Competitions',
-  ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
+  siteTitle:       'MatchPulse | School and club sport, live scored and on the record',
+  siteDescription: 'School and club sport, live scored and on the record. Results, live scores and Match Days online the moment the whistle goes, across rugby, hockey, netball and water polo. Free to start.',
+  ogTitle:         'MatchPulse | School and club sport, live scored and on the record',
+  ogDescription:   'Every match, scored once. Seen by everyone. School and club results, live scores and Match Days online the moment the whistle goes.',
   ogImage:         'https://matchpulse.co.za/og-image.png',
   themeColor:      '#059669',
   headCode:        '',
@@ -34,8 +34,8 @@ const ROUTES = {
   '/admin':                { title: 'Admin — MatchPulse',        noindex: true },
   '/portal':               { title: 'MatchPulse',                noindex: true },
   '/invoice/new':          { title: 'New Invoice — MatchPulse',  noindex: true },
-  '/organisations':        { title: 'Your Organisations — MatchPulse', noindex: true },
-  '/organisations/new':    { title: 'Create Organisation — MatchPulse', noindex: true },
+  '/organisations':        { title: 'Manage — MatchPulse', noindex: true },
+  '/organisations/new':    { title: 'Add a school or club — MatchPulse', noindex: true },
 }
 
 // Dynamic private routes (e.g. /invoices/:id, /organisations/:id/edit,

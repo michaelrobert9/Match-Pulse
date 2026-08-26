@@ -86,7 +86,7 @@ export default function Nav() {
             {user && <Link className="mnav-admin" to="/admin">{isAdmin ? 'Admin' : 'Manage'}</Link>}
             <div className="mnav-sep" />
             {user ? (
-              <Link to="/account">{name} — My account</Link>
+              <Link to="/account">{name} · My account</Link>
             ) : (
               <><Link to="/login">Sign In</Link><Link to="/signup">Create an Account</Link></>
             )}
