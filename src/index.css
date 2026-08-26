@@ -1360,8 +1360,15 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .adm-players li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
 .adm-pl-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .adm-pl-rel { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--pulse-ink); background: var(--pulse-tint); border-radius: 6px; padding: 2px 8px; }
+.adm-pl-actions { display: flex; gap: 6px; flex-wrap: wrap; flex: none; }
 .adm-pl-results { margin-top: 10px; }
 .adm-pl-results li { background: color-mix(in srgb, var(--pulse) 5%, var(--card)); }
+
+/* Account: players a parent manages */
+.acct-players { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.acct-players li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+.acct-player-name { font-weight: 600; }
+.acct-player-sport { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--pulse-ink); background: var(--pulse-tint); border-radius: 6px; padding: 2px 8px; }
 
 /* Duplicate-name warning on org create */
 .dup-warn { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.35); border-radius: 14px; padding: 18px; margin: 4px 0 4px; }

@@ -102,6 +102,35 @@ service cloud.firestore {
       allow delete: if isPlatformAdmin() || controlsPerson(resource.data);
     }
 
+    // ── Guardianships (parent↔child claims synced from the sport apps) ─────────
+    // A sport app writes one doc per parent claim (id: `${sport}_${personId}_${uid}`)
+    // so the main site has a central record of who manages which player. The
+    // parent may only write their own record in the sport-claim shape and can
+    // never set the main-site approval field; a platform admin manages everything
+    // (approve/reject via mainSiteStatus, remove).
+    match /guardianships/{id} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.parentUid || isPlatformAdmin());
+
+      allow create: if isPlatformAdmin()
+        || (request.auth != null
+            && request.auth.token.get('email_verified', false) == true
+            && request.resource.data.parentUid == request.auth.uid
+            && request.resource.data.relationship == 'parent'
+            && request.resource.data.source == 'sport-claim'
+            && !('mainSiteStatus' in request.resource.data));
+
+      allow update: if isPlatformAdmin()
+        || (request.auth != null
+            && request.auth.token.get('email_verified', false) == true
+            && request.resource.data.parentUid == request.auth.uid
+            && request.resource.data.relationship == 'parent'
+            && request.resource.data.source == 'sport-claim'
+            && request.resource.data.get('mainSiteStatus', null) == resource.data.get('mainSiteStatus', null));
+
+      allow delete: if isPlatformAdmin();
+    }
+
     // ── User profiles (public-safe subset) ────────────────────────────────────
     match /userProfiles/{uid} {
       allow read: if isSignedIn();
