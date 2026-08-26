@@ -230,10 +230,11 @@ service cloud.firestore {
       // Org pages are public across every sport site.
       allow read: if true;
 
-      // Create: signed-in, sets self as owner, and grants itself no billing.
-      // (Billing fields default absent → 'none'/0/null, which the rule requires.)
-      allow create: if isSignedIn()
-        && request.resource.data.get('ownerUserId', '') == request.auth.uid
+      // Create: platform admin only. Regular users no longer self-create orgs —
+      // they submit an orgApplications request that an admin reviews, and the
+      // approval Cloud Function (Admin SDK, bypasses rules) creates the org owned
+      // by the applicant. Billing still cannot be self-granted at create.
+      allow create: if isPlatformAdmin()
         && request.resource.data.get('entitlement', 'none') == 'none'
         && request.resource.data.get('eventCredits', 0) == 0
         && request.resource.data.get('entitlementExpiresAt', null) == null;
@@ -266,8 +267,9 @@ service cloud.firestore {
     // immutable); deletable only by an admin (cleanup / re-seeding).
     match /orgSlugs/{slug} {
       allow read:   if true;
-      allow create: if isSignedIn()
-        && request.resource.data.get('createdBy', '') == request.auth.uid;
+      // Slugs are reserved only when an org is created — platform admin only now
+      // (the approval Cloud Function reserves via the Admin SDK).
+      allow create: if isPlatformAdmin();
       allow update: if false;
       // Deletable by a platform admin (re-seeding / admin slug edit) or by the
       // CURRENT owner of the org this slug points at — so deleting an org can
@@ -277,6 +279,28 @@ service cloud.firestore {
         || (isSignedIn()
             && exists(/databases/$(database)/documents/organizations/$(resource.data.orgId))
             && request.auth.uid == get(/databases/$(database)/documents/organizations/$(resource.data.orgId)).data.get('ownerUserId', ''));
+    }
+
+    // ── Org applications ──────────────────────────────────────────────────────
+    // A signed-in user applies to have a school/club/association/league created.
+    // A platform admin reviews each one; the approval Cloud Function then creates
+    // the org owned by the applicant. Users can never self-create an org.
+    match /orgApplications/{id} {
+      allow read: if request.auth != null
+        && (request.auth.uid == resource.data.uid || isPlatformAdmin());
+
+      // Applicant submits their own request, pending, with no review/result fields.
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && !('orgId' in request.resource.data)
+        && !('reviewedBy' in request.resource.data);
+
+      // Only an admin reviews (status, orgId, reviewer). The applicant may withdraw
+      // (delete) their own request while it is still pending.
+      allow update: if isPlatformAdmin();
+      allow delete: if isPlatformAdmin()
+        || (request.auth != null && request.auth.uid == resource.data.uid && resource.data.get('status', 'pending') == 'pending');
     }
 
 

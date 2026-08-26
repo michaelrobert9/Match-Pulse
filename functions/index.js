@@ -1221,6 +1221,79 @@ exports.centralOrgDeactivate = onCall({ region: REGION }, async (request) => {
   }
 })
 
+// ── Org applications ─────────────────────────────────────────────────────────
+// Regular users can no longer self-create orgs (rules block it). They submit an
+// orgApplications request; a platform admin reviews it here. Approve creates the
+// org owned by the applicant (Admin SDK, so it bypasses the admin-only create
+// rule) and reserves its slug; reject records the decision.
+function orgSlugify(s) {
+  return String(s || '').toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'org'
+}
+async function uniqueOrgSlug(base) {
+  let slug = base, n = 1
+  while ((await db.doc(`orgSlugs/${slug}`).get()).exists) { n += 1; slug = `${base}-${n}` }
+  return slug
+}
+const ORG_APP_TYPES = ['school', 'club', 'association', 'league']
+
+exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const appId  = String(request.data?.applicationId || '').trim()
+  const action = String(request.data?.action || '')
+  if (!appId) throw new HttpsError('invalid-argument', 'applicationId required.')
+
+  const appRef  = db.doc(`orgApplications/${appId}`)
+  const appSnap = await appRef.get()
+  if (!appSnap.exists) throw new HttpsError('not-found', 'No such application.')
+  const app = appSnap.data()
+  if (app.status && app.status !== 'pending') throw new HttpsError('failed-precondition', `Application already ${app.status}.`)
+
+  if (action === 'reject') {
+    await appRef.update({
+      status:          'rejected',
+      reviewedBy:      request.auth.uid,
+      reviewedAt:      admin.firestore.FieldValue.serverTimestamp(),
+      rejectionReason: String(request.data?.reason || '').slice(0, 500),
+    })
+    return { ok: true, status: 'rejected' }
+  }
+  if (action !== 'approve') throw new HttpsError('invalid-argument', "action must be 'approve' or 'reject'.")
+
+  const type     = ORG_APP_TYPES.includes(app.type) ? app.type : 'school'
+  const name     = String(app.orgName || '').trim().slice(0, 160)
+  const ownerUid = String(app.uid || '').trim()
+  if (!name)     throw new HttpsError('failed-precondition', 'Application has no organisation name.')
+  if (!ownerUid) throw new HttpsError('failed-precondition', 'Application has no applicant.')
+
+  const slug   = await uniqueOrgSlug(orgSlugify(name))
+  const orgRef = db.collection('organizations').doc()
+  await db.runTransaction(async (tx) => {
+    const slugRef = db.doc(`orgSlugs/${slug}`)
+    if ((await tx.get(slugRef)).exists) throw new HttpsError('aborted', 'Slug just taken, please retry.')
+    tx.set(slugRef, { orgId: orgRef.id, createdBy: ownerUid, createdAt: admin.firestore.FieldValue.serverTimestamp() })
+    tx.set(orgRef, {
+      name,
+      type,
+      region:                String(app.region || '').slice(0, 120),
+      slug,
+      ownerUserId:           ownerUid,
+      createdBy:             ownerUid,
+      createdViaApplication: appId,
+      createdAt:             admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt:             admin.firestore.FieldValue.serverTimestamp(),
+    })
+  })
+  await appRef.update({
+    status:     'approved',
+    reviewedBy: request.auth.uid,
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    orgId:      orgRef.id,
+  })
+  logger.info('Org application approved', { appId, orgId: orgRef.id, owner: ownerUid })
+  return { ok: true, status: 'approved', orgId: orgRef.id, slug }
+})
+
 // ── centralOrgIdentitySync ───────────────────────────────────────────────────
 // On any central org create/update, overwrite the identity set into EVERY
 // activated sport (whole set at once, merge:true, out-of-order guarded).
