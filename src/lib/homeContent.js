@@ -10,7 +10,7 @@
 // decides who gets access.
 // ─────────────────────────────────────────────────────────────────────────
 import { PLANS, formatRand } from './payfast'
-import { HOME_GROUND_PRICE, HOME_GROUND_PRICE_IS_PLACEHOLDER } from './config'
+import { HOME_GROUND_PRICE, HOME_GROUND_PERIOD, HOME_GROUND_PRICE_IS_PLACEHOLDER } from './config'
 
 // § 1. Hero
 export const hero = {
@@ -187,7 +187,7 @@ export const homeGround = {
     'Your school’s badge, colours and identity',
     'The page parents bookmark and the school newsletter links to',
   ],
-  priceSuffix: '/ year · placeholder pricing for review',
+  priceSuffix: HOME_GROUND_PRICE_IS_PLACEHOLDER ? '/ year · placeholder pricing for review' : '/ year',
   visual: {
     school: 'St Andrew’s College · This weekend',
     rows: [
@@ -227,10 +227,11 @@ export const plans = [
   },
   {
     key: 'homeground', name: 'Home Ground',
-    amount: HOME_GROUND_PRICE, per: HOME_GROUND_PRICE_IS_PLACEHOLDER ? 'per year · placeholder' : 'per year',
+    amount: HOME_GROUND_PRICE, per: HOME_GROUND_PRICE_IS_PLACEHOLDER ? `${HOME_GROUND_PERIOD} · placeholder` : HOME_GROUND_PERIOD,
     desc: 'Your whole school’s sport presented together in one central, branded home.',
     for: 'For schools that want the full picture',
     badge: 'NEW', badgeDark: true, placeholder: HOME_GROUND_PRICE_IS_PLACEHOLDER,
+    cta: { label: 'Set up for a school', to: '/admin' },
   },
 ]
 

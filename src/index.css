@@ -1103,6 +1103,16 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 .op-tabs button:hover { border-color: color-mix(in srgb, var(--hue, var(--pulse)) 45%, var(--line)); }
 .op-tabs button.active { background: var(--hue, var(--pulse)); color: #fff; border-color: transparent; }
 
+/* Primary / high-school phase filter */
+.op-levels { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 20px; }
+.op-levels button {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12.5px;
+  padding: 6px 13px; border-radius: 980px; cursor: pointer;
+  background: transparent; color: var(--slate); border: 1px solid var(--line); transition: all .15s var(--ease);
+}
+.op-levels button:hover { color: var(--ink); border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); }
+.op-levels button.active { background: var(--pulse-tint); color: var(--pulse-ink); border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); }
+
 /* Social links on the identity card */
 .op-socials { display: flex; gap: 8px; margin-top: 16px; }
 .op-social {

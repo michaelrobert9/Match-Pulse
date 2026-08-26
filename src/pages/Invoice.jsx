@@ -182,7 +182,7 @@ export default function Invoice() {
                   <strong>MatchPulse — {inv.planLabel}</strong>
                   <div className="inv-line-detail">
                     {inv.kind === 'orgProfile'
-                      ? 'Publishes this organisation’s matches & results across every MatchPulse sport it plays, for one year.'
+                      ? 'Home Ground: this school’s matches, results and Match Days across every MatchPulse sport, on one branded public page, for one year.'
                       : inv.plan === 'pro'
                         ? `Unlimited competitions across every MatchPulse sport for ${inv.years === 1 ? 'one year' : `${inv.years} years`}.`
                         : `${inv.credits === 1 ? 'One competition' : `${inv.credits} competitions`}, usable on any MatchPulse sport.`}

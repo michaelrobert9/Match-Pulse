@@ -3,7 +3,19 @@ import { Link, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getOrgProfile, PREFIX_TYPE, orgPublicPathFrom } from '../lib/orgProfile'
 import { sportByKey } from '../lib/sports'
+import { formatRand } from '../lib/payfast'
+import { HOME_GROUND_PRICE } from '../lib/config'
 import { listVenuesByOrg, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
+
+// School-level filter: U13 and lower is primary school, U14 and up is high
+// school. Matches carry a derived `level` ('primary' | 'high' | null) from the
+// backend; null (no age signal) shows only under "All".
+const LEVELS = [
+  { key: 'all',     label: 'All' },
+  { key: 'high',    label: 'High school' },
+  { key: 'primary', label: 'Primary school' },
+]
+const byLevel = (list, lvl) => (lvl === 'all' ? list : (list || []).filter(m => m.level === lvl))
 
 function fmtDate(ms) {
   if (!ms) return ''
@@ -79,6 +91,7 @@ export default function OrgProfile({ prefix }) {
   const [data, setData] = useState(null)
   const [err,  setErr]  = useState('')
   const [tab,  setTab]  = useState(null)
+  const [levelF, setLevelF] = useState('all')   // 'all' | 'high' | 'primary'
   const [venues, setVenues] = useState([])
 
   useEffect(() => {
@@ -179,10 +192,10 @@ export default function OrgProfile({ prefix }) {
               Subscribe to see every upcoming match and final result for {org.name}, gathered from every sport, in one place.
             </p>
             <div className="op-upsell-cta">
-              <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Subscribe — cross-sport profile</Link>
+              <Link className="btn btn-primary" to={`/subscribe/${org.id}`}>Subscribe to Home Ground</Link>
               {!user && <Link className="btn btn-ghost" to="/login">Sign in</Link>}
             </div>
-            <p className="op-upsell-fine">Annual subscription, billed by EFT invoice. The identity above is free.</p>
+            <p className="op-upsell-fine">{formatRand(HOME_GROUND_PRICE)} per year, billed by EFT invoice. The identity above is free.</p>
           </section>
         ) : (
           <section className="op-matches">
@@ -195,27 +208,51 @@ export default function OrgProfile({ prefix }) {
                     <button key={k} role="tab" aria-selected={tab === k}
                       className={tab === k ? 'active' : ''}
                       style={{ '--hue': sportByKey(k)?.hue }}
-                      onClick={() => setTab(k)}>
+                      onClick={() => { setTab(k); setLevelF('all') }}>
                       {sportByKey(k)?.name || k}
                     </button>
                   ))}
                 </div>
-                {tab && data.matches?.[tab] && (
-                  <div className="op-lists">
-                    <div className="op-col">
-                      <h3>Upcoming matches</h3>
-                      {data.matches[tab].fixtures.length === 0
-                        ? <p className="muted">No upcoming matches.</p>
-                        : data.matches[tab].fixtures.map(m => <MatchRow key={m.id} m={m} />)}
-                    </div>
-                    <div className="op-col">
-                      <h3>Results</h3>
-                      {data.matches[tab].results.length === 0
-                        ? <p className="muted">No results yet.</p>
-                        : data.matches[tab].results.map(m => <MatchRow key={m.id} m={m} result />)}
-                    </div>
-                  </div>
-                )}
+                {tab && data.matches?.[tab] && (() => {
+                  const all = [...(data.matches[tab].fixtures || []), ...(data.matches[tab].results || [])]
+                  // Only offer the primary/high split when the school actually
+                  // has both — a single-phase school stays clean with no filter.
+                  const hasPrimary = all.some(m => m.level === 'primary')
+                  const hasHigh    = all.some(m => m.level === 'high')
+                  const showFilter = hasPrimary && hasHigh
+                  const active     = showFilter ? levelF : 'all'
+                  const fixtures = byLevel(data.matches[tab].fixtures, active)
+                  const results  = byLevel(data.matches[tab].results, active)
+                  return (
+                    <>
+                      {showFilter && (
+                        <div className="op-levels" role="tablist" aria-label="School phase">
+                          {LEVELS.map(l => (
+                            <button key={l.key} role="tab" aria-selected={active === l.key}
+                              className={active === l.key ? 'active' : ''}
+                              onClick={() => setLevelF(l.key)}>
+                              {l.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="op-lists">
+                        <div className="op-col">
+                          <h3>Upcoming matches</h3>
+                          {fixtures.length === 0
+                            ? <p className="muted">No upcoming matches.</p>
+                            : fixtures.map(m => <MatchRow key={m.id} m={m} />)}
+                        </div>
+                        <div className="op-col">
+                          <h3>Results</h3>
+                          {results.length === 0
+                            ? <p className="muted">No results yet.</p>
+                            : results.map(m => <MatchRow key={m.id} m={m} result />)}
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
               </>
             )}
           </section>

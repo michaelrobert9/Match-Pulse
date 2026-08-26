@@ -51,7 +51,7 @@ export async function getOrgProfile(slug) {
   return data
 }
 
-// Owner/admin: raise an EFT invoice for the annual cross-sport profile subscription.
+// Owner/admin: raise an EFT invoice for Home Ground (the monthly org-level page).
 export async function createProfileInvoice(orgId, billTo) {
   const call = httpsCallable(functions, 'createInvoice')
   const { data } = await call({ product: 'orgProfile', orgId, billTo })
