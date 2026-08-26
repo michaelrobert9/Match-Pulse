@@ -568,12 +568,12 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                 Brings {f.name || 'this school'}’s whole sport together on one public page: matches,
                 results and Match Days from every sport, under its own name and colours.
                 Status: <strong>{subActive ? 'Active' : 'Not active'}</strong>.
-                {' '}<strong>{formatRand(HOME_GROUND_PRICE)} per year, billed by EFT invoice.</strong>
+                {' '}<strong>Free during early access, active until 31 December 2026. {formatRand(HOME_GROUND_PRICE)} per year after that.</strong>
               </p>
               <div className="adm-migrate-actions">
                 {!subActive && (
                   <button type="button" className="btn btn-primary btn-sm" disabled={actBusy === 'sub'} onClick={subscribeProfile}>
-                    {actBusy === 'sub' ? 'Working…' : `Subscribe to Home Ground — ${formatRand(HOME_GROUND_PRICE)}/yr`}
+                    {actBusy === 'sub' ? 'Working…' : 'Activate Home Ground — free early access'}
                   </button>
                 )}
                 {subActive && (

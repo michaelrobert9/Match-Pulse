@@ -1352,6 +1352,16 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .adm-ud-list a { color: var(--pulse-ink); font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .adm-ud-list a:hover { text-decoration: underline; }
 .adm-ud-role { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6b7580; background: rgba(11,18,32,.05); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; flex: none; }
+.adm-ud-joined { margin: 6px 0 0; font-size: 12.5px; color: #8a949e; }
+
+/* Players linked to a user account */
+.adm-ud-players { grid-column: 1 / -1; }
+.adm-players { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.adm-players li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+.adm-pl-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.adm-pl-rel { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--pulse-ink); background: var(--pulse-tint); border-radius: 6px; padding: 2px 8px; }
+.adm-pl-results { margin-top: 10px; }
+.adm-pl-results li { background: color-mix(in srgb, var(--pulse) 5%, var(--card)); }
 
 /* Duplicate-name warning on org create */
 .dup-warn { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.35); border-radius: 14px; padding: 18px; margin: 4px 0 4px; }
