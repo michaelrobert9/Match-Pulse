@@ -7,6 +7,7 @@ import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES } from '../lib/orgs'
 import { TYPE_PREFIX } from '../lib/orgProfile'
 import { identityDb, functions } from '../firebase'
 import { listGuardianshipsForParent, setGuardianshipStatus, deleteGuardianship, SPORT_LABEL } from '../lib/guardianships'
+import { submitOrgApplication, listMyApplications, listAllApplications, withdrawApplication, reviewApplication, APP_STATUS_LABEL } from '../lib/orgApplications'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
 import { planStatus } from '../contexts/AuthContext'
@@ -32,17 +33,19 @@ const ICONS = {
   activity: I('M22 12h-4l-3 9L9 3l-3 9H2'),
   venues:   I('M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'),
   seo:      I('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35'),
+  applications: I('M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'),
 }
 
 const TABS = [
-  { key: 'users',    label: 'Users' },
-  { key: 'orgs',     label: 'Organisations' },
-  { key: 'invoices', label: 'Invoices' },
-  { key: 'messages', label: 'Messages' },
-  { key: 'payments', label: 'Payments' },
-  { key: 'activity', label: 'Sport activity' },
-  { key: 'venues',   label: 'Venues' },
-  { key: 'seo',      label: 'SEO' },
+  { key: 'users',        label: 'Users' },
+  { key: 'orgs',         label: 'Organisations' },
+  { key: 'applications', label: 'Applications' },
+  { key: 'invoices',     label: 'Invoices' },
+  { key: 'messages',     label: 'Messages' },
+  { key: 'payments',     label: 'Payments' },
+  { key: 'activity',     label: 'Sport activity' },
+  { key: 'venues',       label: 'Venues' },
+  { key: 'seo',          label: 'SEO' },
 ]
 
 function Notice({ kind = 'ok', children }) {
@@ -993,6 +996,158 @@ function SeoTab() {
   )
 }
 
+// ── Org applications ─────────────────────────────────────────────────────────
+// A user applies to add a school/club/etc.; a platform admin approves it and the
+// org is then created (owned by the applicant). No one self-creates an org.
+function OrgApply() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [f, setF]     = useState({ orgName: '', type: 'school', region: '', role: '', motivation: '' })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const set = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!f.orgName.trim() || !f.role.trim()) { setMsg({ kind: 'err', text: 'Please give the name and your role.' }); return }
+    setBusy(true); setMsg(null)
+    try { await submitOrgApplication(user, f); navigate('/admin', { replace: true }) }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not submit the application.' }); setBusy(false) }
+  }
+
+  return (
+    <div className="adm-section">
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/admin')}>← Back</button>
+      <section className="adm-ud-card" style={{ marginTop: 12, maxWidth: 620 }}>
+        <h4>Apply to add your school or club</h4>
+        <p className="adm-field-hint">Only verified representatives of a school, club, association or league can run one on MatchPulse. Tell us about it and your role there. We review every application, usually within 7 days, and you’ll be able to set it up once it’s approved.</p>
+        {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+        <form className="acct-form" onSubmit={submit}>
+          <div className="field"><label>Name *</label><input type="text" value={f.orgName} onChange={set('orgName')} placeholder="e.g. Ashton College" required /></div>
+          <div className="field"><label>Type</label><select value={f.type} onChange={set('type')}>{ORG_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}</select></div>
+          <div className="field"><label>Region or town</label><input type="text" value={f.region} onChange={set('region')} placeholder="e.g. Makhanda, Eastern Cape" /></div>
+          <div className="field"><label>Your role there *</label><input type="text" value={f.role} onChange={set('role')} placeholder="e.g. Head of Sport, Club Secretary" required /></div>
+          <div className="field"><label>Anything that helps us verify you <span className="opt">optional</span></label><textarea rows={3} value={f.motivation} onChange={set('motivation')} placeholder="A work email address, the school website, your position…" /></div>
+          <button className="btn btn-primary" disabled={busy}>{busy ? 'Submitting…' : 'Submit application'}</button>
+        </form>
+      </section>
+    </div>
+  )
+}
+
+function MyApplications({ uid }) {
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState('')
+  async function load() { try { setRows(await listMyApplications(uid)) } catch { setRows([]) } }
+  useEffect(() => { if (uid) load() }, [uid])
+  async function withdraw(id) {
+    if (!window.confirm('Withdraw this application?')) return
+    setBusy(id)
+    try { await withdrawApplication(id); load() } finally { setBusy('') }
+  }
+  if (!rows || rows.length === 0) return null
+  return (
+    <section className="adm-ud-card" style={{ marginTop: 14 }}>
+      <h4>Your applications</h4>
+      <ul className="adm-players">
+        {rows.map(a => (
+          <li key={a.id}>
+            <div className="adm-pl-id">
+              <span className="adm-name">{a.orgName}</span>
+              <span className={`pill pill-${a.status === 'approved' ? 'ok' : a.status === 'rejected' ? 'warn' : 'admin'}`}>{APP_STATUS_LABEL[a.status] || a.status}</span>
+              {a.status === 'rejected' && a.rejectionReason && <span className="adm-uid">{a.rejectionReason}</span>}
+            </div>
+            {a.status === 'pending' && <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => withdraw(a.id)}>Withdraw</button>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function ApplyLanding({ uid }) {
+  return (
+    <div className="adm-section">
+      <div className="adm-callout">
+        <h3>You don’t manage any schools or clubs yet.</h3>
+        <p>Running a school, club, association or league? Apply to add it. We verify every application (usually within 7 days), and you’ll set it up once it’s approved. In the meantime you can manage your own player profile, or a child’s, from your account.</p>
+        <Link className="btn btn-primary" to="/admin/apply">Apply to add your school or club</Link>
+      </div>
+      <MyApplications uid={uid} />
+    </div>
+  )
+}
+
+function AppCard({ a, busy, onAct, reviewed }) {
+  const typeLabel = ORG_TYPES.find(t => t.key === a.type)?.label || a.type
+  return (
+    <li className="adm-app">
+      <div className="adm-app-main">
+        <div className="adm-app-top">
+          <span className="adm-name">{a.orgName}</span>
+          <span className="adm-app-type">{typeLabel}</span>
+          {reviewed && <span className={`pill pill-${a.status === 'approved' ? 'ok' : 'warn'}`}>{APP_STATUS_LABEL[a.status]}</span>}
+        </div>
+        <div className="adm-app-meta">
+          {a.region && <span>{a.region}</span>}
+          <span>Applicant: {a.applicantName || '—'}{a.applicantEmail ? ` · ${a.applicantEmail}` : ''}</span>
+          {a.role && <span>Role: {a.role}</span>}
+        </div>
+        {a.motivation && <p className="adm-app-note">{a.motivation}</p>}
+        {a.status === 'rejected' && a.rejectionReason && <p className="adm-app-note">Rejected: {a.rejectionReason}</p>}
+      </div>
+      {!reviewed && (
+        <div className="adm-app-actions">
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'approve')}>{busy === a.id ? 'Working…' : 'Approve'}</button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'reject')}>Reject</button>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function ApplicationsTab() {
+  const [rows, setRows] = useState(null)
+  const [err, setErr]   = useState('')
+  const [busy, setBusy] = useState('')
+  const [msg, setMsg]   = useState(null)
+  async function load() { try { setRows(await listAllApplications()) } catch (e) { setErr(e.message || 'Could not load applications.') } }
+  useEffect(() => { load() }, [])
+  async function act(a, action) {
+    let reason = ''
+    if (action === 'reject') { reason = window.prompt(`Reject "${a.orgName}"? Optional reason (shown to the applicant):`, ''); if (reason === null) return }
+    setBusy(a.id); setMsg(null)
+    try {
+      await reviewApplication(a.id, action, reason || '')
+      setMsg({ kind: 'ok', text: action === 'approve' ? `${a.orgName} created and assigned to the applicant.` : `${a.orgName} rejected.` })
+      load()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not complete the review.' }) }
+    finally { setBusy('') }
+  }
+  const pending = (rows || []).filter(a => a.status === 'pending')
+  const done    = (rows || []).filter(a => a.status !== 'pending')
+  return (
+    <div className="adm-section">
+      <p className="adm-hint">Every school, club, association or league is created only after you approve it here. Approving creates the organisation and makes the applicant its owner.</p>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      <Notice kind="err">{err}</Notice>
+      {rows === null ? <p className="adm-loading">Loading…</p> : (
+        <>
+          <h4 className="adm-apps-h">Pending ({pending.length})</h4>
+          {pending.length === 0 ? <p className="muted">Nothing waiting for review.</p>
+            : <ul className="adm-apps">{pending.map(a => <AppCard key={a.id} a={a} busy={busy} onAct={act} />)}</ul>}
+          {done.length > 0 && (
+            <>
+              <h4 className="adm-apps-h">Reviewed</h4>
+              <ul className="adm-apps">{done.map(a => <AppCard key={a.id} a={a} reviewed />)}</ul>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Shell ────────────────────────────────────────────────────────────────────
 const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
@@ -1025,7 +1180,14 @@ function AdminNav({ isAdmin, typesPresent, onNavigate }) {
             // Slot the owner's own orgs right under the Organisations tab.
             return t.key === 'orgs' ? [link, ...myLinks] : link
           })
-        : myLinks}
+        : (
+          <>
+            {myLinks}
+            <NavLink to="/admin/apply" className={navCls} onClick={onNavigate}>
+              {ICONS.applications && <ICONS.applications />}<span>Apply to add a school</span>
+            </NavLink>
+          </>
+        )}
     </nav>
   )
 }
@@ -1039,7 +1201,7 @@ function MyOrgList({ type, orgs }) {
     <div className="adm-section">
       <div className="adm-toolbar">
         <span className="adm-count">{mine.length} {seg}</span>
-        <Link className="btn btn-primary btn-sm" to="/admin/orgs/new">Add {label.toLowerCase()}</Link>
+        <Link className="btn btn-primary btn-sm" to="/admin/apply">Apply to add {label.toLowerCase()}</Link>
       </div>
       {mine.length === 0 ? <p className="muted">You don't manage any {seg} yet.</p> : (
         <ul className="org-cards">
@@ -1059,18 +1221,10 @@ function MyOrgList({ type, orgs }) {
 }
 
 // /admin index → first available section for the role.
-function AdminHome({ isAdmin, typesPresent }) {
+function AdminHome({ isAdmin, typesPresent, uid }) {
   if (isAdmin) return <Navigate to="/admin/users" replace />
   if (typesPresent.length) return <Navigate to={`/admin/${TYPE_PREFIX[typesPresent[0].key]}`} replace />
-  return (
-    <div className="adm-section">
-      <div className="adm-callout">
-        <h3>You don't manage any organisations yet.</h3>
-        <p>Create a school, club, association or league to manage its profile, venues and people.</p>
-        <Link className="btn btn-primary" to="/admin/orgs/new">Create an organisation</Link>
-      </div>
-    </div>
-  )
+  return <ApplyLanding uid={uid} />
 }
 
 // Remount OrgForm when the :id changes so its state (loading, roster, activated
@@ -1146,9 +1300,10 @@ export default function Admin() {
 
         <main className="adm-main">
           <Routes>
-            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} />} />
+            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} uid={user?.uid} />} />
             {isAdmin && <Route path="users"        element={<UsersTab onEditOrg={editOrg} />} />}
             {isAdmin && <Route path="orgs"         element={<OrgsTab onEditOrg={editOrg} />} />}
+            {isAdmin && <Route path="applications" element={<ApplicationsTab />} />}
             {isAdmin && <Route path="invoices"     element={<InvoicesTab />} />}
             {isAdmin && <Route path="messages"     element={<MessagesTab />} />}
             {isAdmin && <Route path="payments"     element={<PaymentsTab />} />}
@@ -1156,7 +1311,9 @@ export default function Admin() {
             {isAdmin && <Route path="venues"       element={<VenuesTab />} />}
             {isAdmin && <Route path="seo"          element={<SeoTab />} />}
             {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} />} />)}
-            <Route path="orgs/new" element={<OrgForm />} />
+            <Route path="apply"    element={<OrgApply />} />
+            {/* Direct org creation is platform-admin only; everyone else applies. */}
+            <Route path="orgs/new" element={isAdmin ? <OrgForm /> : <Navigate to="/admin/apply" replace />} />
             <Route path="orgs/:id" element={<OrgFormRoute />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
