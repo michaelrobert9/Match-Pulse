@@ -187,7 +187,7 @@ export const homeGround = {
     'Your school’s badge, colours and identity',
     'The page parents bookmark and the school newsletter links to',
   ],
-  priceSuffix: HOME_GROUND_PRICE_IS_PLACEHOLDER ? '/ month · placeholder pricing for review' : '/ month',
+  priceSuffix: HOME_GROUND_PRICE_IS_PLACEHOLDER ? '/ year · placeholder pricing for review' : '/ year',
   visual: {
     school: 'St Andrew’s College · This weekend',
     rows: [

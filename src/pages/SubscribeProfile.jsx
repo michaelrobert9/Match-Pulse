@@ -7,7 +7,7 @@ import { formatRand } from '../lib/payfast'
 import { HOME_GROUND_PRICE } from '../lib/config'
 
 // Owner/admin raises an EFT invoice for Home Ground (the org-level cross-sport
-// public page). R5 000 per month; if the price is set to 0 the server activates
+// public page). R5 000 per year; if the price is set to 0 the server activates
 // it directly instead of raising a zero invoice.
 export default function SubscribeProfile() {
   const { orgId } = useParams()
@@ -66,7 +66,7 @@ export default function SubscribeProfile() {
           <p className="acct-email">
             Brings {org.name}’s whole sport together on one public page
             (<Link to={orgPublicPath(org)}>{orgPublicPath(org)}</Link>): matches, results and Match
-            Days from every activated sport. {formatRand(HOME_GROUND_PRICE)} per month, billed by EFT invoice.
+            Days from every activated sport. {formatRand(HOME_GROUND_PRICE)} per year, billed by EFT invoice.
           </p>
         </header>
 

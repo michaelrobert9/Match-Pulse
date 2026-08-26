@@ -752,11 +752,11 @@ function invoiceEmail({ number, planLabel, amount, billTo, invoiceId, accountEma
 // Home Ground — the org-level "every sport, one school, one home" subscription
 // (internally still the `profileSubscription` field on the org doc). It is the
 // platform's first ORG-level paid feature, distinct from the person-keyed plans
-// above. Priced at R5 000 per month; override with HOME_GROUND_AMOUNT (Rand) env.
+// above. Priced at R5 000 per year; override with HOME_GROUND_AMOUNT (Rand) env.
 const HOME_GROUND_AMOUNT = Number(process.env.HOME_GROUND_AMOUNT || 5000)
-const HOME_GROUND_LABEL  = 'Home Ground (monthly)'
+const HOME_GROUND_LABEL  = 'Home Ground (annual)'
 // A previously granted free early-access term runs to this fixed date. New
-// subscriptions are billed monthly; existing free grants are honoured.
+// subscriptions are billed annually; existing free grants are honoured.
 const EARLY_ACCESS_UNTIL = new Date('2026-12-31T23:59:59Z')
 
 // Set/extend an org's Home Ground subscription. Renewal stacks from the later of
@@ -824,7 +824,7 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
       throw new HttpsError('permission-denied', 'Only the school owner or a platform admin can subscribe.')
     }
     kind = 'orgProfile'; planKey = 'homeGround'; planLabel = HOME_GROUND_LABEL
-    amount = HOME_GROUND_AMOUNT; months = 1
+    amount = HOME_GROUND_AMOUNT; years = 1
   } else {
     const planDef = INVOICE_PLANS[String(request.data?.plan || '')]
     if (!planDef) throw new HttpsError('invalid-argument', 'Unknown plan.')
@@ -869,7 +869,7 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     planLabel,
     credits,
     years,
-    months,                             // set for Home Ground (monthly term)
+    months,                             // reserved (Home Ground bills annually via `years`)
     amount,                             // Rand
     status:    'outstanding',           // outstanding | paid | void
     billTo,
@@ -918,7 +918,7 @@ exports.markInvoicePaid = onCall({ region: REGION }, async (request) => {
   // person-keyed entitlement.
   let previousPlan = 'none'
   if (inv.kind === 'orgProfile') {
-    await applyProfileSubscription(inv.orgId, { months: inv.months ?? 1, years: inv.years ?? 0, lastPaymentId: id })
+    await applyProfileSubscription(inv.orgId, { years: inv.years ?? 1, months: inv.months ?? 0, lastPaymentId: id })
   } else {
     const beforeData = await applyEntitlement(inv.uid, {
       plan:    inv.plan,
