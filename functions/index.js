@@ -833,9 +833,12 @@ exports.createInvoice = onCall({ region: REGION }, async (request) => {
     years   = planKey === 'pro'   ? 1 : null
   }
 
-  // Home Ground with no price set (amount 0): grant free early-access rather than
-  // raise a zero invoice. Owner/admin already verified above.
-  if (kind === 'orgProfile' && !(amount > 0)) {
+  // Home Ground is FREE during early access (until 31 Dec 2026), and also if no
+  // price is set. Grant it directly through the early-access end date rather than
+  // raising an invoice. After that date, fall through to the paid EFT invoice.
+  // Owner/admin was already verified above.
+  const inEarlyAccess = Date.now() < EARLY_ACCESS_UNTIL.getTime()
+  if (kind === 'orgProfile' && (!(amount > 0) || inEarlyAccess)) {
     await applyProfileSubscription(orgId, { until: EARLY_ACCESS_UNTIL, plan: 'earlyAccessFree', lastPaymentId: `free:${uid}` })
     logger.info('Home Ground granted (free early access)', { orgId, uid })
     return { ok: true, free: true, orgId, until: EARLY_ACCESS_UNTIL.toISOString() }

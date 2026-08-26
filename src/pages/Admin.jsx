@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, where, limit, setDoc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
 import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES } from '../lib/orgs'
@@ -70,6 +70,114 @@ function roleLabel(v) {
 
 // Full per-user view: identity + name edit, plan change, org access,
 // cross-sport competitions, and delete. Folds in the old Access tab.
+// Best-effort display name for a player profile (people docs are authored on the
+// sport sites, so tolerate several name shapes).
+function personName(p) {
+  return p.displayName || p.fullName
+    || [p.firstName, p.lastName].filter(Boolean).join(' ').trim()
+    || p.name || p.knownAs || '(unnamed player)'
+}
+
+// Players (people profiles, in the identity DB) linked to a user account: the
+// user's own profile (ownerUid) or children they manage (uid in guardianUids).
+// Platform admins can assign/unassign via the people update rule. The assign
+// search pulls a capped pool of people once and filters in-memory.
+function LinkedPlayers({ uid }) {
+  const [linked, setLinked]     = useState(null)
+  const [msg, setMsg]           = useState(null)
+  const [busy, setBusy]         = useState('')
+  const [q, setQ]               = useState('')
+  const [pool, setPool]         = useState(null)
+  const [searching, setSearching] = useState(false)
+  const [results, setResults]   = useState([])
+
+  async function loadLinked() {
+    try {
+      const [ownSnap, guardSnap] = await Promise.all([
+        getDocs(query(collection(identityDb, 'people'), where('ownerUid', '==', uid))),
+        getDocs(query(collection(identityDb, 'people'), where('guardianUids', 'array-contains', uid))),
+      ])
+      const map = new Map()
+      ownSnap.docs.forEach(d => map.set(d.id, { id: d.id, rel: 'self', ...d.data() }))
+      guardSnap.docs.forEach(d => { if (!map.has(d.id)) map.set(d.id, { id: d.id, rel: 'guardian', ...d.data() }) })
+      setLinked([...map.values()])
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not load players.' }); setLinked([]) }
+  }
+  useEffect(() => { setLinked(null); setResults([]); setQ(''); setPool(null); loadLinked() }, [uid])
+
+  async function unassign(p) {
+    if (!window.confirm(`Unlink ${personName(p)} from this account? Their profile and stats are untouched.`)) return
+    setBusy(p.id); setMsg(null)
+    try {
+      const patch = { guardianUids: arrayRemove(uid), updatedAt: serverTimestamp() }
+      if (p.ownerUid === uid) patch.ownerUid = null   // also drop self-ownership
+      await updateDoc(doc(identityDb, 'people', p.id), patch)
+      setMsg({ kind: 'ok', text: `${personName(p)} unlinked.` }); loadLinked()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not unlink.' }) }
+    finally { setBusy('') }
+  }
+
+  async function search() {
+    const needle = q.trim().toLowerCase()
+    if (!needle) { setResults([]); return }
+    setSearching(true); setMsg(null)
+    try {
+      let list = pool
+      if (!list) {
+        const snap = await getDocs(query(collection(identityDb, 'people'), limit(1000)))
+        list = snap.docs.map(d => ({ id: d.id, ...d.data() })); setPool(list)
+      }
+      const linkedIds = new Set((linked || []).map(p => p.id))
+      setResults(list.filter(p => personName(p).toLowerCase().includes(needle) && !linkedIds.has(p.id)).slice(0, 20))
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Search failed.' }) }
+    finally { setSearching(false) }
+  }
+
+  async function assign(p) {
+    setBusy(p.id); setMsg(null)
+    try {
+      await updateDoc(doc(identityDb, 'people', p.id), { guardianUids: arrayUnion(uid), updatedAt: serverTimestamp() })
+      setMsg({ kind: 'ok', text: `${personName(p)} linked as guardian.` })
+      setResults(r => r.filter(x => x.id !== p.id)); loadLinked()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not link.' }) }
+    finally { setBusy('') }
+  }
+
+  return (
+    <section className="adm-ud-card adm-ud-players">
+      <h4>Players linked to this account</h4>
+      <p className="adm-field-hint">Players this user owns, or manages as a parent or guardian. Assign a player to let this account manage that profile; unassign to remove access. Profiles and stats are never changed.</p>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      {linked === null ? <p className="adm-loading">Loading…</p>
+        : linked.length === 0 ? <p className="muted">No players linked.</p>
+        : (
+          <ul className="adm-players">
+            {linked.map(p => (
+              <li key={p.id}>
+                <div className="adm-pl-id"><span className="adm-name">{personName(p)}</span><span className="adm-pl-rel">{p.rel === 'self' ? 'Own profile' : 'Guardian'}</span></div>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={busy === p.id} onClick={() => unassign(p)}>{busy === p.id ? 'Working…' : 'Unassign'}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      <div className="adm-inline-form" style={{ marginTop: 12 }}>
+        <input type="search" value={q} placeholder="Search players by name to assign" onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); search() } }} />
+        <button type="button" className="btn btn-dark btn-sm" disabled={searching || !q.trim()} onClick={search}>{searching ? 'Searching…' : 'Search'}</button>
+      </div>
+      {results.length > 0 && (
+        <ul className="adm-players adm-pl-results">
+          {results.map(p => (
+            <li key={p.id}>
+              <span className="adm-name">{personName(p)}</span>
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy === p.id} onClick={() => assign(p)}>{busy === p.id ? 'Linking…' : 'Assign'}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
   const [name,  setName]  = useState(user.displayName || '')
   const [email, setEmail] = useState(user.email || '')
@@ -157,6 +265,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
         <div>
           <h3>{user.displayName || <span className="muted">(no name)</span>}</h3>
           <p className="adm-uid">{user.email || '—'} · {user.uid}</p>
+          <p className="adm-ud-joined">Joined {fmtDate(user.createdAt ?? user.raw?.createdAt)}</p>
         </div>
         <div className="adm-ud-badges">
           <span className={`plan-badge plan-${user.plan.key}`}>{user.plan.label}</span>
@@ -224,6 +333,9 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
             </ul>
           )}
         </section>
+
+        {/* Players linked to this account (parent/guardian management) */}
+        <LinkedPlayers uid={user.uid} />
 
         {/* Competitions */}
         <section className="adm-ud-card">
