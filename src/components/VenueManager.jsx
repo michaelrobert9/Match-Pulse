@@ -27,8 +27,10 @@ export default function VenueManager({ ownerOrgId = null, master = false, orgOpt
 
   async function load() {
     setErr('')
-    try { setRows(master ? await listAllVenues() : await listVenuesByOrg(ownerOrgId)) }
-    catch (e) { setErr(e.message || 'Could not load venues.') }
+    try {
+      const list = master ? await listAllVenues() : await listVenuesByOrg(ownerOrgId)
+      setRows([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })))
+    } catch (e) { setErr(e.message || 'Could not load venues.') }
   }
   useEffect(() => { load() }, [ownerOrgId, master])
 
