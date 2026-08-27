@@ -893,6 +893,7 @@ const SEO_DEFAULTS = {
   ogDescription:   'Every coach enters one result. You see them all. Across rugby, hockey, netball and water polo.',
   ogImage:         '',
   themeColor:      '#059669',
+  gaMeasurementId: '',
   headCode:        '',
 }
 
@@ -970,6 +971,22 @@ function SeoTab() {
           <div className="field">
             <label htmlFor="seo-themeColor">Browser theme color</label>
             <input type="text" placeholder="#059669" {...bind('themeColor')} />
+          </div>
+          <div className="field">
+            <label htmlFor="seo-gaMeasurementId">Google Analytics Measurement ID</label>
+            <input
+              type="text"
+              placeholder="G-XXXXXXXXXX"
+              spellCheck={false}
+              autoCapitalize="characters"
+              {...bind('gaMeasurementId')}
+            />
+            <p className="adm-field-hint">
+              Paste your GA4 Measurement ID (starts with <code>G-</code>). Found in Google
+              Analytics under Admin → Data streams → your web stream. Leave blank to turn
+              analytics off. The tracking script loads automatically on every page — you do
+              not need to paste it into the custom code box below.
+            </p>
           </div>
           <div className="field">
             <label htmlFor="seo-headCode">
