@@ -10,6 +10,13 @@
 // decides who gets access.
 // ─────────────────────────────────────────────────────────────────────────
 import { PLANS, formatRand } from './payfast'
+
+// § Sport finder (top of page) — a quick route straight to a sport's own site,
+// where its live scores, matches and results live.
+export const sportFinder = {
+  eyebrow: 'Matches, scores & results',
+  heading: 'Looking for matches, scores or results? Choose your sport.',
+}
 import { HOME_GROUND_PRICE, HOME_GROUND_PERIOD, HOME_GROUND_PRICE_IS_PLACEHOLDER } from './config'
 
 // § 1. Hero
