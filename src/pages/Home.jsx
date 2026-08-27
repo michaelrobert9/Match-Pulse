@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react'
 import {
-  Hero, SportsHub, AudienceBand, HomeGround, PricingSection, SportRequest, FinalCTA,
+  SportFinder, Hero, AudienceBand, HomeGround, PricingSection, SportRequest, FinalCTA,
 } from '../components/home/sections'
 import { bands } from '../lib/homeContent'
 
@@ -31,8 +31,8 @@ export default function Home() {
   useReveal()
   return (
     <main id="top">
+      <SportFinder />
       <Hero />
-      <SportsHub />
       {bands.map(b => <AudienceBand key={b.id} band={b} />)}
       <HomeGround />
       <PricingSection />
