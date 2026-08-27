@@ -14,6 +14,7 @@ const DEFAULTS = {
   ogDescription:   'Every match, scored once. Seen by everyone. School and club results, live scores and Match Days online the moment the whistle goes.',
   ogImage:         'https://matchpulse.co.za/og-image.png',
   themeColor:      '#059669',
+  gaMeasurementId: '',
   headCode:        '',
 }
 
@@ -120,6 +121,24 @@ function injectHeadCode(html) {
   }
 }
 
+// Load the Google Analytics 4 tag (gtag.js) once per tab when a valid
+// Measurement ID (G-XXXX) is configured. Real <script> elements — innerHTML
+// would leave the remote loader inert.
+let gaInjected = false
+function injectGoogleAnalytics(id) {
+  const mid = (id || '').trim()
+  if (gaInjected || !/^G-[A-Z0-9]+$/i.test(mid)) return
+  gaInjected = true
+  const loader = document.createElement('script')
+  loader.async = true
+  loader.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(mid)}`
+  document.head.appendChild(loader)
+  const init = document.createElement('script')
+  init.text = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}`
+    + `gtag('js',new Date());gtag('config',${JSON.stringify(mid)});`
+  document.head.appendChild(init)
+}
+
 function applySite(seo) {
   setMeta('meta[name="description"]',        'content', seo.siteDescription)
   setMeta('meta[property="og:title"]',       'content', seo.ogTitle || seo.siteTitle)
@@ -129,6 +148,7 @@ function applySite(seo) {
   setMeta('meta[name="twitter:title"]',      'content', seo.ogTitle || seo.siteTitle)
   setMeta('meta[name="twitter:description"]','content', seo.ogDescription || seo.siteDescription)
   setMeta('meta[name="theme-color"]',        'content', seo.themeColor)
+  injectGoogleAnalytics(seo.gaMeasurementId)
   injectHeadCode(seo.headCode)
 }
 
