@@ -55,7 +55,9 @@ img { max-width: 100%; display: block; }
 
 /* ── Header ──────────────────────────────────────────────────────────── */
 header { position: sticky; top: 0; z-index: 50; background: rgba(251,251,252,.82); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s, box-shadow .2s; }
-header.scrolled { border-color: var(--line); box-shadow: 0 1px 0 rgba(11,18,32,.02); }
+/* Once scrolled, make the bar fully opaque so page headings and cards passing
+   underneath never bleed through the sticky nav. */
+header.scrolled { background: var(--paper); border-color: var(--line); box-shadow: 0 1px 0 rgba(11,18,32,.02); }
 .nav { display: flex; align-items: center; justify-content: space-between; height: 66px; }
 .nav .wordmark { font-size: 22px; }
 .nav-links { display: flex; align-items: center; gap: 4px; }
