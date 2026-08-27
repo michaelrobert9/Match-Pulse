@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { CONTACT_EMAIL } from '../../lib/config'
 import * as C from '../../lib/homeContent'
 import { planPrice } from '../../lib/homeContent'
+import { SPORTS, displayHost } from '../../lib/sports'
 
 /* ── shared primitives ─────────────────────────────────────────────────── */
 
@@ -64,6 +65,47 @@ export function Hero() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  )
+}
+
+/* ── Sports hub — a card per sport, linking to its own live-scores site ─── */
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  )
+}
+export function SportsHub() {
+  return (
+    <section className="hband hband--grey" id="sports">
+      <div className="wrap">
+        <div className="sports-head">
+          <p className="label reveal">Live scores</p>
+          <h2 className="reveal">Follow the score, sport by sport</h2>
+          <p className="reveal">
+            Each sport has its own home for live scores, results and Match Days. Pick yours
+            to follow every match as it happens.
+          </p>
+        </div>
+        <div className="sports">
+          {SPORTS.map(s => (
+            <a key={s.key} className="sport reveal" href={s.host} style={{ '--hue': s.hue }}>
+              {s.newlyLaunched && <span className="sport-pill">Newly launched</span>}
+              <h3>{s.name}</h3>
+              <p>{s.blurb}</p>
+              <div className="sport-foot">
+                <span className="sport-domain">{displayHost(s)}</span>
+                <span className="sport-go">Live scores <ArrowIcon /></span>
+              </div>
+            </a>
+          ))}
+        </div>
+        <p className="sports-note reveal">
+          Do not see your sport yet? <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Please add our sport to MatchPulse')}`}>Ask us to add it</a>.
+        </p>
       </div>
     </section>
   )

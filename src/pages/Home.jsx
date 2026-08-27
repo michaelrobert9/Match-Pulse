@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react'
 import {
-  Hero, AudienceBand, HomeGround, PricingSection, SportRequest, FinalCTA,
+  Hero, SportsHub, AudienceBand, HomeGround, PricingSection, SportRequest, FinalCTA,
 } from '../components/home/sections'
 import { bands } from '../lib/homeContent'
 
@@ -32,6 +32,7 @@ export default function Home() {
   return (
     <main id="top">
       <Hero />
+      <SportsHub />
       {bands.map(b => <AudienceBand key={b.id} band={b} />)}
       <HomeGround />
       <PricingSection />
