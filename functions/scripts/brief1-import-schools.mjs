@@ -65,6 +65,7 @@ const DRY = has('--dry-run')
 const SKIP_LOGOS = has('--skip-logos')
 const LIMIT = val('--limit') ? parseInt(val('--limit'), 10) : null
 const OWNER_ARG = val('--owner')
+const BUCKET_ARG = val('--bucket')
 
 // ── same slugify as src/lib/orgs.js (must agree for dedup + slug reservation) ─
 function slugify(s) {
@@ -94,7 +95,27 @@ const DEFAULT_SECONDARY = '#0B1220'
 admin.initializeApp({ projectId: PROJECT_ID, storageBucket: BUCKET })
 const db = getFirestore()                 // (default) — identity, orgs, slugs
 const rugbyDb = getFirestore(RUGBY_DB)    // named DB for the rugby product
-const bucket = getStorage().bucket(BUCKET)
+
+// Resolve the real Storage bucket. Newer Firebase projects use
+// <project>.firebasestorage.app; older ones <project>.appspot.com. Probe the
+// candidates (or an explicit --bucket) and use whichever actually exists, so we
+// never guess wrong.
+async function resolveBucket() {
+  const candidates = [
+    BUCKET_ARG,
+    `${PROJECT_ID}.firebasestorage.app`,
+    `${PROJECT_ID}.appspot.com`,
+  ].filter(Boolean)
+  for (const name of candidates) {
+    try {
+      const [exists] = await getStorage().bucket(name).exists()
+      if (exists) return name
+    } catch { /* try the next candidate */ }
+  }
+  throw new Error(
+    `No Storage bucket found for ${PROJECT_ID}. Tried: ${candidates.join(', ')}. ` +
+    `Pass --bucket <name> (see Firebase console → Storage).`)
+}
 
 const log = (...a) => console.log(...a)
 const warn = (...a) => console.warn('  ! ', ...a)
@@ -161,7 +182,7 @@ async function fetchWithRetry(url) {
     }
   }
 }
-async function rehostLogo(orgId, logoUrl) {
+async function rehostLogo(bucket, bucketName, orgId, logoUrl) {
   const res = await fetchWithRetry(logoUrl)
   let type = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
   const buf = Buffer.from(await res.arrayBuffer())
@@ -179,7 +200,7 @@ async function rehostLogo(orgId, logoUrl) {
     metadata: { metadata: { firebaseStorageDownloadTokens: token } },
   })
   const enc = encodeURIComponent(objectPath)
-  return `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${enc}?alt=media&token=${token}`
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${enc}?alt=media&token=${token}`
 }
 
 // ── activation (replicates activateOrgIntoSport for rugby) ───────────────────
@@ -237,6 +258,10 @@ async function main() {
   const ownerUid = await resolveOwnerUid()
   log(`Owner for created records: ${ownerUid}${OWNER_ARG ? '' : '  (auto: platformAdmin)'}`)
 
+  const bucketName = SKIP_LOGOS ? null : await resolveBucket()
+  const bucket = bucketName ? getStorage().bucket(bucketName) : null
+  if (bucketName) log(`Storage bucket: ${bucketName}`)
+
   const { byName, slugs } = await loadExisting()
   log(`Existing: ${byName.size} orgs by name, ${slugs.size} reserved slugs\n`)
 
@@ -274,7 +299,7 @@ async function main() {
       if (DRY) {
         logoUrl = `(would re-host ${row.logo_url})`
       } else {
-        try { logoUrl = await rehostLogo(orgId, row.logo_url); logosDone++ }
+        try { logoUrl = await rehostLogo(bucket, bucketName, orgId, row.logo_url); logosDone++ }
         catch (e) { logosFailed++; warn(`logo failed for ${name}: ${e.message}`); logoUrl = existing?.logoUrl || null }
       }
     }
