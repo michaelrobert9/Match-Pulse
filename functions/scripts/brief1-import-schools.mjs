@@ -36,6 +36,16 @@ import admin from 'firebase-admin'
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 
+// Defuse a poisoned credential path. Some shells export
+// GOOGLE_APPLICATION_CREDENTIALS='' (empty), which makes the Google auth library
+// try to parse an empty credential and fail with "Cannot create property
+// 'refresh_token' on string ''" before it ever falls back to the environment's
+// built-in Application Default Credentials (e.g. Cloud Shell's VM credentials).
+// Deleting the empty var here lets that fallback work.
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+  delete process.env.GOOGLE_APPLICATION_CREDENTIALS
+}
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ID = 'match-pulse-4560e'
 const BUCKET = 'match-pulse-4560e.appspot.com'
