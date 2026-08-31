@@ -1,0 +1,834 @@
+[
+  {
+    "team_id": "327",
+    "org_name": "Afrikaanse Hoër Seunskool",
+    "suggested_province": "Gauteng",
+    "province_confidence": "14/14",
+    "official_website": "https://www.affies.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/cropped-cropped-AHS-Wapen-Sedert1920Wit-1-120x169-1.png"
+  },
+  {
+    "team_id": "565",
+    "org_name": "Bellville High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "12/12",
+    "official_website": "https://hsbellville.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Bellville.png"
+  },
+  {
+    "team_id": "957",
+    "org_name": "Ben Vorster",
+    "suggested_province": "Gauteng",
+    "province_confidence": "22/22",
+    "official_website": "https://www.hsbenvorster.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/HBV-Temp-Logo-1.png.avif"
+  },
+  {
+    "team_id": "975",
+    "org_name": "Bergsig",
+    "suggested_province": "Gauteng",
+    "province_confidence": "12/12",
+    "official_website": "https://www.bergsigacademy.net",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Website-Banners-1.png"
+  },
+  {
+    "team_id": "740",
+    "org_name": "Bethlehem Voortrekker Hoerskool",
+    "suggested_province": "Free State",
+    "province_confidence": "23/23",
+    "official_website": "https://www.voortrekker.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/bvhslogo2.png"
+  },
+  {
+    "team_id": "546",
+    "org_name": "Bishops",
+    "suggested_province": "Western Cape",
+    "province_confidence": "27/27",
+    "official_website": "https://www.bishops.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/bishopsLogo.png"
+  },
+  {
+    "team_id": "549",
+    "org_name": "Boland Landbou",
+    "suggested_province": "Western Cape",
+    "province_confidence": "26/26",
+    "official_website": "https://bolandlandbou.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/boland-landbou-logo.png"
+  },
+  {
+    "team_id": "567",
+    "org_name": "Brackenfell High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "21/21",
+    "official_website": "https://brackenfellhs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Brackfell.png"
+  },
+  {
+    "team_id": "577",
+    "org_name": "Charlie Hofmeyr",
+    "suggested_province": "Western Cape",
+    "province_confidence": "6/6",
+    "official_website": "https://www.charlie.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/CharlieHofmeyer-WhiteCrest-150x150-1.png"
+  },
+  {
+    "team_id": "579",
+    "org_name": "DF Malan",
+    "suggested_province": "Western Cape",
+    "province_confidence": "4/4",
+    "official_website": "https://www.dfmalan.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/DF-Malan.png"
+  },
+  {
+    "team_id": "771",
+    "org_name": "Dale College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "23/23",
+    "official_website": "https://dalecollege.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/logo-scaled-1.png"
+  },
+  {
+    "team_id": "773",
+    "org_name": "Daniel Pienaar",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "21/21",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/images.jpeg"
+  },
+  {
+    "team_id": "959",
+    "org_name": "Die Anker",
+    "suggested_province": "Gauteng",
+    "province_confidence": "32/32",
+    "official_website": "https://www.dieankerskool.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/305316744_508521834612963_1173052383687554867_n.png"
+  },
+  {
+    "team_id": "977",
+    "org_name": "Dinamika",
+    "suggested_province": "Gauteng",
+    "province_confidence": "6/6",
+    "official_website": "https://www.hsdinamika.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/DINAMIKA-LOGO.webp"
+  },
+  {
+    "team_id": "551",
+    "org_name": "Drostdy",
+    "suggested_province": "Western Cape",
+    "province_confidence": "18/18",
+    "official_website": "https://htsdrostdy.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/HTS-Drostdy-Logo.png"
+  },
+  {
+    "team_id": "72",
+    "org_name": "Durban High School",
+    "suggested_province": "KZN",
+    "province_confidence": "17/17",
+    "official_website": "https://www.durbanhighschool.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/DHS-Logo-3-1.png"
+  },
+  {
+    "team_id": "918",
+    "org_name": "EG Jansen",
+    "suggested_province": "Gauteng",
+    "province_confidence": "34/34",
+    "official_website": "https://www.egjansen.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/a968ac_691965c39b284128b070c2ae1c59f1fdmv2.png.avif"
+  },
+  {
+    "team_id": "775",
+    "org_name": "Framesby",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "16/16",
+    "official_website": "https://www.framesby.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Framesby.png"
+  },
+  {
+    "team_id": "920",
+    "org_name": "Garsfontein",
+    "suggested_province": "Gauteng",
+    "province_confidence": "26/26",
+    "official_website": "https://www.garsies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Garsies-Logo-100x130-1.png"
+  },
+  {
+    "team_id": "91",
+    "org_name": "Glenwood High School",
+    "suggested_province": "KZN",
+    "province_confidence": "17/17",
+    "official_website": "https://www.glenwoodhighschool.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Glenwood-Logo-FOR-DARK-BACKGROUND-823x1024-1.png"
+  },
+  {
+    "team_id": "732",
+    "org_name": "Goudveld Hoërskool",
+    "suggested_province": "Free State",
+    "province_confidence": "18/18",
+    "official_website": "https://goudveldhs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/LOGO-GOUDVELD-768x1025-1.png"
+  },
+  {
+    "team_id": "777",
+    "org_name": "Graeme College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "23/24",
+    "official_website": "http://GraemeCollege.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/480294052_1157050619753702_6985514354200045962_n.jpg"
+  },
+  {
+    "team_id": "502",
+    "org_name": "Grey College",
+    "suggested_province": "Free State",
+    "province_confidence": "3/3",
+    "official_website": "https://greycollegesecondary.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/LogoWit.png"
+  },
+  {
+    "team_id": "779",
+    "org_name": "Grey High School",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "16/16",
+    "official_website": "https://www.greyhighschool.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/326751845_1611144372639060_2854535458490225744_n.jpg"
+  },
+  {
+    "team_id": "939",
+    "org_name": "HTS Middelburg",
+    "suggested_province": "Gauteng",
+    "province_confidence": "23/23",
+    "official_website": "https://htsmiddelburg.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/475251216_10160795428907011_3445659430720746135_n.jpg"
+  },
+  {
+    "team_id": "961",
+    "org_name": "Heidelberg",
+    "suggested_province": "Gauteng",
+    "province_confidence": "21/21",
+    "official_website": "https://www.hsheidelberg.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Hoerskool-Heidelberg-Wapen-600x650-1.webp"
+  },
+  {
+    "team_id": "922",
+    "org_name": "Helpmekaar",
+    "suggested_province": "Gauteng",
+    "province_confidence": "23/23",
+    "official_website": "https://www.helpmekaar.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Helpm-Real-GOLD-300-1.png"
+  },
+  {
+    "team_id": "581",
+    "org_name": "Hermanus High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "5/5",
+    "official_website": "https://hermanushigh.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/cropped-cropped-292138490_449068897224479_6064017905977907998_n-1.png"
+  },
+  {
+    "team_id": "84",
+    "org_name": "Hilton College",
+    "suggested_province": "KZN",
+    "province_confidence": "21/21",
+    "official_website": "https://www.hiltoncollege.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/fdl-retina-logo.png"
+  },
+  {
+    "team_id": "555",
+    "org_name": "Hoer Landbouschool Oakdale",
+    "suggested_province": "Western Cape",
+    "province_confidence": "19/20",
+    "official_website": "https://www.oakdale.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/logo_regular_final6.png"
+  },
+  {
+    "team_id": "728",
+    "org_name": "Hoerskool Diamantveld",
+    "suggested_province": "Free State",
+    "province_confidence": "15/16",
+    "official_website": "https://www.diamantveld.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/dhs-logo.png"
+  },
+  {
+    "team_id": "553",
+    "org_name": "Hoerskool Durbanville",
+    "suggested_province": "Western Cape",
+    "province_confidence": "23/23",
+    "official_website": "https://durbanvillehs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Durbanville-school.png"
+  },
+  {
+    "team_id": "734",
+    "org_name": "Hoerskool Jim Fouche",
+    "suggested_province": "Free State",
+    "province_confidence": "16/16",
+    "official_website": "https://jf.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/JF-Logo-Transparent-2024.png"
+  },
+  {
+    "team_id": "736",
+    "org_name": "Hoerskool Sentraal",
+    "suggested_province": "Free State",
+    "province_confidence": "15/16",
+    "official_website": "https://sentraal.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/PhotoRoom-20230922_162214.png"
+  },
+  {
+    "team_id": "785",
+    "org_name": "Hoër Landbouskool Marlow",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "18/18",
+    "official_website": "https://marlow.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/cropped-logo-1.png"
+  },
+  {
+    "team_id": "989",
+    "org_name": "Hoër Volkskool Potchefstroom",
+    "suggested_province": "Gauteng",
+    "province_confidence": "23/23",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/cropped-Volkies-formele-logo-goud.png"
+  },
+  {
+    "team_id": "798",
+    "org_name": "Hoërskool Brandwag",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "16/16",
+    "official_website": "https://www.hsbrandwag.co.za/",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/PNG-Logo.avif"
+  },
+  {
+    "team_id": "979",
+    "org_name": "Hoërskool Eldoraigne",
+    "suggested_province": "Gauteng",
+    "province_confidence": "28/28",
+    "official_website": "https://www.hseldo.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/472484665_1127824242681194_2433965435762319227_n.jpg"
+  },
+  {
+    "team_id": "981",
+    "org_name": "Hoërskool Ermelo",
+    "suggested_province": "Gauteng",
+    "province_confidence": "6/6",
+    "official_website": "https://www.erries.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Hoerskool_Ermelo_Wapen_Amptelik.png.avif"
+  },
+  {
+    "team_id": "730",
+    "org_name": "Hoërskool Fichardtpark",
+    "suggested_province": "Free State",
+    "province_confidence": "19/19",
+    "official_website": "https://www.fpark.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Logo-small-square-menu.png"
+  },
+  {
+    "team_id": "983",
+    "org_name": "Hoërskool Hugenote",
+    "suggested_province": "Gauteng",
+    "province_confidence": "23/29",
+    "official_website": "https://hugies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/5f47d74022d2388297d235c8b50057eb_400x400.jpeg"
+  },
+  {
+    "team_id": "941",
+    "org_name": "Hoërskool Kempton Park",
+    "suggested_province": "Gauteng",
+    "province_confidence": "30/30",
+    "official_website": "https://kempies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/494107441_1186078320195715_4908313639581901021_n.jpg"
+  },
+  {
+    "team_id": "924",
+    "org_name": "Hoërskool Menlopark",
+    "suggested_province": "Gauteng",
+    "province_confidence": "31/31",
+    "official_website": "https://menlopark.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Logo-copy-1.png"
+  },
+  {
+    "team_id": "926",
+    "org_name": "Hoërskool Monument",
+    "suggested_province": "Gauteng",
+    "province_confidence": "27/27",
+    "official_website": "https://monnas.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Logo-05.jpg"
+  },
+  {
+    "team_id": "928",
+    "org_name": "Hoërskool Nelspruit",
+    "suggested_province": "Gauteng",
+    "province_confidence": "37/37",
+    "official_website": "https://nelliesh.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Logo-2-04.png"
+  },
+  {
+    "team_id": "930",
+    "org_name": "Hoërskool Noordheuwel",
+    "suggested_province": "Gauteng",
+    "province_confidence": "30/30",
+    "official_website": "https://nories.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Noordheuwel_Logo-1-136x212-1.png"
+  },
+  {
+    "team_id": "951",
+    "org_name": "Hoërskool Oos-Moot",
+    "suggested_province": "Gauteng",
+    "province_confidence": "29/29",
+    "official_website": "https://www.oos-moot.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/homelogo.png"
+  },
+  {
+    "team_id": "557",
+    "org_name": "Hoërskool Outeniqua",
+    "suggested_province": "Western Cape",
+    "province_confidence": "15/15",
+    "official_website": "https://www.outeniqua.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Outeniqua.png"
+  },
+  {
+    "team_id": "969",
+    "org_name": "Hoërskool Piet Retief",
+    "suggested_province": "Gauteng",
+    "province_confidence": "12/12",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Hoerskool-Piet-Retief-High-School.png.avif"
+  },
+  {
+    "team_id": "991",
+    "org_name": "Hoërskool Randburg",
+    "suggested_province": "Gauteng",
+    "province_confidence": "4/4",
+    "official_website": "https://www.hsrandburg.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/images-1-1.jpeg"
+  },
+  {
+    "team_id": "932",
+    "org_name": "Hoërskool Rustenburg",
+    "suggested_province": "Gauteng",
+    "province_confidence": "28/28",
+    "official_website": "https://hsrtb.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/464511551_27446227271692458_5886548640491648581_n.jpg"
+  },
+  {
+    "team_id": "935",
+    "org_name": "Hoërskool Transvalia",
+    "suggested_province": "Gauteng",
+    "province_confidence": "33/33",
+    "official_website": "https://www.hstransvalia.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/20230127_083157_0000.png"
+  },
+  {
+    "team_id": "937",
+    "org_name": "Hoërskool Waterkloof",
+    "suggested_province": "Gauteng",
+    "province_confidence": "32/32",
+    "official_website": "https://www.klofies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/326543467_1263174877628389_7637936575238169473_n.jpg"
+  },
+  {
+    "team_id": "781",
+    "org_name": "Hudson Park High School",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "15/15",
+    "official_website": "https://www.hphs.co.za/High/Home",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/badge-hs.png"
+  },
+  {
+    "team_id": "332",
+    "org_name": "Jeppe High School For Boys",
+    "suggested_province": "Gauteng",
+    "province_confidence": "16/16",
+    "official_website": "https://jeppeboys.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/cropped-Jeppe-crest_transparent_large.png.webp"
+  },
+  {
+    "team_id": "963",
+    "org_name": "Jeugland",
+    "suggested_province": "Gauteng",
+    "province_confidence": "24/24",
+    "official_website": "https://jeugland.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/images-1.jpeg"
+  },
+  {
+    "team_id": "85",
+    "org_name": "Kearsney College",
+    "suggested_province": "KZN",
+    "province_confidence": "21/21",
+    "official_website": "https://www.kearsney.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/kearsney-site-favicon.png"
+  },
+  {
+    "team_id": "533",
+    "org_name": "King Edward VII School",
+    "suggested_province": "Gauteng",
+    "province_confidence": "22/22",
+    "official_website": "https://www.kes.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/kes-logo-with-white-name-3px-gold-stroke.png"
+  },
+  {
+    "team_id": "783",
+    "org_name": "Kingswood College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "13/13",
+    "official_website": "https://kingswoodcollege.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Kingswood-College-Crest-Transparent.png"
+  },
+  {
+    "team_id": "943",
+    "org_name": "Klerksdorp Hoërskool",
+    "suggested_province": "",
+    "province_confidence": "0/0",
+    "official_website": "https://hsklerksdorp.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/profile.png"
+  },
+  {
+    "team_id": "965",
+    "org_name": "Lichtenburg",
+    "suggested_province": "Gauteng",
+    "province_confidence": "31/31",
+    "official_website": "https://lichies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/491838641_4000932213514482_3902281095665904216_n.jpg"
+  },
+  {
+    "team_id": "945",
+    "org_name": "Ligbron",
+    "suggested_province": "Gauteng",
+    "province_confidence": "20/20",
+    "official_website": "https://ligbron.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/481923331_1753044222116967_4703177038289174797_n.jpg"
+  },
+  {
+    "team_id": "947",
+    "org_name": "Marais Viljoen",
+    "suggested_province": "Gauteng",
+    "province_confidence": "29/29",
+    "official_website": "https://www.maraisviljoen.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/2024-MV-LOGO-EMBLEM-NEW1.png"
+  },
+  {
+    "team_id": "76",
+    "org_name": "Maritzburg College",
+    "suggested_province": "KZN",
+    "province_confidence": "18/18",
+    "official_website": "https://www.maritzburgcollege.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/collegeshoppe.png"
+  },
+  {
+    "team_id": "985",
+    "org_name": "Merensky Landbou Akademie",
+    "suggested_province": "Gauteng",
+    "province_confidence": "9/9",
+    "official_website": "https://www.plasies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/463482152_8476089049179107_3907407775833460563_n.png"
+  },
+  {
+    "team_id": "80",
+    "org_name": "Michaelhouse",
+    "suggested_province": "KZN",
+    "province_confidence": "17/17",
+    "official_website": "https://www.michaelhouse.org",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/0106204_300_300.jpeg"
+  },
+  {
+    "team_id": "949",
+    "org_name": "Middelburg High School",
+    "suggested_province": "Gauteng",
+    "province_confidence": "29/29",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/pegasus-publishing-school-hub-middelburg-hoerskool-logo.webp"
+  },
+  {
+    "team_id": "569",
+    "org_name": "Milnerton High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "17/17",
+    "official_website": "https://milnertonhighschool.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/School-Logo.png"
+  },
+  {
+    "team_id": "967",
+    "org_name": "Montana",
+    "suggested_province": "Gauteng",
+    "province_confidence": "25/25",
+    "official_website": "https://www.hsmontana.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/logo-redraw-2026-300x267-1.png"
+  },
+  {
+    "team_id": "787",
+    "org_name": "Muir College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "12/12",
+    "official_website": "https://muircollege.co.za/home/",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/logo-muir-new-1.png.webp"
+  },
+  {
+    "team_id": "789",
+    "org_name": "Nico Malan High School",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "19/20",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/465056715_8606203862792465_2839624223271127207_n.jpg"
+  },
+  {
+    "team_id": "95",
+    "org_name": "Northwood School",
+    "suggested_province": "KZN",
+    "province_confidence": "20/20",
+    "official_website": "https://www.northwoodschool.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Nwood_badge.png"
+  },
+  {
+    "team_id": "498",
+    "org_name": "Paarl Boys High",
+    "suggested_province": "Western Cape",
+    "province_confidence": "25/25",
+    "official_website": "https://www.paarlboyshigh.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/footerlogo-1.png"
+  },
+  {
+    "team_id": "495",
+    "org_name": "Paarl Gimnasium",
+    "suggested_province": "Western Cape",
+    "province_confidence": "25/25",
+    "official_website": "https://www.paarlgim.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Paarl-Gim-Logo.png"
+  },
+  {
+    "team_id": "571",
+    "org_name": "Parel Vallei High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "19/19",
+    "official_website": "https://pvallei.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Parel-vellei.png"
+  },
+  {
+    "team_id": "995",
+    "org_name": "Parktown Boys High School",
+    "suggested_province": "Gauteng",
+    "province_confidence": "9/9",
+    "official_website": "https://parktownboys.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/cropped-New-Crest-Fav-Icon.png"
+  },
+  {
+    "team_id": "522",
+    "org_name": "Paul Roos Gimnasium",
+    "suggested_province": "Western Cape",
+    "province_confidence": "24/24",
+    "official_website": "https://paulroos.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/PRG-1.png"
+  },
+  {
+    "team_id": "791",
+    "org_name": "Pearson High School",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "19/19",
+    "official_website": "https://pearsonhighschool.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Pearson.jpeg"
+  },
+  {
+    "team_id": "971",
+    "org_name": "Pietersburg Hoërskool",
+    "suggested_province": "Gauteng",
+    "province_confidence": "23/23",
+    "official_website": "https://pieties.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/PHS-logo.png"
+  },
+  {
+    "team_id": "987",
+    "org_name": "Potchefstroom Gimnasium",
+    "suggested_province": "Gauteng",
+    "province_confidence": "12/12",
+    "official_website": "https://gimmies.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Eeufeeslogo_white.png"
+  },
+  {
+    "team_id": "376",
+    "org_name": "Pretoria Boys High School",
+    "suggested_province": "Gauteng",
+    "province_confidence": "24/24",
+    "official_website": "https://boyshigh.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Pretoria-Boys-High-School-2-200x175-1.png"
+  },
+  {
+    "team_id": "793",
+    "org_name": "Queen's College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "21/21",
+    "official_website": "https://www.queenscollege.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/RGB-w-on-b-colour.png.avif"
+  },
+  {
+    "team_id": "528",
+    "org_name": "Rondebosch Boys High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "32/32",
+    "official_website": "https://rondebosch.com/high/",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/high-school.png"
+  },
+  {
+    "team_id": "559",
+    "org_name": "SACS",
+    "suggested_province": "Western Cape",
+    "province_confidence": "33/33",
+    "official_website": "https://sacshigh.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/sacs-badge1.jpg"
+  },
+  {
+    "team_id": "973",
+    "org_name": "Secunda",
+    "suggested_province": "Gauteng",
+    "province_confidence": "21/21",
+    "official_website": "http://hs-sec.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/229050484_2975326802752754_8600666272279626494_n.jpg"
+  },
+  {
+    "team_id": "769",
+    "org_name": "Selborne College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "19/19",
+    "official_website": "https://www.selborne.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/Selborne-College_Logo-06.png"
+  },
+  {
+    "team_id": "916",
+    "org_name": "St Alban’s College",
+    "suggested_province": "Gauteng",
+    "province_confidence": "12/12",
+    "official_website": "https://stalbanscollege.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/462686069_8522313531185338_96137847180909959_n.jpg"
+  },
+  {
+    "team_id": "795",
+    "org_name": "St Andrew's College",
+    "suggested_province": "Eastern Cape",
+    "province_confidence": "22/22",
+    "official_website": "https://www.sacschool.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/SAC-Logo-Regular.png"
+  },
+  {
+    "team_id": "997",
+    "org_name": "St Benedict’s College",
+    "suggested_province": "Gauteng",
+    "province_confidence": "12/12",
+    "official_website": "https://www.stbenedicts.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/StBeneditcs_School@2x.png"
+  },
+  {
+    "team_id": "438",
+    "org_name": "St Charles College",
+    "suggested_province": "KZN",
+    "province_confidence": "13/13",
+    "official_website": "https://www.stcharlescollege.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/cropped-SCC-Crest.png"
+  },
+  {
+    "team_id": "993",
+    "org_name": "St John’s College",
+    "suggested_province": "Gauteng",
+    "province_confidence": "22/22",
+    "official_website": null,
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/463255922_28317113891220791_3102748370990729768_n.jpg"
+  },
+  {
+    "team_id": "914",
+    "org_name": "St Stithians College",
+    "suggested_province": "Gauteng",
+    "province_confidence": "13/13",
+    "official_website": "https://www.stithian.com",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/326725837_847163603251639_6541412651796184693_n.png"
+  },
+  {
+    "team_id": "561",
+    "org_name": "Stellenberg High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "35/35",
+    "official_website": "https://stellenberg.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Stellenberg.png"
+  },
+  {
+    "team_id": "573",
+    "org_name": "Strand High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "25/25",
+    "official_website": "https://hsstrand.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/HS_PNG_LOGO_swart-2557846.png"
+  },
+  {
+    "team_id": "583",
+    "org_name": "Swartland High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "7/7",
+    "official_website": "https://swartlandhs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Logo-Swartland3-1.jpg"
+  },
+  {
+    "team_id": "738",
+    "org_name": "Trio High School",
+    "suggested_province": "Free State",
+    "province_confidence": "18/18",
+    "official_website": "https://www.triohs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/TrioGrys.png"
+  },
+  {
+    "team_id": "575",
+    "org_name": "Tygerberg High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "8/8",
+    "official_website": "https://www.hstygerberg.co.za/en/",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Tygerberg.png"
+  },
+  {
+    "team_id": "726",
+    "org_name": "Welkom Gimnasium",
+    "suggested_province": "Free State",
+    "province_confidence": "16/16",
+    "official_website": "https://welkom-gimnasium.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/GIM70T-Logo.png"
+  },
+  {
+    "team_id": "98",
+    "org_name": "Westville Boys' High School",
+    "suggested_province": "KZN",
+    "province_confidence": "16/16",
+    "official_website": "https://www.westvilleboys.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Badge3.png"
+  },
+  {
+    "team_id": "953",
+    "org_name": "Wesvalia",
+    "suggested_province": "Gauteng",
+    "province_confidence": "28/28",
+    "official_website": "https://wesvalia.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/banner-logo.webp"
+  },
+  {
+    "team_id": "742",
+    "org_name": "Witteberg Hoerskool",
+    "suggested_province": "Free State",
+    "province_confidence": "19/19",
+    "official_website": "https://witteberghs.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Witteberg_Wapen.png"
+  },
+  {
+    "team_id": "585",
+    "org_name": "Worcester Gymnasium",
+    "suggested_province": "Western Cape",
+    "province_confidence": "7/7",
+    "official_website": "https://worcgim.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/300430240_517707356826068_6719528879382949560_n.jpg"
+  },
+  {
+    "team_id": "563",
+    "org_name": "Wynberg Boys' High School",
+    "suggested_province": "Western Cape",
+    "province_confidence": "33/33",
+    "official_website": "https://wbhs.org.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/05/Wynberg.png"
+  },
+  {
+    "team_id": "955",
+    "org_name": "Zwartkop",
+    "suggested_province": "Gauteng",
+    "province_confidence": "31/31",
+    "official_website": "https://zwarries.co.za",
+    "logo_url": "https://rugbyignite.co.za/wp-content/uploads/2025/06/241958461_4619733538059864_7794578030086805614_n.png"
+  }
+]
