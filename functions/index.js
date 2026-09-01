@@ -627,6 +627,52 @@ exports.adminRemoveOrgPerson = onCall({ region: REGION }, async (request) => {
   return { ok: true, orgId, uid }
 })
 
+// ── addOrgMember ──────────────────────────────────────────────────────────────
+// Owner or platform admin grants an existing user whole-org management by email.
+// Writes the central staff doc (role manager='admin' or helper='staff'), which
+// cascades to orgRoles/claims (syncOrgRoleClaim) and into every activated sport
+// (centralOrgStaffSync). Finer, per-sport/per-team roles are still set in-sport.
+// Ownership is not granted here (that's a deliberate transfer, elsewhere).
+exports.addOrgMember = onCall({ region: REGION }, async (request) => {
+  const callerUid = request.auth?.uid
+  if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const orgId = String(request.data?.orgId || '').trim()
+  const emailRaw = String(request.data?.email || '').trim()
+  const role = request.data?.role === 'admin' ? 'admin' : 'staff'
+  if (!orgId || !emailRaw) throw new HttpsError('invalid-argument', 'orgId and email required.')
+
+  const orgSnap = await db.doc(`organizations/${orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+  const master = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${callerUid}`).get()).data()?.platformAdmin === true
+  if (!master && !isOrgAdminRole(await callerOrgRole(callerUid, orgId))) {
+    throw new HttpsError('permission-denied', 'Only the org owner, an org admin, or a platform admin can add people.')
+  }
+
+  // Resolve the email to an existing account (try as-typed, then lowercased).
+  const email = emailRaw.toLowerCase()
+  let userDoc = null
+  for (const e of [emailRaw, email]) {
+    const snap = await db.collection('users').where('email', '==', e).limit(1).get()
+    if (!snap.empty) { userDoc = snap.docs[0]; break }
+    if (e === email) break
+  }
+  if (!userDoc) {
+    throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+  }
+  const targetUid = userDoc.id
+  if (targetUid === org.ownerUserId) throw new HttpsError('failed-precondition', 'That person already owns this organisation.')
+
+  await db.doc(`organizations/${orgId}/staff/${targetUid}`).set({
+    role, teamId: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: callerUid,
+  }, { merge: true })
+  logger.info('Org member added', { orgId, uid: targetUid, role, by: callerUid })
+  return { ok: true, orgId, uid: targetUid, role, name: userDoc.data().displayName || '', email: userDoc.data().email || emailRaw }
+})
+
 // ── getUserCompetitions ──────────────────────────────────────────────────────
 // Cross-sport list of competitions a user is connected to: those they own
 // (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).

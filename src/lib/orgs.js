@@ -271,3 +271,12 @@ export async function removeOrgPerson(orgId, uid) {
   const { data } = await call({ orgId, uid })
   return data
 }
+
+// Add an existing user (by email) as a whole-org manager ('admin') or helper
+// ('staff'). Owner, org admin, or platform admin. The grant syncs to every
+// activated sport; finer per-sport/team roles are set in-sport.
+export async function addOrgMember(orgId, email, role = 'staff') {
+  const call = httpsCallable(functions, 'addOrgMember')
+  const { data } = await call({ orgId, email, role })
+  return data
+}

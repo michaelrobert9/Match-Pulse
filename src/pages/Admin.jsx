@@ -1193,7 +1193,7 @@ const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
 
 // Role-filtered sidebar: platform admins get the platform sections; anyone who
 // owns organisations gets a "My Schools / My Clubs / …" section per type they own.
-function AdminNav({ isAdmin, typesPresent, onNavigate }) {
+function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
   // Owners' "My Schools / Clubs / …" links. For a platform admin these sit
   // directly beneath the "Organisations" tab; for an owner (no platform tabs)
   // they are the whole nav.
@@ -1214,6 +1214,7 @@ function AdminNav({ isAdmin, typesPresent, onNavigate }) {
             const link = (
               <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
                 {Icon && <Icon />}<span>{t.label}</span>
+                {t.key === 'applications' && pendingApps > 0 && <span className="adm-nav-badge">{pendingApps}</span>}
               </NavLink>
             )
             // Slot the owner's own orgs right under the Organisations tab.
@@ -1262,9 +1263,21 @@ function MyOrgList({ type, orgs, isAdmin }) {
   )
 }
 
-// /admin index → first available section for the role.
-function AdminHome({ isAdmin, typesPresent, uid }) {
-  if (isAdmin) return <Navigate to="/admin/users" replace />
+// /admin index → first available section for the role. For an admin with work
+// waiting, show an approvals notification first instead of jumping to Users.
+function AdminHome({ isAdmin, typesPresent, uid, pendingApps = 0 }) {
+  if (isAdmin) {
+    if (pendingApps > 0) return (
+      <div className="adm-section">
+        <div className="adm-approvals">
+          <h3>{pendingApps} application{pendingApps === 1 ? '' : 's'} awaiting your review</h3>
+          <p>People have applied to add a school, club, association or league. Review each one and approve or decline it.</p>
+          <Link className="btn btn-primary btn-sm" to="/admin/applications">Review applications</Link>
+        </div>
+      </div>
+    )
+    return <Navigate to="/admin/users" replace />
+  }
   if (typesPresent.length) return <Navigate to={`/admin/${TYPE_PREFIX[typesPresent[0].key]}`} replace />
   return <ApplyLanding uid={uid} />
 }
@@ -1281,6 +1294,7 @@ export default function Admin() {
   const isAdmin = profile?.platformAdmin === true
   const [open,   setOpen]   = useState(false)
   const [myOrgs, setMyOrgs] = useState([])
+  const [pendingApps, setPendingApps] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -1289,6 +1303,14 @@ export default function Admin() {
       .then(list => setMyOrgs([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))))
       .catch(() => setMyOrgs([]))
   }, [user?.uid])
+
+  // Admin approvals notification: count applications awaiting review.
+  useEffect(() => {
+    if (!isAdmin) return
+    listAllApplications()
+      .then(a => setPendingApps(a.filter(x => (x.status || 'pending') === 'pending').length))
+      .catch(() => {})
+  }, [isAdmin, location.pathname])
   useEffect(() => { setOpen(false) }, [location.pathname])
 
   const typesPresent = ORG_TYPES.filter(t => myOrgs.some(o => o.type === t.key))
@@ -1320,7 +1342,7 @@ export default function Admin() {
     <div className="adm-shell">
       <aside className="adm-side">
         <div className="adm-side-head"><Brand /></div>
-        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} />
+        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} />
         <Foot />
       </aside>
 
@@ -1335,14 +1357,14 @@ export default function Admin() {
         </header>
         {open && (
           <div className="adm-mobnav">
-            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} onNavigate={() => setOpen(false)} />
+            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} onNavigate={() => setOpen(false)} />
             <Foot />
           </div>
         )}
 
         <main className="adm-main">
           <Routes>
-            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} uid={user?.uid} />} />
+            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} uid={user?.uid} pendingApps={pendingApps} />} />
             {isAdmin && <Route path="users"        element={<UsersTab onEditOrg={editOrg} />} />}
             {isAdmin && <Route path="orgs"         element={<OrgsTab onEditOrg={editOrg} />} />}
             {isAdmin && <Route path="applications" element={<ApplicationsTab />} />}

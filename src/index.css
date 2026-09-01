@@ -1415,6 +1415,15 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .op-person-actions { display: flex; gap: 6px; flex: none; }
 .op-remove { color: #b4262a; border-color: rgba(229,72,77,.3); }
 .op-remove:hover { background: rgba(229,72,77,.08); color: #911d20; }
+.op-invite { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
+.op-invite input[type=email] { flex: 1; min-width: 220px; }
+.op-invite select { flex: none; }
+
+/* Nav pending-count badge (admin approvals notification) */
+.adm-nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: auto; border-radius: 999px; background: #E5484D; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; }
+.adm-approvals { background: var(--pulse-tint); border: 1px solid color-mix(in srgb, var(--pulse) 30%, var(--line)); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; }
+.adm-approvals h3 { margin: 0 0 6px; font-family: 'Space Grotesk', sans-serif; font-size: 18px; }
+.adm-approvals p { margin: 0 0 12px; color: #34423a; font-size: 14.5px; }
 
 .route-loading { min-height: 60vh; display: grid; place-items: center; color: #8a949e; font-size: 15px; }
 
