@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { getVenueBySlug, getVenueRedirect, getOrgLite, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
+import { getVenueBySlug, getVenueRedirect, getOrgByHomeVenue, venueEmbedUrl, venueDirectionsUrl, venueLocality } from '../lib/venues'
 import { orgPublicPath } from '../lib/orgProfile'
 
 // SportsActivityLocation structured data — helps venues surface in search.
 function ldFor(v) {
   const a = v.address || {}
+  const locality = venueLocality(v)
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsActivityLocation',
     name: v.name,
     ...(v.description ? { description: v.description } : {}),
-    address: {
-      '@type': 'PostalAddress',
-      ...(a.line1 ? { streetAddress: a.line1 } : {}),
-      ...(a.city ? { addressLocality: a.city } : {}),
-      ...(a.province ? { addressRegion: a.province } : {}),
-      ...(a.postalCode ? { postalCode: a.postalCode } : {}),
-      ...(a.country ? { addressCountry: a.country } : {}),
-    },
+    ...(locality || a.line1 ? {
+      address: {
+        '@type': 'PostalAddress',
+        ...(a.line1 ? { streetAddress: a.line1 } : {}),
+        ...(locality ? { addressLocality: locality } : {}),
+        ...(a.province ? { addressRegion: a.province } : {}),
+        ...(a.postalCode ? { postalCode: a.postalCode } : {}),
+        addressCountry: a.country || 'South Africa',
+      },
+    } : {}),
     ...(v.location ? { geo: { '@type': 'GeoCoordinates', latitude: v.location.lat, longitude: v.location.lng } } : {}),
     ...(v.images?.length ? { image: v.images } : {}),
   }
@@ -45,7 +48,9 @@ export default function Venue() {
       }
       setVenue(v)
       if (v?.name) document.title = `${v.name} — MatchPulse`
-      if (v?.ownerOrgId) { const o = await getOrgLite(v.ownerOrgId).catch(() => null); if (!cancel) setOrg(o) }
+      // "Home of" is a reverse lookup: the org (if any) that names this its home.
+      const o = await getOrgByHomeVenue(v.id).catch(() => null)
+      if (!cancel) setOrg(o)
     })()
     return () => { cancel = true }
   }, [slug])
@@ -69,19 +74,32 @@ export default function Venue() {
     </div></main>
   )
 
-  const address = formatVenueAddress(venue.address)
+  const locality = venueLocality(venue)
   const embed = venueEmbedUrl(venue)
+  const facilities = (venue.facilities || []).filter(f => f.active !== false)
 
   return (
     <main className="venue">
       <div className="wrap">
         <header className="venue-head">
           <h1>{venue.name}{venue.verified && <span className="venue-verified" title="Verified venue">✓</span>}</h1>
-          {address && <p className="venue-addr">{address}</p>}
+          {locality && <p className="venue-addr">{locality}</p>}
           {org && <p className="venue-org">Home of <Link to={orgPublicPath(org)}>{org.name}</Link></p>}
         </header>
 
         {venue.description && <p className="venue-desc">{venue.description}</p>}
+
+        {facilities.length > 0 && (
+          <ul className="venue-facilities">
+            {facilities.map(f => (
+              <li key={f.id} className="venue-facility">
+                <span className="vf-name">{f.name}</span>
+                <span className="vf-noun">{f.displayNoun}</span>
+                <span className="vf-sports">{f.sports.join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {venue.images?.length > 0 && (
           <div className="venue-gallery">

@@ -1070,6 +1070,10 @@ const ORG_IDENTITY_FIELDS = [
   'name', 'matchName', 'type', 'slug', 'logoUrl', 'genderProfile',
   'primaryColor', 'secondaryColor', 'bio', 'region', 'website',
   'contactEmail', 'phone', 'socialLinks',
+  // homeVenueId is part of the org identity that syncs down to every sport DB:
+  // the sport apps read it locally to float a host org's own ground to the top
+  // of the venue picker. It MUST be in this list or that sync silently drops it.
+  'homeVenueId',
 ]
 
 function pickIdentity(d = {}) {
@@ -1814,19 +1818,82 @@ async function callerOrgRole(uid, orgId) {
 }
 const isOrgAdminRole = (r) => r === 'owner' || r === 'admin'
 
-function cleanVenueAddress(a = {}) {
-  const s = (v, n) => String(v ?? '').trim().slice(0, n)
-  return {
-    line1: s(a.line1, 200), suburb: s(a.suburb, 120), city: s(a.city, 120),
-    province: s(a.province, 120), postalCode: s(a.postalCode, 20),
-    country: s(a.country, 80) || 'South Africa',
+// ── Facilities (sport-scoped spaces within a venue) ──────────────────────────
+// Stored as an array on the venue doc, not a subcollection. sports[] is required
+// (min one) and every entry MUST be a canonical SPORT_KEYS value — a mismatch
+// silently hides the facility from a sport app, so the callable rejects unknowns.
+const FACILITY_NOUNS = ['Field', 'Court', 'Astro', 'Pool', 'Hall', 'Gym', 'Other']
+function normaliseFacilities(input) {
+  if (input === undefined) return undefined      // "not provided" — leave as-is
+  if (input === null) return []
+  if (!Array.isArray(input)) throw new HttpsError('invalid-argument', 'facilities must be an array.')
+  return input.map((f, i) => {
+    const name = String(f?.name || '').trim().slice(0, 120)
+    if (!name) throw new HttpsError('invalid-argument', 'Every facility needs a name.')
+    const displayNoun = FACILITY_NOUNS.includes(f?.displayNoun) ? f.displayNoun : 'Other'
+    const sports = Array.isArray(f?.sports) ? [...new Set(f.sports.map(s => String(s || '').trim()))].filter(Boolean) : []
+    if (sports.length === 0) throw new HttpsError('invalid-argument', `Facility "${name}" needs at least one sport.`)
+    for (const s of sports) {
+      if (!SPORT_KEYS.includes(s)) {
+        throw new HttpsError('invalid-argument', `Facility "${name}": "${s}" is not a valid sport. Use one of ${SPORT_KEYS.join(', ')}.`)
+      }
+    }
+    return {
+      id: String(f?.id || '').trim() || db.collection('venues').doc().id,
+      name, displayNoun, sports,
+      order: Number.isFinite(f?.order) ? f.order : i,
+      active: f?.active !== false,
+    }
+  })
+}
+
+// ── Google Maps link → coordinates ───────────────────────────────────────────
+// Pull @lat,lng out of a maps URL. Handles the common encodings; returns null
+// when none are present (e.g. a /place/ name-only link).
+function coordsFromMapsUrl(url) {
+  const pats = [
+    /@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/,       // .../@-29.85,31.02,17z
+    /!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/,   // ...!3d-29.85!4d31.02
+    /[?&](?:q|ll|destination)=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/, // ?q=lat,lng
+  ]
+  for (const re of pats) {
+    const m = url.match(re)
+    if (m) {
+      const lat = parseFloat(m[1]), lng = parseFloat(m[2])
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+    }
   }
+  return null
+}
+// Resolve a pasted Maps link: try the URL as-is, then follow a short
+// maps.app.goo.gl / goo.gl/maps redirect server-side and try the resolved URL.
+// Always returns { mapsUrl, location } — location is null when no coords found.
+async function resolveMapsLink(rawUrl) {
+  const mapsUrl = String(rawUrl || '').trim().slice(0, 600)
+  if (!mapsUrl) return { mapsUrl: '', location: null }
+  let location = coordsFromMapsUrl(mapsUrl)
+  if (!location && /(?:maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(mapsUrl)) {
+    try {
+      const ctrl = new AbortController()
+      const t = setTimeout(() => ctrl.abort(), 6000)
+      const res = await fetch(mapsUrl, { redirect: 'follow', signal: ctrl.signal })
+      clearTimeout(t)
+      location = coordsFromMapsUrl(res.url || '')
+      if (!location) {
+        const body = await res.text().catch(() => '')
+        location = coordsFromMapsUrl(body.slice(0, 20000))
+      }
+    } catch (e) { logger.warn('resolveMapsLink follow failed', { message: e.message }) }
+  }
+  return { mapsUrl, location }
 }
 
 // ── createVenue ──────────────────────────────────────────────────────────────
-// Org admin: ownerOrgId forced to an org they administer, verified forced false,
-// cannot create an unowned venue. Master admin: any ownerOrgId (incl. null) and
-// may set verified. Same-city name-match returns candidates unless confirmed.
+// Venues are NOT owned — anyone can schedule onto them. Any org admin may create
+// one; it lands verified:false and they may edit it while unverified. Master may
+// create verified. createdByOrgId is recorded for audit + unverified edit rights
+// only; it grants no scheduling control. Same-name (town-scoped) match returns
+// candidates unless confirmed. The Maps link is required and resolved to coords.
 exports.createVenue = onCall({ region: REGION }, async (request) => {
   const uid = request.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
@@ -1835,53 +1902,62 @@ exports.createVenue = onCall({ region: REGION }, async (request) => {
   const name = String(d.name || '').trim().slice(0, 160)
   if (!name) throw new HttpsError('invalid-argument', 'Venue name is required.')
 
-  let ownerOrgId = d.ownerOrgId ? String(d.ownerOrgId).trim() : null
+  // createdByOrgId: the org the caller is acting as. Org admins must supply one
+  // they administer (it carries their unverified edit rights). Master may omit.
+  let createdByOrgId = d.createdByOrgId ? String(d.createdByOrgId).trim() : null
   let verified = false
   if (master) {
     verified = d.verified === true
   } else {
-    if (!ownerOrgId) throw new HttpsError('permission-denied', 'Choose which of your organisations owns this venue.')
-    if (!isOrgAdminRole(await callerOrgRole(uid, ownerOrgId))) {
-      throw new HttpsError('permission-denied', 'You can only add a venue for an organisation you administer.')
+    if (!createdByOrgId) throw new HttpsError('permission-denied', 'Choose which of your organisations you are adding this venue for.')
+    if (!isOrgAdminRole(await callerOrgRole(uid, createdByOrgId))) {
+      throw new HttpsError('permission-denied', 'You can only add a venue as an organisation you administer.')
     }
   }
 
-  const address = cleanVenueAddress(d.address)
+  const mapsLinkRaw = String(d.mapsUrl || '').trim()
+  if (!mapsLinkRaw) throw new HttpsError('invalid-argument', 'A Google Maps link is required.')
+  const town = String(d.town || '').trim().slice(0, 160)
   const nameNormalised = normaliseVenueName(name)
 
-  // Duplicate defence: same normalised name in the same city (cheap, no index).
+  // Duplicate defence: same normalised name in the same town (falls back to
+  // name-only when town is absent). Cheap single-field query, no index.
   if (d.confirmDuplicate !== true) {
     const snap = await db.collection('venues').where('nameNormalised', '==', nameNormalised).limit(10).get()
-    const here = normaliseVenueName(address.city)
+    const here = normaliseVenueName(town)
     const candidates = snap.docs.map(s => ({ id: s.id, ...s.data() }))
-      .filter(v => v.active !== false && (!here || !v.address?.city || normaliseVenueName(v.address.city) === here))
+      .filter(v => v.active !== false && (!here || !v.town || normaliseVenueName(v.town) === here))
     if (candidates.length) {
-      return { needsConfirm: true, candidates: candidates.map(v => ({ id: v.id, name: v.name, slug: v.slug, city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null })) }
+      return { needsConfirm: true, candidates: candidates.map(v => ({ id: v.id, name: v.name, slug: v.slug, town: v.town || null })) }
     }
   }
 
+  const { mapsUrl, location } = await resolveMapsLink(mapsLinkRaw)
+  const facilities = normaliseFacilities(d.facilities) || []
   const slug = await uniqueVenueSlug(name)
   const ref = db.collection('venues').doc()
   await ref.set({
     slug, name, nameNormalised,
-    ownerOrgId: ownerOrgId || null,
+    createdByOrgId: createdByOrgId || null,
     description: String(d.description || '').trim().slice(0, 2000),
-    address,
-    mapQuery: String(d.mapQuery || '').trim().slice(0, 300) || [name, address.suburb, address.city].filter(Boolean).join(', '),
-    location: (d.location && typeof d.location.lat === 'number' && typeof d.location.lng === 'number') ? { lat: d.location.lat, lng: d.location.lng } : null,
+    town,
+    address: null,                 // legacy field kept nullable; no longer authored
+    mapsUrl, location,
     timezone: 'Africa/Johannesburg',
     images: Array.isArray(d.images) ? d.images.slice(0, 20).map(String) : [],
+    facilities,
     verified, active: true,
     createdByUserId: uid,
     createdAt: nowTs(), updatedAt: nowTs(),
   })
-  logger.info('Venue created', { venueId: ref.id, slug, ownerOrgId: ownerOrgId || null, master, by: uid })
+  logger.info('Venue created', { venueId: ref.id, slug, createdByOrgId: createdByOrgId || null, master, hasCoords: !!location, by: uid })
   return { ok: true, id: ref.id, slug }
 })
 
 // ── updateVenue ──────────────────────────────────────────────────────────────
-// Owning org admin edits descriptive fields; master edits anything incl.
-// ownerOrgId/verified/active. Slug is never regenerated (stable forever).
+// Edit rights: master always. Otherwise only while the venue is UNVERIFIED, and
+// only for an admin of the org that created it (createdByOrgId). Once master
+// verifies it, only master edits. Slug is never regenerated (stable forever).
 exports.updateVenue = onCall({ region: REGION }, async (request) => {
   const uid = request.auth?.uid
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
@@ -1893,20 +1969,27 @@ exports.updateVenue = onCall({ region: REGION }, async (request) => {
   if (!snap.exists) throw new HttpsError('not-found', 'No such venue.')
   const cur = snap.data()
   const master = await callerIsAdmin(request)
-  if (!master && !isOrgAdminRole(await callerOrgRole(uid, cur.ownerOrgId))) {
-    throw new HttpsError('permission-denied', 'You can only edit a venue your organisation owns.')
+  if (!master) {
+    if (cur.verified === true) {
+      throw new HttpsError('permission-denied', 'This venue is verified — only a MatchPulse admin can edit it now.')
+    }
+    if (!isOrgAdminRole(await callerOrgRole(uid, cur.createdByOrgId))) {
+      throw new HttpsError('permission-denied', 'Only an admin of the organisation that added this venue can edit it.')
+    }
   }
 
   const p = d.patch || {}
   const patch = { updatedAt: nowTs() }
   if ('name' in p) { const nm = String(p.name || '').trim().slice(0, 160); if (nm) { patch.name = nm; patch.nameNormalised = normaliseVenueName(nm) } }
   if ('description' in p) patch.description = String(p.description || '').trim().slice(0, 2000)
-  if ('address' in p) patch.address = cleanVenueAddress(p.address)
-  if ('mapQuery' in p) patch.mapQuery = String(p.mapQuery || '').trim().slice(0, 300)
-  if ('location' in p) patch.location = (p.location && typeof p.location.lat === 'number' && typeof p.location.lng === 'number') ? { lat: p.location.lat, lng: p.location.lng } : null
+  if ('town' in p) patch.town = String(p.town || '').trim().slice(0, 160)
+  if ('mapsUrl' in p) {
+    const { mapsUrl, location } = await resolveMapsLink(p.mapsUrl)
+    patch.mapsUrl = mapsUrl; patch.location = location
+  }
   if ('images' in p) patch.images = Array.isArray(p.images) ? p.images.slice(0, 20).map(String) : []
+  if ('facilities' in p) { const fac = normaliseFacilities(p.facilities); if (fac !== undefined) patch.facilities = fac }
   if (master) {
-    if ('ownerOrgId' in p) patch.ownerOrgId = p.ownerOrgId ? String(p.ownerOrgId).trim() : null
     if ('verified' in p) patch.verified = p.verified === true
     if ('active' in p) patch.active = p.active === true
   }
@@ -1930,10 +2013,26 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
   const targetSlug = tgt.data().slug || ''
   const sourceSlug = src.data().slug || ''
 
+  // Append the source's facilities to the target under fresh ids, and remember
+  // the old→new id mapping so matches pointing at a source facility can follow.
+  const srcFacilities = Array.isArray(src.data().facilities) ? src.data().facilities : []
+  const tgtFacilities = Array.isArray(tgt.data().facilities) ? tgt.data().facilities : []
+  const facilityIdMap = {}
+  if (srcFacilities.length) {
+    const appended = srcFacilities.map((f, i) => {
+      const newId = db.collection('venues').doc().id
+      facilityIdMap[f.id] = newId
+      return { ...f, id: newId, order: tgtFacilities.length + i }
+    })
+    await db.doc(`venues/${targetId}`).set(
+      { facilities: [...tgtFacilities, ...appended], updatedAt: nowTs() }, { merge: true })
+  }
+
   // Repoint venueId AND refresh the denormalised snapshot the sport repos keep
   // (`pitch` = display name, `venueSlug` = link to /venues/:slug) to the target —
   // only on matches that actually pointed at the source, so free-text-only
-  // matches are never touched.
+  // matches are never touched. Any match pointing at a source FACILITY repoints
+  // to the appended copy in the same sweep.
   let repointed = 0
   for (const sport of SPORT_KEYS) {
     try {
@@ -1941,12 +2040,38 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
       const snap = await sportDb.collection('matches').where('venueId', '==', sourceId).limit(1000).get()
       let batch = sportDb.batch(), n = 0
       for (const m of snap.docs) {
-        batch.update(m.ref, { venueId: targetId, pitch: targetName, venueSlug: targetSlug }); repointed++
+        const upd = { venueId: targetId, pitch: targetName, venueSlug: targetSlug }
+        const fid = m.data().facilityId
+        if (fid && facilityIdMap[fid]) upd.facilityId = facilityIdMap[fid]
+        batch.update(m.ref, upd); repointed++
         if (++n % 400 === 0) { await batch.commit(); batch = sportDb.batch() }
       }
       if (n % 400 !== 0) await batch.commit()
+      // A match may reference a source facility without the source venueId
+      // (defensive) — repoint those too.
+      for (const [oldId, newId] of Object.entries(facilityIdMap)) {
+        const fsnap = await sportDb.collection('matches').where('facilityId', '==', oldId).limit(1000).get()
+        let fb = sportDb.batch(), fn = 0
+        for (const m of fsnap.docs) {
+          fb.update(m.ref, { facilityId: newId }); if (++fn % 400 === 0) { await fb.commit(); fb = sportDb.batch() }
+        }
+        if (fn % 400 !== 0 && fn > 0) await fb.commit()
+      }
     } catch (e) { logger.warn('mergeVenues repoint failed', { sport, message: e.message }) }
   }
+
+  // Repoint any org whose Home venue was the source. Writing the org doc fires
+  // centralOrgIdentitySync, so the sport-database copies of homeVenueId follow.
+  try {
+    const orgSnap = await db.collection('organizations').where('homeVenueId', '==', sourceId).get()
+    let ob = db.batch(), on = 0
+    for (const o of orgSnap.docs) {
+      ob.set(o.ref, { homeVenueId: targetId, updatedAt: nowTs() }, { merge: true })
+      if (++on % 400 === 0) { await ob.commit(); ob = db.batch() }
+    }
+    if (on % 400 !== 0 && on > 0) await ob.commit()
+  } catch (e) { logger.warn('mergeVenues homeVenueId repoint failed', { message: e.message }) }
+
   await db.doc(`venues/${sourceId}`).set({ active: false, mergedInto: targetId, updatedAt: nowTs() }, { merge: true })
 
   // Public redirect for the retired slug so old links land on the target page.
@@ -1965,7 +2090,7 @@ exports.mergeVenues = onCall({ region: REGION }, async (request) => {
 // ── rebuildVenueIndex ────────────────────────────────────────────────────────
 // On any venue write, republish the lightweight typeahead index the sport apps
 // fetch once per session: one doc listing every ACTIVE venue's {id,name,slug,
-// city,ownerOrgId}. Writes venueIndex/current only (no loop on venues).
+// town}. Writes venueIndex/current only (no loop on venues).
 exports.rebuildVenueIndex = onDocumentWritten({ document: 'venues/{venueId}', region: REGION }, async () => {
   const snap = await db.collection('venues').where('active', '==', true).get()
   const venues = snap.docs.map(d => {
@@ -1973,10 +2098,39 @@ exports.rebuildVenueIndex = onDocumentWritten({ document: 'venues/{venueId}', re
     return {
       id: d.id, name: v.name || '', slug: v.slug || '',
       nameNormalised: v.nameNormalised || normaliseVenueName(v.name || ''),
-      city: v.address?.city || null, ownerOrgId: v.ownerOrgId || null,
+      town: v.town || v.address?.city || null,
     }
   })
   venues.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   await VENUE_INDEX_DOC.set({ venues, count: venues.length, updatedAt: nowTs() })
   logger.info('Venue index rebuilt', { count: venues.length })
+})
+
+// ── setOrgHomeVenue ───────────────────────────────────────────────────────────
+// Set (or clear) an organisation's Home venue — a pointer to a neutral venue in
+// the registry, chosen from existing venues. Any admin of the org may set it
+// (owner or staff admin), or a platform admin. Writing the org doc fires
+// centralOrgIdentitySync, so homeVenueId propagates to every active sport DB.
+exports.setOrgHomeVenue = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const d = request.data || {}
+  const orgId = String(d.orgId || '').trim()
+  const venueId = String(d.venueId || '').trim()   // '' clears the Home venue
+  if (!orgId) throw new HttpsError('invalid-argument', 'orgId required.')
+
+  const master = await callerIsAdmin(request)
+  if (!master && !isOrgAdminRole(await callerOrgRole(uid, orgId))) {
+    throw new HttpsError('permission-denied', 'Only an admin of this organisation can set its Home venue.')
+  }
+  const orgRef = db.doc(`organizations/${orgId}`)
+  if (!(await orgRef.get()).exists) throw new HttpsError('not-found', 'No such organisation.')
+
+  if (venueId) {
+    const v = await db.doc(`venues/${venueId}`).get()
+    if (!v.exists || v.data().active === false) throw new HttpsError('not-found', 'No such active venue.')
+  }
+  await orgRef.set({ homeVenueId: venueId || null, updatedAt: nowTs() }, { merge: true })
+  logger.info('Org home venue set', { orgId, venueId: venueId || null, by: uid })
+  return { ok: true, orgId, homeVenueId: venueId || null }
 })

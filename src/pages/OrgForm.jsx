@@ -5,7 +5,8 @@ import { SPORTS } from '../lib/sports'
 import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
 import { formatRand } from '../lib/payfast'
 import { HOME_GROUND_PRICE } from '../lib/config'
-import VenueManager from '../components/VenueManager'
+import { VenueForm } from '../components/VenueManager'
+import { getVenueById, listVenueIndex, setOrgHomeVenue, venueLocality } from '../lib/venues'
 import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
@@ -59,6 +60,82 @@ function AssetField({ label, kind, orgId, url, onChange, hint }) {
           {err && <p className="form-err">{err}</p>}
         </div>
       </div>
+    </div>
+  )
+}
+
+// The Home-venue block for the org editor: shows the current home venue, lets an
+// org admin pick a different one from the shared registry or add a new venue, and
+// (while a venue is still unverified and was added by this org) edit it.
+function HomeVenueSection({ orgId, initialHomeVenueId }) {
+  const [homeId, setHomeId] = useState(initialHomeVenueId || '')
+  const [venue,  setVenue]  = useState(null)
+  const [index,  setIndex]  = useState(null)
+  const [mode,   setMode]   = useState('view')    // view | pick | add | edit
+  const [sel,    setSel]    = useState('')
+  const [busy,   setBusy]   = useState(false)
+  const [msg,    setMsg]    = useState(null)
+
+  async function loadVenue(vid) { setVenue(vid ? await getVenueById(vid).catch(() => null) : null) }
+  useEffect(() => { loadVenue(homeId) }, [homeId])
+
+  async function openPick() {
+    setMsg(null); setSel(homeId || '')
+    if (!index) { const list = await listVenueIndex().catch(() => []); setIndex(list) }
+    setMode('pick')
+  }
+  async function setHome(vid) {
+    setBusy(true); setMsg(null)
+    try { await setOrgHomeVenue(orgId, vid); setHomeId(vid || ''); setMode('view'); setMsg({ kind: 'ok', text: vid ? 'Home venue set.' : 'Home venue removed.' }) }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update.' }) }
+    finally { setBusy(false) }
+  }
+  function onCreated(res) { if (res?.id) setHome(res.id); else setMode('view') }
+
+  if (mode === 'add') return <VenueForm actingOrgId={orgId} onDone={onCreated} onCancel={() => setMode('view')} />
+  if (mode === 'edit' && venue) return <VenueForm initial={venue} actingOrgId={orgId} onDone={() => { setMode('view'); loadVenue(homeId) }} onCancel={() => setMode('view')} />
+
+  const canEditVenue = venue && venue.verified !== true && venue.createdByOrgId === orgId
+
+  return (
+    <div className="home-venue">
+      {msg && <p className={`notice ${msg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{msg.text}</p>}
+
+      {mode === 'pick' ? (
+        <div className="hv-pick">
+          <select value={sel} onChange={e => setSel(e.target.value)} disabled={busy}>
+            <option value="">— choose a venue —</option>
+            {(index || []).map(v => <option key={v.id} value={v.id}>{v.name}{v.town ? ` — ${v.town}` : ''}</option>)}
+          </select>
+          <div className="hv-pick-cta">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy || !sel} onClick={() => setHome(sel)}>Set as home</button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setMode('view')}>Cancel</button>
+          </div>
+          <p className="adm-field-hint">Not listed? <button type="button" className="linkish" onClick={() => setMode('add')}>Add a new venue</button>.</p>
+        </div>
+      ) : venue ? (
+        <div className="hv-current">
+          <div className="hv-current-id">
+            <strong>{venue.name}</strong>
+            {venueLocality(venue) && <span className="hv-town">{venueLocality(venue)}</span>}
+            {venue.verified && <span className="venue-tag venue-tag-ok">verified</span>}
+          </div>
+          <div className="hv-actions">
+            <a className="btn btn-ghost btn-sm" href={`/venues/${venue.slug}`} target="_blank" rel="noreferrer">View</a>
+            {canEditVenue && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('edit')}>Edit</button>}
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={openPick}>Change</button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setHome('')}>Remove</button>
+          </div>
+        </div>
+      ) : (
+        <div className="hv-empty">
+          <p className="muted">No home venue set.</p>
+          <div className="hv-actions">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={openPick}>Choose a venue</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode('add')}>Add a new venue</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -503,15 +580,16 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           </section>
         )}
 
-        {/* Venues — this organisation's own grounds (Brief A, step 3). */}
+        {/* Home venue — one neutral venue this organisation calls home. */}
         {editing && canManagePeople && (
           <section className="org-activate">
-            <h2 className="inv-edit-h">Venues</h2>
+            <h2 className="inv-edit-h">Home venue</h2>
             <p className="adm-field-hint">
-              Your organisation's own grounds. Add them once here; when a coach types a matching name
-              in any sport, it links to the record. Neutral and municipal grounds are added by MatchPulse.
+              Choose the ground this organisation calls home, from the shared venue registry. It shows on
+              your public profile and floats to the top of the venue picker in every sport. Venues are
+              shared — anyone can schedule a match there; naming one as your home gives you no control over it.
             </p>
-            <VenueManager ownerOrgId={id} />
+            <HomeVenueSection orgId={id} initialHomeVenueId={record?.homeVenueId || ''} />
           </section>
         )}
 

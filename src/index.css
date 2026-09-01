@@ -1456,6 +1456,38 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .op-venue-id a:hover { text-decoration: underline; }
 .op-venue-addr { font-size: 12.5px; color: #8a949e; }
 
+/* Facilities editor (venue form) */
+.fac-editor { margin: 6px 0 4px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; background: var(--paper); }
+.fac-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fac-editor-head label { font-weight: 600; font-size: 14px; }
+.fac-row { margin-top: 10px; padding: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.fac-row-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fac-row-top input[type=text] { flex: 1; min-width: 160px; }
+.fac-active { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: #6b7580; white-space: nowrap; }
+.fac-sports { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.fac-sports-lbl { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #6b7580; }
+.fac-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 980px; cursor: pointer; user-select: none; }
+.fac-chip.on { border-color: color-mix(in srgb, var(--pulse-ink) 45%, var(--line)); background: color-mix(in srgb, var(--pulse-ink) 10%, transparent); color: var(--pulse-ink); font-weight: 600; }
+.fac-chip input { margin: 0; }
+
+/* Public venue facilities list */
+.venue-facilities { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.venue-facility { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.vf-name { font-weight: 600; }
+.vf-noun { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #6b7580; }
+.vf-sports { font-size: 13px; color: #8a949e; margin-left: auto; }
+
+/* Org editor: Home venue block */
+.home-venue { margin-top: 6px; }
+.hv-current, .hv-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; flex-wrap: wrap; }
+.hv-current-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.hv-town { font-size: 12.5px; color: #8a949e; }
+.hv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.hv-pick { display: flex; flex-direction: column; gap: 10px; }
+.hv-pick select { max-width: 420px; }
+.hv-pick-cta { display: flex; gap: 8px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--pulse-ink); font-weight: 600; cursor: pointer; text-decoration: underline; font: inherit; }
+
 /* ═══ Homepage v3 (audience bands) ═══════════════════════════════════════ */
 .hband { padding: clamp(56px, 8vw, 84px) 0; }
 .hband--white { background: #FFFFFF; }
