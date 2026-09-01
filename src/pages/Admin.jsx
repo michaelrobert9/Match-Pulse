@@ -1032,15 +1032,27 @@ function OrgApply() {
   const [f, setF]     = useState({ orgName: '', type: 'school', region: '', role: '', motivation: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [done, setDone] = useState(false)
   const set = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
 
   async function submit(e) {
     e.preventDefault()
     if (!f.orgName.trim() || !f.role.trim()) { setMsg({ kind: 'err', text: 'Please give the name and your role.' }); return }
     setBusy(true); setMsg(null)
-    try { await submitOrgApplication(user, f); navigate('/admin', { replace: true }) }
-    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not submit the application.' }); setBusy(false) }
+    try { await submitOrgApplication(user, f); setDone(true) }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not submit the application.' }) }
+    finally { setBusy(false) }
   }
+
+  if (done) return (
+    <div className="adm-section">
+      <section className="adm-ud-card" style={{ marginTop: 12, maxWidth: 620 }}>
+        <h4>Application submitted</h4>
+        <Notice kind="ok">Thanks — your application for “{f.orgName.trim()}” is in. It stays in review (nothing is created yet) and we usually get to it within 7 days. You’ll be able to set it up once it’s approved.</Notice>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/admin')} style={{ marginTop: 12 }}>Done</button>
+      </section>
+    </div>
+  )
 
   return (
     <div className="adm-section">
@@ -1220,7 +1232,8 @@ function AdminNav({ isAdmin, typesPresent, onNavigate }) {
 }
 
 // A signed-in owner's list of one org type, linking each into the shell editor.
-function MyOrgList({ type, orgs }) {
+// A platform admin is the verifier, so they create directly; a non-admin applies.
+function MyOrgList({ type, orgs, isAdmin }) {
   const mine  = orgs.filter(o => o.type === type)
   const label = ORG_TYPES.find(t => t.key === type)?.label || 'Organisation'
   const seg   = TYPE_PREFIX[type] || type
@@ -1228,7 +1241,9 @@ function MyOrgList({ type, orgs }) {
     <div className="adm-section">
       <div className="adm-toolbar">
         <span className="adm-count">{mine.length} {seg}</span>
-        <Link className="btn btn-primary btn-sm" to="/admin/apply">Apply to add {label.toLowerCase()}</Link>
+        {isAdmin
+          ? <Link className="btn btn-primary btn-sm" to="/admin/orgs/new">Create {label.toLowerCase()}</Link>
+          : <Link className="btn btn-primary btn-sm" to="/admin/apply">Apply to add {label.toLowerCase()}</Link>}
       </div>
       {mine.length === 0 ? <p className="muted">You don't manage any {seg} yet.</p> : (
         <ul className="org-cards">
@@ -1337,7 +1352,7 @@ export default function Admin() {
             {isAdmin && <Route path="activity"     element={<ActivityTab />} />}
             {isAdmin && <Route path="venues"       element={<VenuesTab />} />}
             {isAdmin && <Route path="seo"          element={<SeoTab />} />}
-            {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} />} />)}
+            {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} isAdmin={isAdmin} />} />)}
             <Route path="apply"    element={<OrgApply />} />
             {/* Direct org creation is platform-admin only; everyone else applies. */}
             <Route path="orgs/new" element={isAdmin ? <OrgForm /> : <Navigate to="/admin/apply" replace />} />
