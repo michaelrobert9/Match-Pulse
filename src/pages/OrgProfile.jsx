@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getOrgProfile, PREFIX_TYPE, orgPublicPathFrom } from '../lib/orgProfile'
 import { sportByKey } from '../lib/sports'
-import { listVenuesByOrg, venueEmbedUrl, venueDirectionsUrl, formatVenueAddress } from '../lib/venues'
+import { getVenueById, venueEmbedUrl, venueDirectionsUrl, venueLocality } from '../lib/venues'
 
 // School-level filter: U13 and lower is primary school, U14 and up is high
 // school. Matches carry a derived `level` ('primary' | 'high' | null) from the
@@ -90,11 +90,11 @@ export default function OrgProfile({ prefix }) {
   const [err,  setErr]  = useState('')
   const [tab,  setTab]  = useState(null)
   const [levelF, setLevelF] = useState('all')   // 'all' | 'high' | 'primary'
-  const [venues, setVenues] = useState([])
+  const [homeVenue, setHomeVenue] = useState(null)
 
   useEffect(() => {
     let cancel = false
-    setData(null); setErr(''); setVenues([])
+    setData(null); setErr(''); setHomeVenue(null)
     ;(async () => {
       try {
         const res = await getOrgProfile(slug)
@@ -102,7 +102,7 @@ export default function OrgProfile({ prefix }) {
         setData(res)
         setTab(res.activatedSports?.[0] || null)
         if (res.org?.name) document.title = `${res.org.name} — MatchPulse`
-        if (res.org?.id) { const vs = await listVenuesByOrg(res.org.id).catch(() => []); if (!cancel) setVenues(vs) }
+        if (res.org?.homeVenueId) { const v = await getVenueById(res.org.homeVenueId).catch(() => null); if (!cancel && v?.active !== false) setHomeVenue(v) }
       } catch (e) {
         if (!cancel) setErr(e.message || 'Organisation not found.')
       }
@@ -201,22 +201,20 @@ export default function OrgProfile({ prefix }) {
         </article>
 
         <div className="op-body">
-        {venues.length > 0 && (
+        {homeVenue && (
           <section className="op-venues">
-            <h2>Venues</h2>
-            {venueEmbedUrl(venues[0]) && (
-              <div className="op-venue-map"><iframe title={`Map of ${venues[0].name}`} src={venueEmbedUrl(venues[0])} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>
+            <h2>Home venue</h2>
+            {venueEmbedUrl(homeVenue) && (
+              <div className="op-venue-map"><iframe title={`Map of ${homeVenue.name}`} src={venueEmbedUrl(homeVenue)} loading="lazy" allowFullScreen referrerPolicy="no-referrer-when-downgrade" /></div>
             )}
             <ul className="op-venue-list">
-              {venues.map(v => (
-                <li key={v.id}>
-                  <div className="op-venue-id">
-                    <Link to={`/venues/${v.slug}`}>{v.name}</Link>
-                    {formatVenueAddress(v.address) && <span className="op-venue-addr">{formatVenueAddress(v.address)}</span>}
-                  </div>
-                  <a className="btn btn-ghost btn-sm" href={venueDirectionsUrl(v)} target="_blank" rel="noreferrer">Directions →</a>
-                </li>
-              ))}
+              <li>
+                <div className="op-venue-id">
+                  <Link to={`/venues/${homeVenue.slug}`}>{homeVenue.name}</Link>
+                  {venueLocality(homeVenue) && <span className="op-venue-addr">{venueLocality(homeVenue)}</span>}
+                </div>
+                <a className="btn btn-ghost btn-sm" href={venueDirectionsUrl(homeVenue)} target="_blank" rel="noreferrer">Directions →</a>
+              </li>
             </ul>
           </section>
         )}

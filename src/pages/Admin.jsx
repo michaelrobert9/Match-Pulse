@@ -823,7 +823,7 @@ function GroupMerge({ group, onMerge, busy }) {
       {group.map(v => (
         <li key={v.id}>
           <label className="venue-keeper"><input type="radio" checked={keeper === v.id} onChange={() => setKeeper(v.id)} /> Keep</label>
-          <div className="venue-li-id"><strong>{v.name}</strong><span className="venue-li-meta">{v.address?.city || '—'}{v.verified && <span className="venue-tag venue-tag-ok">verified</span>}</span></div>
+          <div className="venue-li-id"><strong>{v.name}</strong><span className="venue-li-meta">{v.town || v.address?.city || '—'}{v.verified && <span className="venue-tag venue-tag-ok">verified</span>}</span></div>
           {keeper !== v.id && <button type="button" className="btn btn-ghost btn-sm" disabled={busy === v.id} onClick={() => onMerge(v.id, keeper)}>{busy === v.id ? 'Merging…' : 'Merge into keeper'}</button>}
         </li>
       ))}
@@ -871,15 +871,9 @@ function VenueDuplicateQueue() {
 }
 
 function VenuesTab() {
-  const [orgs, setOrgs] = useState([])
-  useEffect(() => {
-    listAllOrgs()
-      .then(list => setOrgs([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))))
-      .catch(() => {})
-  }, [])
   return (
     <div className="adm-section">
-      <VenueManager master orgOptions={orgs} />
+      <VenueManager />
       <VenueDuplicateQueue />
     </div>
   )
