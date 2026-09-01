@@ -1,0 +1,874 @@
+[
+  {
+    "final_venue_name": "Afrikaanse Hoër Seunskool",
+    "google_maps_search_term": "Afrikaanse Hoër Seunskool",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 124,
+    "wp_term_id_reference_only": "5"
+  },
+  {
+    "final_venue_name": "Bellville High School",
+    "google_maps_search_term": "Bellville High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 13,
+    "wp_term_id_reference_only": "6"
+  },
+  {
+    "final_venue_name": "Ben Vorster",
+    "google_maps_search_term": "Ben Vorster",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 22,
+    "wp_term_id_reference_only": "7"
+  },
+  {
+    "final_venue_name": "Bergsig",
+    "google_maps_search_term": "Bergsig Academy",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Bergsig Academy', 13/15 home fixtures)",
+    "times_used_in_historical_matches": 15,
+    "wp_term_id_reference_only": "8"
+  },
+  {
+    "final_venue_name": "Bethlehem Voortrekker Hoerskool",
+    "google_maps_search_term": "Bethlehem Voortrekker Hoerskool",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 28,
+    "wp_term_id_reference_only": "9"
+  },
+  {
+    "final_venue_name": "Bishops",
+    "google_maps_search_term": "Bishops",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "10"
+  },
+  {
+    "final_venue_name": "Boland Landbou",
+    "google_maps_search_term": "Boland Landbou",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 27,
+    "wp_term_id_reference_only": "11"
+  },
+  {
+    "final_venue_name": "Brackenfell High School",
+    "google_maps_search_term": "Brackenfell High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "12"
+  },
+  {
+    "final_venue_name": "Charlie Hofmeyr",
+    "google_maps_search_term": "Charlie Hofmeyr",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 6,
+    "wp_term_id_reference_only": "14"
+  },
+  {
+    "final_venue_name": "DF Malan",
+    "google_maps_search_term": "DF Malan",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 5,
+    "wp_term_id_reference_only": "18"
+  },
+  {
+    "final_venue_name": "Dale College",
+    "google_maps_search_term": "Dale College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "16"
+  },
+  {
+    "final_venue_name": "Daniel Pienaar",
+    "google_maps_search_term": "Daniel Pienaar",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "17"
+  },
+  {
+    "final_venue_name": "Die Anker",
+    "google_maps_search_term": "Die Anker",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 32,
+    "wp_term_id_reference_only": "19"
+  },
+  {
+    "final_venue_name": "Dinamika",
+    "google_maps_search_term": "Dinamika",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 6,
+    "wp_term_id_reference_only": "20"
+  },
+  {
+    "final_venue_name": "Drostdy",
+    "google_maps_search_term": "Drostdy",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 18,
+    "wp_term_id_reference_only": "21"
+  },
+  {
+    "final_venue_name": "Durban High School",
+    "google_maps_search_term": "Durban High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 22,
+    "wp_term_id_reference_only": "22"
+  },
+  {
+    "final_venue_name": "EG Jansen",
+    "google_maps_search_term": "EG Jansen",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 38,
+    "wp_term_id_reference_only": "24"
+  },
+  {
+    "final_venue_name": "Framesby",
+    "google_maps_search_term": "Framesby",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "29"
+  },
+  {
+    "final_venue_name": "Garsfontein",
+    "google_maps_search_term": "Hoërskool Garsfontein",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hoërskool Garsfontein', 27/27 home fixtures)",
+    "times_used_in_historical_matches": 27,
+    "wp_term_id_reference_only": "49"
+  },
+  {
+    "final_venue_name": "Glenwood High School",
+    "google_maps_search_term": "Glenwood High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 24,
+    "wp_term_id_reference_only": "33"
+  },
+  {
+    "final_venue_name": "Goudveld Hoërskool",
+    "google_maps_search_term": "Goudveld Hoërskool",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 18,
+    "wp_term_id_reference_only": "34"
+  },
+  {
+    "final_venue_name": "Graeme College",
+    "google_maps_search_term": "Graeme College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 53,
+    "wp_term_id_reference_only": "35"
+  },
+  {
+    "final_venue_name": "Grey College",
+    "google_maps_search_term": "Grey College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "36"
+  },
+  {
+    "final_venue_name": "Grey High School",
+    "google_maps_search_term": "Grey High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 107,
+    "wp_term_id_reference_only": "37"
+  },
+  {
+    "final_venue_name": "HTS Middelburg",
+    "google_maps_search_term": "Hoër Tegniese Skool Middelburg",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hoër Tegniese Skool Middelburg', 10/10 home fixtures)",
+    "times_used_in_historical_matches": 10,
+    "wp_term_id_reference_only": "44"
+  },
+  {
+    "final_venue_name": "HTS Middelburg",
+    "google_maps_search_term": "HTS Middelburg",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 19,
+    "wp_term_id_reference_only": "168"
+  },
+  {
+    "final_venue_name": "Heidelberg",
+    "google_maps_search_term": "Heidelberg",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "38"
+  },
+  {
+    "final_venue_name": "Helpmekaar",
+    "google_maps_search_term": "Helpmekaar",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 24,
+    "wp_term_id_reference_only": "39"
+  },
+  {
+    "final_venue_name": "Hermanus High School",
+    "google_maps_search_term": "Hermanus High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 6,
+    "wp_term_id_reference_only": "40"
+  },
+  {
+    "final_venue_name": "Hilton College",
+    "google_maps_search_term": "Hilton College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 31,
+    "wp_term_id_reference_only": "41"
+  },
+  {
+    "final_venue_name": "Hoer Landbouschool Oakdale",
+    "google_maps_search_term": "Hoer Landbouschool Oakdale",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 90,
+    "wp_term_id_reference_only": "42"
+  },
+  {
+    "final_venue_name": "Hoerskool Diamantveld",
+    "google_maps_search_term": "Hoerskool Diamantveld",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 132,
+    "wp_term_id_reference_only": "46"
+  },
+  {
+    "final_venue_name": "Hoerskool Durbanville",
+    "google_maps_search_term": "Hoerskool Durbanville",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "47"
+  },
+  {
+    "final_venue_name": "Hoerskool Jim Fouche",
+    "google_maps_search_term": "Jim Fouche",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Jim Fouche', 18/18 home fixtures)",
+    "times_used_in_historical_matches": 18,
+    "wp_term_id_reference_only": "69"
+  },
+  {
+    "final_venue_name": "Hoerskool Sentraal",
+    "google_maps_search_term": "Hoerskool Sentraal",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 17,
+    "wp_term_id_reference_only": "60"
+  },
+  {
+    "final_venue_name": "Hoër Landbouskool Marlow",
+    "google_maps_search_term": "Hoër Landbouskool Marlow",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 19,
+    "wp_term_id_reference_only": "43"
+  },
+  {
+    "final_venue_name": "Hoër Volkskool Potchefstroom",
+    "google_maps_search_term": "Hoër Volkskool Potchefstroom",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 17,
+    "wp_term_id_reference_only": "170"
+  },
+  {
+    "final_venue_name": "Hoër Volkskool Potchefstroom",
+    "google_maps_search_term": "Volkskool Potchefstroom",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Volkskool Potchefstroom', 6/6 home fixtures)",
+    "times_used_in_historical_matches": 6,
+    "wp_term_id_reference_only": "118"
+  },
+  {
+    "final_venue_name": "Hoërskool Brandwag",
+    "google_maps_search_term": "Hoërskool Brandwag",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 17,
+    "wp_term_id_reference_only": "45"
+  },
+  {
+    "final_venue_name": "Hoërskool Eldoraigne",
+    "google_maps_search_term": "Eldoraigne",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Eldoraigne', 28/28 home fixtures)",
+    "times_used_in_historical_matches": 28,
+    "wp_term_id_reference_only": "25"
+  },
+  {
+    "final_venue_name": "Hoërskool Ermelo",
+    "google_maps_search_term": "Ermelo",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Ermelo', 6/6 home fixtures)",
+    "times_used_in_historical_matches": 6,
+    "wp_term_id_reference_only": "26"
+  },
+  {
+    "final_venue_name": "Hoërskool Fichardtpark",
+    "google_maps_search_term": "Hoërskool Fichardtpark",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "48"
+  },
+  {
+    "final_venue_name": "Hoërskool Hugenote",
+    "google_maps_search_term": "Hugenote",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hugenote', 30/30 home fixtures)",
+    "times_used_in_historical_matches": 30,
+    "wp_term_id_reference_only": "66"
+  },
+  {
+    "final_venue_name": "Hoërskool Kempton Park",
+    "google_maps_search_term": "Hoërskool Kempton Park",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 30,
+    "wp_term_id_reference_only": "50"
+  },
+  {
+    "final_venue_name": "Hoërskool Menlopark",
+    "google_maps_search_term": "Hoërskool Menlopark",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 42,
+    "wp_term_id_reference_only": "52"
+  },
+  {
+    "final_venue_name": "Hoërskool Monument",
+    "google_maps_search_term": "Hoërskool Monument",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 32,
+    "wp_term_id_reference_only": "53"
+  },
+  {
+    "final_venue_name": "Hoërskool Nelspruit",
+    "google_maps_search_term": "Hoërskool Nelspruit",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 39,
+    "wp_term_id_reference_only": "54"
+  },
+  {
+    "final_venue_name": "Hoërskool Noordheuwel",
+    "google_maps_search_term": "Hoërskool Noordheuwel",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 30,
+    "wp_term_id_reference_only": "55"
+  },
+  {
+    "final_venue_name": "Hoërskool Oos-Moot",
+    "google_maps_search_term": "Hoërskool Oos-Moot",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 30,
+    "wp_term_id_reference_only": "56"
+  },
+  {
+    "final_venue_name": "Hoërskool Outeniqua",
+    "google_maps_search_term": "Hoërskool Outeniqua",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "57"
+  },
+  {
+    "final_venue_name": "Hoërskool Piet Retief",
+    "google_maps_search_term": "Piet Retief",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Piet Retief', 12/12 home fixtures)",
+    "times_used_in_historical_matches": 12,
+    "wp_term_id_reference_only": "95"
+  },
+  {
+    "final_venue_name": "Hoërskool Randburg",
+    "google_maps_search_term": "Hoërskool Randburg",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 4,
+    "wp_term_id_reference_only": "58"
+  },
+  {
+    "final_venue_name": "Hoërskool Rustenburg",
+    "google_maps_search_term": "Hoërskool Rustenburg",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "59"
+  },
+  {
+    "final_venue_name": "Hoërskool Transvalia",
+    "google_maps_search_term": "Hoërskool Transvalia",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 35,
+    "wp_term_id_reference_only": "61"
+  },
+  {
+    "final_venue_name": "Hoërskool Waterkloof",
+    "google_maps_search_term": "Hoërskool Waterkloof",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 32,
+    "wp_term_id_reference_only": "62"
+  },
+  {
+    "final_venue_name": "Hudson Park High School",
+    "google_maps_search_term": "Hudson Park high School",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hudson Park high School', 16/16 home fixtures)",
+    "times_used_in_historical_matches": 16,
+    "wp_term_id_reference_only": "65"
+  },
+  {
+    "final_venue_name": "Jeppe High School For Boys",
+    "google_maps_search_term": "Jeppe",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Jeppe', 21/21 home fixtures)",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "67"
+  },
+  {
+    "final_venue_name": "Jeugland",
+    "google_maps_search_term": "Jeugland",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "68"
+  },
+  {
+    "final_venue_name": "Kearsney College",
+    "google_maps_search_term": "Kearsney College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 97,
+    "wp_term_id_reference_only": "70"
+  },
+  {
+    "final_venue_name": "King Edward VII School",
+    "google_maps_search_term": "King Edward VII School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 91,
+    "wp_term_id_reference_only": "71"
+  },
+  {
+    "final_venue_name": "Kingswood College",
+    "google_maps_search_term": "Kingswood College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 14,
+    "wp_term_id_reference_only": "72"
+  },
+  {
+    "final_venue_name": "Klerksdorp Hoërskool",
+    "google_maps_search_term": "Hoërskool Klerksdorp",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hoërskool Klerksdorp', 29/29 home fixtures)",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "51"
+  },
+  {
+    "final_venue_name": "Lichtenburg",
+    "google_maps_search_term": "Lichtenburg",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 32,
+    "wp_term_id_reference_only": "74"
+  },
+  {
+    "final_venue_name": "Ligbron",
+    "google_maps_search_term": "Ligbron",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 20,
+    "wp_term_id_reference_only": "75"
+  },
+  {
+    "final_venue_name": "Marais Viljoen",
+    "google_maps_search_term": "Marais Viljoen",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "77"
+  },
+  {
+    "final_venue_name": "Maritzburg College",
+    "google_maps_search_term": "Maritzburg College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "78"
+  },
+  {
+    "final_venue_name": "Merensky Landbou Akademie",
+    "google_maps_search_term": "Merensky",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Merensky', 10/10 home fixtures)",
+    "times_used_in_historical_matches": 10,
+    "wp_term_id_reference_only": "79"
+  },
+  {
+    "final_venue_name": "Michaelhouse",
+    "google_maps_search_term": "Michaelhouse",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 24,
+    "wp_term_id_reference_only": "80"
+  },
+  {
+    "final_venue_name": "Middelburg",
+    "google_maps_search_term": "Middelburg",
+    "needs_manual_decision": false,
+    "note": "kept as its own separate venue, NOT merged into either school - Middelburg High School and HTS Middelburg are two distinct schools, and Michael confirmed the similar naming caused real historical mix-ups in which team's venue got recorded here, so the home-team split (11 vs 5) in the fixture data can't be trusted to assign this venue to one school. Match details (scores/dates/teams) are still correct - only this venue's historical attribution is uncertain.",
+    "times_used_in_historical_matches": 16,
+    "wp_term_id_reference_only": "81"
+  },
+  {
+    "final_venue_name": "Middelburg High School",
+    "google_maps_search_term": "Middelburg High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 15,
+    "wp_term_id_reference_only": "172"
+  },
+  {
+    "final_venue_name": "Milnerton High School",
+    "google_maps_search_term": "Milnerton High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 18,
+    "wp_term_id_reference_only": "82"
+  },
+  {
+    "final_venue_name": "Montana",
+    "google_maps_search_term": "Montana",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 25,
+    "wp_term_id_reference_only": "83"
+  },
+  {
+    "final_venue_name": "Muir College",
+    "google_maps_search_term": "Muir College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 13,
+    "wp_term_id_reference_only": "84"
+  },
+  {
+    "final_venue_name": "Nico Malan High School",
+    "google_maps_search_term": "Nico Malan High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "86"
+  },
+  {
+    "final_venue_name": "Northwood School",
+    "google_maps_search_term": "Northwood School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 23,
+    "wp_term_id_reference_only": "87"
+  },
+  {
+    "final_venue_name": "Paarl Boys High",
+    "google_maps_search_term": "Paarl Boys High",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 25,
+    "wp_term_id_reference_only": "89"
+  },
+  {
+    "final_venue_name": "Paarl Gimnasium",
+    "google_maps_search_term": "Paarl Gimnasium",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 28,
+    "wp_term_id_reference_only": "90"
+  },
+  {
+    "final_venue_name": "Parel Vallei High School",
+    "google_maps_search_term": "Parel Vallei High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 20,
+    "wp_term_id_reference_only": "91"
+  },
+  {
+    "final_venue_name": "Parktown Boys High School",
+    "google_maps_search_term": "Parktown Boys' High School",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Parktown Boys' High School', 10/10 home fixtures)",
+    "times_used_in_historical_matches": 10,
+    "wp_term_id_reference_only": "92"
+  },
+  {
+    "final_venue_name": "Paul Roos Gimnasium",
+    "google_maps_search_term": "Paul Roos Gimnasium",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 53,
+    "wp_term_id_reference_only": "93"
+  },
+  {
+    "final_venue_name": "Pearson High School",
+    "google_maps_search_term": "Pearson High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 25,
+    "wp_term_id_reference_only": "94"
+  },
+  {
+    "final_venue_name": "Pietersburg Hoërskool",
+    "google_maps_search_term": "Pietersburg",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Pietersburg', 24/24 home fixtures)",
+    "times_used_in_historical_matches": 24,
+    "wp_term_id_reference_only": "96"
+  },
+  {
+    "final_venue_name": "Potchefstroom Gimnasium",
+    "google_maps_search_term": "Potchefstroom Gimnasium",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 10,
+    "wp_term_id_reference_only": "97"
+  },
+  {
+    "final_venue_name": "Pretoria Boys High School",
+    "google_maps_search_term": "Pretoria Boys High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 45,
+    "wp_term_id_reference_only": "98"
+  },
+  {
+    "final_venue_name": "Queen's College",
+    "google_maps_search_term": "Queen's College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "100"
+  },
+  {
+    "final_venue_name": "Rondebosch Boys High School",
+    "google_maps_search_term": "Rondebosch Boys High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 32,
+    "wp_term_id_reference_only": "101"
+  },
+  {
+    "final_venue_name": "SACS",
+    "google_maps_search_term": "SACS",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 33,
+    "wp_term_id_reference_only": "102"
+  },
+  {
+    "final_venue_name": "Secunda",
+    "google_maps_search_term": "Secunda",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "105"
+  },
+  {
+    "final_venue_name": "Selborne College",
+    "google_maps_search_term": "Selborne College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 21,
+    "wp_term_id_reference_only": "106"
+  },
+  {
+    "final_venue_name": "Sol Plaatje University",
+    "google_maps_search_term": "Sol Plaatje University",
+    "needs_manual_decision": false,
+    "note": "kept as its own venue (default, unconfirmed) - not a school, used once, no Organisation to rename it to. Flag to Michael if this should be handled differently.",
+    "times_used_in_historical_matches": 1,
+    "wp_term_id_reference_only": "153"
+  },
+  {
+    "final_venue_name": "St Alban’s College",
+    "google_maps_search_term": "St Alban's College",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'St Alban's College', 14/14 home fixtures)",
+    "times_used_in_historical_matches": 14,
+    "wp_term_id_reference_only": "107"
+  },
+  {
+    "final_venue_name": "St Andrew's College",
+    "google_maps_search_term": "St Andrew's College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 26,
+    "wp_term_id_reference_only": "108"
+  },
+  {
+    "final_venue_name": "St Benedict’s College",
+    "google_maps_search_term": "St Benedict’s College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 13,
+    "wp_term_id_reference_only": "109"
+  },
+  {
+    "final_venue_name": "St Charles College",
+    "google_maps_search_term": "St Charles College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 16,
+    "wp_term_id_reference_only": "110"
+  },
+  {
+    "final_venue_name": "St John’s College",
+    "google_maps_search_term": "St John's College",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'St John's College', 28/83 home fixtures)",
+    "times_used_in_historical_matches": 83,
+    "wp_term_id_reference_only": "111"
+  },
+  {
+    "final_venue_name": "St Stithians College",
+    "google_maps_search_term": "St Stithians College",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 41,
+    "wp_term_id_reference_only": "112"
+  },
+  {
+    "final_venue_name": "Stellenberg High School",
+    "google_maps_search_term": "Stellenberg High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 34,
+    "wp_term_id_reference_only": "113"
+  },
+  {
+    "final_venue_name": "Strand High School",
+    "google_maps_search_term": "Strand High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 26,
+    "wp_term_id_reference_only": "114"
+  },
+  {
+    "final_venue_name": "Swartland High School",
+    "google_maps_search_term": "Swartland High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 9,
+    "wp_term_id_reference_only": "115"
+  },
+  {
+    "final_venue_name": "Trio High School",
+    "google_maps_search_term": "Trio High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 20,
+    "wp_term_id_reference_only": "116"
+  },
+  {
+    "final_venue_name": "Tygerberg High School",
+    "google_maps_search_term": "Tygerberg High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 9,
+    "wp_term_id_reference_only": "117"
+  },
+  {
+    "final_venue_name": "Welkom Gimnasium",
+    "google_maps_search_term": "Welkom Gimnasium",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 19,
+    "wp_term_id_reference_only": "120"
+  },
+  {
+    "final_venue_name": "Westville Boys' High School",
+    "google_maps_search_term": "Westville Boys' High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 19,
+    "wp_term_id_reference_only": "121"
+  },
+  {
+    "final_venue_name": "Wesvalia",
+    "google_maps_search_term": "Wesvalia High School",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Wesvalia High School', 29/29 home fixtures)",
+    "times_used_in_historical_matches": 29,
+    "wp_term_id_reference_only": "122"
+  },
+  {
+    "final_venue_name": "Witteberg Hoerskool",
+    "google_maps_search_term": "Witteberg",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Witteberg', 26/27 home fixtures)",
+    "times_used_in_historical_matches": 27,
+    "wp_term_id_reference_only": "124"
+  },
+  {
+    "final_venue_name": "Worcester Gymnasium",
+    "google_maps_search_term": "Worcester Gymnasium",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 7,
+    "wp_term_id_reference_only": "125"
+  },
+  {
+    "final_venue_name": "Wynberg Boys' High School",
+    "google_maps_search_term": "Wynberg Boys' High School",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 37,
+    "wp_term_id_reference_only": "126"
+  },
+  {
+    "final_venue_name": "Zwartkop",
+    "google_maps_search_term": "Hoërskool Zwartkop",
+    "needs_manual_decision": false,
+    "note": "renamed to match owning org (was 'Hoërskool Zwartkop', 14/14 home fixtures)",
+    "times_used_in_historical_matches": 14,
+    "wp_term_id_reference_only": "63"
+  },
+  {
+    "final_venue_name": "Zwartkop",
+    "google_maps_search_term": "Zwartkop",
+    "needs_manual_decision": false,
+    "note": "already matches an org name - no change",
+    "times_used_in_historical_matches": 17,
+    "wp_term_id_reference_only": "178"
+  }
+]
