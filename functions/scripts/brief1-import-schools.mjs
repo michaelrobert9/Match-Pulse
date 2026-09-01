@@ -321,6 +321,17 @@ async function main() {
       // Activate rugby (identity down + central activatedSports.rugby).
       const identity = pickIdentity({ ...fields })
       await activateRugby(orgId, identity, ownerUid, Date.now())
+
+      // Owner grant: ownerUserId alone leaves the owner locked out of the sport
+      // apps (they gate on a staff/{uid} doc). Write the org-wide owner staff doc
+      // so syncOrgRoleClaim + centralOrgStaffSync grant access. Written AFTER
+      // activation so centralOrgStaffSync sees rugby active and copies the doc
+      // into the rugby DB (activateRugby itself does not copy staff). Only on
+      // create — reconciled orgs keep their owner; the backfill covers the rest.
+      if (action === 'create') {
+        await db.doc(`organizations/${orgId}/staff/${ownerUid}`).set(
+          { role: 'owner', teamId: null, createdAt: now, createdBy: ownerUid }, { merge: true })
+      }
     }
 
     if (action === 'create') created++; else reconciled++
