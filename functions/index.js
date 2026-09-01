@@ -1287,6 +1287,15 @@ exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
       createdAt:             admin.firestore.FieldValue.serverTimestamp(),
       updatedAt:             admin.firestore.FieldValue.serverTimestamp(),
     })
+    // The owner grant lives in staff/{uid} (role owner, org-wide). Writing it
+    // here drives syncOrgRoleClaim → orgRoles → claim and centralOrgStaffSync →
+    // each activated sport, so the owner actually has access in the sport apps.
+    // Without it, ownerUserId alone leaves the owner locked out everywhere.
+    tx.set(orgRef.collection('staff').doc(ownerUid), {
+      role: 'owner', teamId: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+    })
   })
   await appRef.update({
     status:     'approved',
@@ -1466,6 +1475,22 @@ exports.centralMigrateHockeyOrgs = onCall({ region: REGION, timeoutSeconds: 300 
         if (++n % 400 === 0) { await batch.commit(); batch = db.batch() }
       }
       if (n % 400 !== 0 || n === 0) await batch.commit()
+
+      // Ensure the owner has an org-wide owner staff doc. Hockey orgs whose owner
+      // was derived from createdBy (no owner staff doc in Hockey) would otherwise
+      // get ownerUserId but no grant — locking the owner out of every sport. This
+      // fires syncOrgRoleClaim + centralOrgStaffSync like any other staff write.
+      if (r.ownerUserId) {
+        const hasOwnerDoc = r._staff.some(s => s.id === r.ownerUserId
+          && s.data?.role === 'owner' && (s.data?.teamId == null || s.data?.teamId === ''))
+        if (!hasOwnerDoc) {
+          await db.doc(`organizations/${r.orgId}/staff/${r.ownerUserId}`).set({
+            role: 'owner', teamId: null,
+            createdAt: r._hCreatedAt ?? admin.firestore.FieldValue.serverTimestamp(),
+            createdBy: r._hCreatedBy ?? uid,
+          }, { merge: true })
+        }
+      }
 
       // Seed the slug reservation (idempotent).
       if (r.slug) {
