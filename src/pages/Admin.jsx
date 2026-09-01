@@ -190,7 +190,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
       await httpsCallable(functions, 'adminSetEntitlement')({
         uid: user.uid, plan: form.plan, credits: Number(form.credits), years: Number(form.years), method: form.method, note: form.note,
       })
-      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'Everyday MatchPulse' : form.plan === 'event' ? 'Single Competition' : 'All-In'}. Reaches the sport sites on their next token refresh.` })
+      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'User (no plan)' : form.plan === 'event' ? 'Single Competition' : 'All-In'}. Reaches the sport sites on their next token refresh.` })
       setForm(f => ({ ...f, note: '' })); onChanged?.()
     } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not set plan.' }) }
     finally { setBusy('') }
@@ -247,7 +247,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
             <div className="field">
               <label>Plan to set</label>
               <select {...bind('plan')}>
-                <option value="none">Free — no paid access</option>
+                <option value="none">User — no plan</option>
                 <option value="event">Single Competition — competition credits (once-off)</option>
                 <option value="pro">All-In — unlimited competitions (annual)</option>
               </select>
@@ -339,6 +339,7 @@ function UsersTab({ onEditOrg }) {
   const [orgsById, setOrgsById] = useState({})
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
+  const [seg,  setSeg]  = useState('all')   // 'all' | 'plan' | 'user'
   const [sel,  setSel]  = useState(null)
 
   async function load() {
@@ -351,7 +352,7 @@ function UsersTab({ onEditOrg }) {
         const data = d.data()
         return {
           uid: d.id, email: data.email ?? '', displayName: data.displayName ?? '',
-          plan: planStatus(data), createdAt: data.createdAt ?? null,
+          plan: planStatus(data), hasPlan: planStatus(data).hasPlan, createdAt: data.createdAt ?? null,
           platformAdmin: data.platformAdmin === true, raw: data,
         }
       })
@@ -370,19 +371,34 @@ function UsersTab({ onEditOrg }) {
     if (sel) setSel(list.find(r => r.uid === sel.uid) || null)
   }
 
+  const counts = useMemo(() => {
+    if (!rows) return { all: 0, plan: 0, user: 0 }
+    const plan = rows.filter(r => r.hasPlan).length
+    return { all: rows.length, plan, user: rows.length - plan }
+  }, [rows])
+
   const filtered = useMemo(() => {
     if (!rows) return null
-    if (!q.trim()) return rows
+    let list = rows
+    if (seg === 'plan') list = list.filter(r => r.hasPlan)
+    else if (seg === 'user') list = list.filter(r => !r.hasPlan)
+    if (!q.trim()) return list
     const needle = q.trim().toLowerCase()
-    return rows.filter(r =>
+    return list.filter(r =>
       r.email.toLowerCase().includes(needle) || r.displayName.toLowerCase().includes(needle) || r.uid.toLowerCase().includes(needle)
     )
-  }, [rows, q])
+  }, [rows, q, seg])
 
   if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} onEditOrg={onEditOrg} />
 
   return (
     <div className="adm-section">
+      <div className="dir-tabs" role="tablist" style={{ marginBottom: 12 }}>
+        <button role="tab" aria-selected={seg === 'all'}  className={seg === 'all'  ? 'active' : ''} onClick={() => setSeg('all')}>All{rows ? ` (${counts.all})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'plan'} className={seg === 'plan' ? 'active' : ''} onClick={() => setSeg('plan')}>Plan holders{rows ? ` (${counts.plan})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'user'} className={seg === 'user' ? 'active' : ''} onClick={() => setSeg('user')}>Users, no plan{rows ? ` (${counts.user})` : ''}</button>
+      </div>
+      <p className="adm-hint">Plan holders have a Single Competition or All-In plan and need activation and management. Users, no plan are plain accounts (players and guardians) and need little admin.</p>
       <div className="adm-toolbar">
         <input type="search" value={q} placeholder="Search by name, email or UID" onChange={e => setQ(e.target.value)} />
         <span className="adm-count">{filtered ? `${filtered.length} of ${rows.length}` : ''}</span>

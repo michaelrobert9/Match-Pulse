@@ -395,7 +395,8 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
   letter-spacing: .08em; text-transform: uppercase;
   padding: 5px 12px; border-radius: 980px;
 }
-.plan-free       { background: rgba(11,18,32,.06);  color: var(--slate); }
+.plan-free,
+.plan-none       { background: rgba(11,18,32,.06);  color: var(--slate); }
 .plan-plus,
 .plan-pro        { background: var(--pulse-tint);   color: var(--pulse-ink); }
 .plan-expired,
