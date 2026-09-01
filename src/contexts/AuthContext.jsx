@@ -25,21 +25,24 @@ function entitlementOf(data) {
 }
 
 // Resolve the raw fields into a plan the UI can render.
+// `hasPlan` separates a plain account (just a user — no paid plan, little admin)
+// from an account carrying a plan that needs activation and management. A bare
+// signup is entitlement 'none' → a "User", NOT auto-enrolled in any plan.
 export function planStatus(e) {
   const tier = e?.entitlement ?? 'none'
   if (tier === 'pro') {
     const exp = e.entitlementExpiresAt?.toDate?.()
       ?? (e.entitlementExpiresAt ? new Date(e.entitlementExpiresAt) : null)
-    if (exp && exp > new Date()) return { key: 'pro', label: 'All-In', active: true, expiresAt: exp }
-    return { key: 'expired', label: 'All-In (expired)', active: false, expiresAt: exp }
+    if (exp && exp > new Date()) return { key: 'pro', label: 'All-In', active: true, hasPlan: true, expiresAt: exp }
+    return { key: 'expired', label: 'All-In (expired)', active: false, hasPlan: true, expiresAt: exp }
   }
   if (tier === 'event') {
     const credits = e?.eventCredits ?? 0
     return credits > 0
-      ? { key: 'plus', label: 'Single Competition', active: true, credits }
-      : { key: 'plus_spent', label: 'Single Competition (no credits left)', active: false, credits: 0 }
+      ? { key: 'plus', label: 'Single Competition', active: true, hasPlan: true, credits }
+      : { key: 'plus_spent', label: 'Single Competition (no credits left)', active: false, hasPlan: true, credits: 0 }
   }
-  return { key: 'free', label: 'Everyday MatchPulse', active: true }
+  return { key: 'none', label: 'User', active: false, hasPlan: false }
 }
 
 export function AuthProvider({ children }) {

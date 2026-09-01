@@ -11,7 +11,7 @@ import {
   ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
-  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson,
+  deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson, addOrgMember,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -309,6 +309,23 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
     } finally { setActBusy('') }
   }
 
+  // Add an existing user as a whole-org manager (admin) or helper (staff).
+  const [invite, setInvite] = useState({ email: '', role: 'admin' })
+  async function addMember(e) {
+    e?.preventDefault?.()
+    const email = invite.email.trim()
+    if (!email) { setActMsg({ kind: 'err', text: 'Enter the person’s email.' }); return }
+    setActBusy('add'); setActMsg(null)
+    try {
+      const res = await addOrgMember(id, email, invite.role)
+      setActMsg({ kind: 'ok', text: `${res.name || res.email} added as ${invite.role === 'admin' ? 'manager' : 'helper'}. Their access reaches each sport on their next sign-in.` })
+      setInvite({ email: '', role: 'admin' })
+      loadPeople()
+    } catch (e) {
+      setActMsg({ kind: 'err', text: e.message || 'Could not add this person.' })
+    } finally { setActBusy('') }
+  }
+
   async function setSub(action) {
     setActBusy('sub'); setActMsg(null)
     try {
@@ -538,7 +555,8 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
             <h2 className="inv-edit-h">People</h2>
             <p className="adm-field-hint">
               Everyone attached to this organisation — the owner, and anyone with a role in any sport.
-              Only <strong>ownership</strong> is managed here; scorer and sport-specific access is set inside each sport.
+              Add a <strong>manager</strong> (full access to this organisation) or a <strong>helper</strong>
+              below. Ownership transfer is here too; finer, sport- or team-specific roles are set inside each sport.
             </p>
             {people === null ? <p className="adm-loading">Loading…</p>
               : people.length === 0 ? <p className="muted">No people recorded yet.</p>
@@ -577,6 +595,17 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                   ))}
                 </ul>
               )}
+
+            <form className="op-invite" onSubmit={addMember}>
+              <input type="email" placeholder="person@school.co.za" value={invite.email}
+                onChange={e => setInvite(s => ({ ...s, email: e.target.value }))} />
+              <select value={invite.role} onChange={e => setInvite(s => ({ ...s, role: e.target.value }))}>
+                <option value="admin">Manager — full access</option>
+                <option value="staff">Helper — limited</option>
+              </select>
+              <button className="btn btn-primary btn-sm" disabled={actBusy === 'add'}>{actBusy === 'add' ? 'Adding…' : 'Add person'}</button>
+            </form>
+            <p className="adm-field-hint">They need a MatchPulse account already. Ask them to sign up first, then add them by that email.</p>
           </section>
         )}
 

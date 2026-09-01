@@ -190,7 +190,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
       await httpsCallable(functions, 'adminSetEntitlement')({
         uid: user.uid, plan: form.plan, credits: Number(form.credits), years: Number(form.years), method: form.method, note: form.note,
       })
-      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'Everyday MatchPulse' : form.plan === 'event' ? 'Single Competition' : 'All-In'}. Reaches the sport sites on their next token refresh.` })
+      setMsg({ kind: 'ok', text: `Plan set to ${form.plan === 'none' ? 'User (no plan)' : form.plan === 'event' ? 'Single Competition' : 'All-In'}. Reaches the sport sites on their next token refresh.` })
       setForm(f => ({ ...f, note: '' })); onChanged?.()
     } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not set plan.' }) }
     finally { setBusy('') }
@@ -247,7 +247,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
             <div className="field">
               <label>Plan to set</label>
               <select {...bind('plan')}>
-                <option value="none">Free — no paid access</option>
+                <option value="none">User — no plan</option>
                 <option value="event">Single Competition — competition credits (once-off)</option>
                 <option value="pro">All-In — unlimited competitions (annual)</option>
               </select>
@@ -339,6 +339,7 @@ function UsersTab({ onEditOrg }) {
   const [orgsById, setOrgsById] = useState({})
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
+  const [seg,  setSeg]  = useState('all')   // 'all' | 'plan' | 'user'
   const [sel,  setSel]  = useState(null)
 
   async function load() {
@@ -351,7 +352,7 @@ function UsersTab({ onEditOrg }) {
         const data = d.data()
         return {
           uid: d.id, email: data.email ?? '', displayName: data.displayName ?? '',
-          plan: planStatus(data), createdAt: data.createdAt ?? null,
+          plan: planStatus(data), hasPlan: planStatus(data).hasPlan, createdAt: data.createdAt ?? null,
           platformAdmin: data.platformAdmin === true, raw: data,
         }
       })
@@ -370,19 +371,34 @@ function UsersTab({ onEditOrg }) {
     if (sel) setSel(list.find(r => r.uid === sel.uid) || null)
   }
 
+  const counts = useMemo(() => {
+    if (!rows) return { all: 0, plan: 0, user: 0 }
+    const plan = rows.filter(r => r.hasPlan).length
+    return { all: rows.length, plan, user: rows.length - plan }
+  }, [rows])
+
   const filtered = useMemo(() => {
     if (!rows) return null
-    if (!q.trim()) return rows
+    let list = rows
+    if (seg === 'plan') list = list.filter(r => r.hasPlan)
+    else if (seg === 'user') list = list.filter(r => !r.hasPlan)
+    if (!q.trim()) return list
     const needle = q.trim().toLowerCase()
-    return rows.filter(r =>
+    return list.filter(r =>
       r.email.toLowerCase().includes(needle) || r.displayName.toLowerCase().includes(needle) || r.uid.toLowerCase().includes(needle)
     )
-  }, [rows, q])
+  }, [rows, q, seg])
 
   if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} onEditOrg={onEditOrg} />
 
   return (
     <div className="adm-section">
+      <div className="dir-tabs" role="tablist" style={{ marginBottom: 12 }}>
+        <button role="tab" aria-selected={seg === 'all'}  className={seg === 'all'  ? 'active' : ''} onClick={() => setSeg('all')}>All{rows ? ` (${counts.all})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'plan'} className={seg === 'plan' ? 'active' : ''} onClick={() => setSeg('plan')}>Plan holders{rows ? ` (${counts.plan})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'user'} className={seg === 'user' ? 'active' : ''} onClick={() => setSeg('user')}>Users, no plan{rows ? ` (${counts.user})` : ''}</button>
+      </div>
+      <p className="adm-hint">Plan holders have a Single Competition or All-In plan and need activation and management. Users, no plan are plain accounts (players and guardians) and need little admin.</p>
       <div className="adm-toolbar">
         <input type="search" value={q} placeholder="Search by name, email or UID" onChange={e => setQ(e.target.value)} />
         <span className="adm-count">{filtered ? `${filtered.length} of ${rows.length}` : ''}</span>
@@ -1016,15 +1032,27 @@ function OrgApply() {
   const [f, setF]     = useState({ orgName: '', type: 'school', region: '', role: '', motivation: '' })
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [done, setDone] = useState(false)
   const set = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
 
   async function submit(e) {
     e.preventDefault()
     if (!f.orgName.trim() || !f.role.trim()) { setMsg({ kind: 'err', text: 'Please give the name and your role.' }); return }
     setBusy(true); setMsg(null)
-    try { await submitOrgApplication(user, f); navigate('/admin', { replace: true }) }
-    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not submit the application.' }); setBusy(false) }
+    try { await submitOrgApplication(user, f); setDone(true) }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not submit the application.' }) }
+    finally { setBusy(false) }
   }
+
+  if (done) return (
+    <div className="adm-section">
+      <section className="adm-ud-card" style={{ marginTop: 12, maxWidth: 620 }}>
+        <h4>Application submitted</h4>
+        <Notice kind="ok">Thanks — your application for “{f.orgName.trim()}” is in. It stays in review (nothing is created yet) and we usually get to it within 7 days. You’ll be able to set it up once it’s approved.</Notice>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => navigate('/admin')} style={{ marginTop: 12 }}>Done</button>
+      </section>
+    </div>
+  )
 
   return (
     <div className="adm-section">
@@ -1165,7 +1193,7 @@ const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
 
 // Role-filtered sidebar: platform admins get the platform sections; anyone who
 // owns organisations gets a "My Schools / My Clubs / …" section per type they own.
-function AdminNav({ isAdmin, typesPresent, onNavigate }) {
+function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
   // Owners' "My Schools / Clubs / …" links. For a platform admin these sit
   // directly beneath the "Organisations" tab; for an owner (no platform tabs)
   // they are the whole nav.
@@ -1186,6 +1214,7 @@ function AdminNav({ isAdmin, typesPresent, onNavigate }) {
             const link = (
               <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
                 {Icon && <Icon />}<span>{t.label}</span>
+                {t.key === 'applications' && pendingApps > 0 && <span className="adm-nav-badge">{pendingApps}</span>}
               </NavLink>
             )
             // Slot the owner's own orgs right under the Organisations tab.
@@ -1204,7 +1233,8 @@ function AdminNav({ isAdmin, typesPresent, onNavigate }) {
 }
 
 // A signed-in owner's list of one org type, linking each into the shell editor.
-function MyOrgList({ type, orgs }) {
+// A platform admin is the verifier, so they create directly; a non-admin applies.
+function MyOrgList({ type, orgs, isAdmin }) {
   const mine  = orgs.filter(o => o.type === type)
   const label = ORG_TYPES.find(t => t.key === type)?.label || 'Organisation'
   const seg   = TYPE_PREFIX[type] || type
@@ -1212,7 +1242,9 @@ function MyOrgList({ type, orgs }) {
     <div className="adm-section">
       <div className="adm-toolbar">
         <span className="adm-count">{mine.length} {seg}</span>
-        <Link className="btn btn-primary btn-sm" to="/admin/apply">Apply to add {label.toLowerCase()}</Link>
+        {isAdmin
+          ? <Link className="btn btn-primary btn-sm" to="/admin/orgs/new">Create {label.toLowerCase()}</Link>
+          : <Link className="btn btn-primary btn-sm" to="/admin/apply">Apply to add {label.toLowerCase()}</Link>}
       </div>
       {mine.length === 0 ? <p className="muted">You don't manage any {seg} yet.</p> : (
         <ul className="org-cards">
@@ -1231,9 +1263,21 @@ function MyOrgList({ type, orgs }) {
   )
 }
 
-// /admin index → first available section for the role.
-function AdminHome({ isAdmin, typesPresent, uid }) {
-  if (isAdmin) return <Navigate to="/admin/users" replace />
+// /admin index → first available section for the role. For an admin with work
+// waiting, show an approvals notification first instead of jumping to Users.
+function AdminHome({ isAdmin, typesPresent, uid, pendingApps = 0 }) {
+  if (isAdmin) {
+    if (pendingApps > 0) return (
+      <div className="adm-section">
+        <div className="adm-approvals">
+          <h3>{pendingApps} application{pendingApps === 1 ? '' : 's'} awaiting your review</h3>
+          <p>People have applied to add a school, club, association or league. Review each one and approve or decline it.</p>
+          <Link className="btn btn-primary btn-sm" to="/admin/applications">Review applications</Link>
+        </div>
+      </div>
+    )
+    return <Navigate to="/admin/users" replace />
+  }
   if (typesPresent.length) return <Navigate to={`/admin/${TYPE_PREFIX[typesPresent[0].key]}`} replace />
   return <ApplyLanding uid={uid} />
 }
@@ -1250,6 +1294,7 @@ export default function Admin() {
   const isAdmin = profile?.platformAdmin === true
   const [open,   setOpen]   = useState(false)
   const [myOrgs, setMyOrgs] = useState([])
+  const [pendingApps, setPendingApps] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -1258,6 +1303,14 @@ export default function Admin() {
       .then(list => setMyOrgs([...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))))
       .catch(() => setMyOrgs([]))
   }, [user?.uid])
+
+  // Admin approvals notification: count applications awaiting review.
+  useEffect(() => {
+    if (!isAdmin) return
+    listAllApplications()
+      .then(a => setPendingApps(a.filter(x => (x.status || 'pending') === 'pending').length))
+      .catch(() => {})
+  }, [isAdmin, location.pathname])
   useEffect(() => { setOpen(false) }, [location.pathname])
 
   const typesPresent = ORG_TYPES.filter(t => myOrgs.some(o => o.type === t.key))
@@ -1289,7 +1342,7 @@ export default function Admin() {
     <div className="adm-shell">
       <aside className="adm-side">
         <div className="adm-side-head"><Brand /></div>
-        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} />
+        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} />
         <Foot />
       </aside>
 
@@ -1304,14 +1357,14 @@ export default function Admin() {
         </header>
         {open && (
           <div className="adm-mobnav">
-            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} onNavigate={() => setOpen(false)} />
+            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} onNavigate={() => setOpen(false)} />
             <Foot />
           </div>
         )}
 
         <main className="adm-main">
           <Routes>
-            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} uid={user?.uid} />} />
+            <Route index element={<AdminHome isAdmin={isAdmin} typesPresent={typesPresent} uid={user?.uid} pendingApps={pendingApps} />} />
             {isAdmin && <Route path="users"        element={<UsersTab onEditOrg={editOrg} />} />}
             {isAdmin && <Route path="orgs"         element={<OrgsTab onEditOrg={editOrg} />} />}
             {isAdmin && <Route path="applications" element={<ApplicationsTab />} />}
@@ -1321,7 +1374,7 @@ export default function Admin() {
             {isAdmin && <Route path="activity"     element={<ActivityTab />} />}
             {isAdmin && <Route path="venues"       element={<VenuesTab />} />}
             {isAdmin && <Route path="seo"          element={<SeoTab />} />}
-            {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} />} />)}
+            {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} isAdmin={isAdmin} />} />)}
             <Route path="apply"    element={<OrgApply />} />
             {/* Direct org creation is platform-admin only; everyone else applies. */}
             <Route path="orgs/new" element={isAdmin ? <OrgForm /> : <Navigate to="/admin/apply" replace />} />

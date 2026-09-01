@@ -18,7 +18,7 @@ export default function Portal() {
 
   useEffect(() => {
     if (loading || !user) { setSettling(false); return }
-    if (plan.key !== 'free') { setSettling(false); return }   // already landed
+    if (plan.hasPlan) { setSettling(false); return }   // already landed
 
     let cancelled = false
     const tick = async () => {
@@ -33,7 +33,7 @@ export default function Portal() {
     }
     const t = setTimeout(tick, RETRY_MS)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [loading, user, plan.key, refresh])
+  }, [loading, user, plan.hasPlan, refresh])
 
   if (loading || settling) {
     return (
@@ -50,7 +50,7 @@ export default function Portal() {
     )
   }
 
-  const activated = plan.key !== 'free'
+  const activated = plan.hasPlan
 
   return (
     <div className="auth-shell">

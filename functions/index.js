@@ -627,6 +627,52 @@ exports.adminRemoveOrgPerson = onCall({ region: REGION }, async (request) => {
   return { ok: true, orgId, uid }
 })
 
+// ── addOrgMember ──────────────────────────────────────────────────────────────
+// Owner or platform admin grants an existing user whole-org management by email.
+// Writes the central staff doc (role manager='admin' or helper='staff'), which
+// cascades to orgRoles/claims (syncOrgRoleClaim) and into every activated sport
+// (centralOrgStaffSync). Finer, per-sport/per-team roles are still set in-sport.
+// Ownership is not granted here (that's a deliberate transfer, elsewhere).
+exports.addOrgMember = onCall({ region: REGION }, async (request) => {
+  const callerUid = request.auth?.uid
+  if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
+  const orgId = String(request.data?.orgId || '').trim()
+  const emailRaw = String(request.data?.email || '').trim()
+  const role = request.data?.role === 'admin' ? 'admin' : 'staff'
+  if (!orgId || !emailRaw) throw new HttpsError('invalid-argument', 'orgId and email required.')
+
+  const orgSnap = await db.doc(`organizations/${orgId}`).get()
+  if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
+  const org = orgSnap.data()
+  const master = request.auth?.token?.platformAdmin === true
+    || (await db.doc(`users/${callerUid}`).get()).data()?.platformAdmin === true
+  if (!master && !isOrgAdminRole(await callerOrgRole(callerUid, orgId))) {
+    throw new HttpsError('permission-denied', 'Only the org owner, an org admin, or a platform admin can add people.')
+  }
+
+  // Resolve the email to an existing account (try as-typed, then lowercased).
+  const email = emailRaw.toLowerCase()
+  let userDoc = null
+  for (const e of [emailRaw, email]) {
+    const snap = await db.collection('users').where('email', '==', e).limit(1).get()
+    if (!snap.empty) { userDoc = snap.docs[0]; break }
+    if (e === email) break
+  }
+  if (!userDoc) {
+    throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+  }
+  const targetUid = userDoc.id
+  if (targetUid === org.ownerUserId) throw new HttpsError('failed-precondition', 'That person already owns this organisation.')
+
+  await db.doc(`organizations/${orgId}/staff/${targetUid}`).set({
+    role, teamId: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: callerUid,
+  }, { merge: true })
+  logger.info('Org member added', { orgId, uid: targetUid, role, by: callerUid })
+  return { ok: true, orgId, uid: targetUid, role, name: userDoc.data().displayName || '', email: userDoc.data().email || emailRaw }
+})
+
 // ── getUserCompetitions ──────────────────────────────────────────────────────
 // Cross-sport list of competitions a user is connected to: those they own
 // (ownerUserId) plus those owned by an org they hold a role in (ownerOrgId).
@@ -1272,10 +1318,21 @@ exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
 
   const slug   = await uniqueOrgSlug(orgSlugify(name))
   const orgRef = db.collection('organizations').doc()
+  const ts = () => admin.firestore.FieldValue.serverTimestamp()
+  // ONE atomic transaction: re-check the application is still pending, reserve
+  // the slug, create the org + owner staff doc, AND stamp the application
+  // approved — all or nothing. If anything fails, no org is left behind, and a
+  // retry sees the same pending state (or, if it already committed, a non-pending
+  // status and stops) — so a transient can never create a duplicate or a dangling
+  // org while the callable still reports an error.
   await db.runTransaction(async (tx) => {
+    const fresh = await tx.get(appRef)
+    if (!fresh.exists) throw new HttpsError('not-found', 'Application no longer exists.')
+    const st = fresh.data().status
+    if (st && st !== 'pending') throw new HttpsError('failed-precondition', `Application already ${st}.`)
     const slugRef = db.doc(`orgSlugs/${slug}`)
     if ((await tx.get(slugRef)).exists) throw new HttpsError('aborted', 'Slug just taken, please retry.')
-    tx.set(slugRef, { orgId: orgRef.id, createdBy: ownerUid, createdAt: admin.firestore.FieldValue.serverTimestamp() })
+    tx.set(slugRef, { orgId: orgRef.id, createdBy: ownerUid, createdAt: ts() })
     tx.set(orgRef, {
       name,
       type,
@@ -1284,24 +1341,22 @@ exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
       ownerUserId:           ownerUid,
       createdBy:             ownerUid,
       createdViaApplication: appId,
-      createdAt:             admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt:             admin.firestore.FieldValue.serverTimestamp(),
+      createdAt:             ts(),
+      updatedAt:             ts(),
     })
     // The owner grant lives in staff/{uid} (role owner, org-wide). Writing it
     // here drives syncOrgRoleClaim → orgRoles → claim and centralOrgStaffSync →
     // each activated sport, so the owner actually has access in the sport apps.
     // Without it, ownerUserId alone leaves the owner locked out everywhere.
     tx.set(orgRef.collection('staff').doc(ownerUid), {
-      role: 'owner', teamId: null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: request.auth.uid,
+      role: 'owner', teamId: null, createdAt: ts(), createdBy: request.auth.uid,
     })
-  })
-  await appRef.update({
-    status:     'approved',
-    reviewedBy: request.auth.uid,
-    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-    orgId:      orgRef.id,
+    tx.update(appRef, {
+      status:     'approved',
+      reviewedBy: request.auth.uid,
+      reviewedAt: ts(),
+      orgId:      orgRef.id,
+    })
   })
   logger.info('Org application approved', { appId, orgId: orgRef.id, owner: ownerUid })
   return { ok: true, status: 'approved', orgId: orgRef.id, slug }

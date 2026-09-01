@@ -130,6 +130,13 @@ export async function createOrg({ uid, slug, fields }) {
       createdAt:   serverTimestamp(),
       updatedAt:   serverTimestamp(),
     })
+    // Owner grant (role owner, org-wide). This drives orgRoles/claims and the
+    // per-sport staff copy, so the owner isn't locked out in the sport apps.
+    // The staff rule allows this for a platform admin (who is the only caller
+    // able to create an org).
+    tx.set(doc(identityDb, 'organizations', orgRef.id, 'staff', uid), {
+      role: 'owner', teamId: null, createdAt: serverTimestamp(), createdBy: uid,
+    })
   })
   return { id: orgRef.id, slug }
 }
@@ -262,5 +269,14 @@ export async function getOrgPeople(orgId) {
 export async function removeOrgPerson(orgId, uid) {
   const call = httpsCallable(functions, 'adminRemoveOrgPerson')
   const { data } = await call({ orgId, uid })
+  return data
+}
+
+// Add an existing user (by email) as a whole-org manager ('admin') or helper
+// ('staff'). Owner, org admin, or platform admin. The grant syncs to every
+// activated sport; finer per-sport/team roles are set in-sport.
+export async function addOrgMember(orgId, email, role = 'staff') {
+  const call = httpsCallable(functions, 'addOrgMember')
+  const { data } = await call({ orgId, email, role })
   return data
 }

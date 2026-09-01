@@ -345,7 +345,7 @@ export default function Account() {
               {plan.key === 'plus'    && <p className="plan-meta">{plan.credits} event credit{plan.credits === 1 ? '' : 's'} remaining.</p>}
               {plan.key === 'pro'     && <p className="plan-meta">Renews {plan.expiresAt?.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
               {plan.key === 'expired' && <p className="plan-meta">Your All-In subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
-              {plan.key === 'free'    && <p className="plan-meta">Unlimited teams and matches. Upgrade to run a competition.</p>}
+              {plan.key === 'none'    && <p className="plan-meta">You have a MatchPulse account. Add a plan when you need to run a competition.</p>}
             </div>
             <Link className="btn btn-ghost" to="/products">
               Compare all plans
