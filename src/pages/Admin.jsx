@@ -10,6 +10,7 @@ import { listGuardianshipsForParent, setGuardianshipStatus, deleteGuardianship, 
 import { submitOrgApplication, listMyApplications, listAllApplications, withdrawApplication, reviewApplication, APP_STATUS_LABEL } from '../lib/orgApplications'
 import { useAuth } from '../contexts/AuthContext'
 import { SPORTS } from '../lib/sports'
+import { loadRegistry, saveRegistry } from '../lib/sportsRegistry'
 import { planStatus } from '../contexts/AuthContext'
 import OrgForm from './OrgForm'
 import VenueManager from '../components/VenueManager'
@@ -45,6 +46,7 @@ const TABS = [
   { key: 'payments',     label: 'Payments' },
   { key: 'activity',     label: 'Sport activity' },
   { key: 'venues',       label: 'Venues' },
+  { key: 'sports',       label: 'Sports' },
   { key: 'seo',          label: 'SEO' },
 ]
 
@@ -907,6 +909,101 @@ const SEO_DEFAULTS = {
   headCode:        '',
 }
 
+// ── Sports registry ───────────────────────────────────────────────────────────
+// Which sports appear on the public hub (homepage cards + footer). Toggling a
+// sport off only hides it publicly — its own site and data are untouched, and
+// the functional lists (org activation, venues, tournaments) still use the
+// built-in SPORTS. Admins can also add a "coming soon" sport that has no site
+// yet. Stored at _meta/sports; consumed via src/lib/sportsRegistry.js.
+function SportsTab() {
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg,  setMsg]  = useState(null)
+
+  useEffect(() => {
+    let cancel = false
+    loadRegistry({ fresh: true }).then(list => { if (!cancel) setRows(list) })
+    return () => { cancel = true }
+  }, [])
+
+  const update = (i, patch) => setRows(rs => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+  const remove = (i) => setRows(rs => rs.filter((_, j) => j !== i))
+  const move = (i, dir) => setRows(rs => {
+    const j = i + dir
+    if (j < 0 || j >= rs.length) return rs
+    const next = rs.slice()
+    ;[next[i], next[j]] = [next[j], next[i]]
+    return next
+  })
+  const add = () => setRows(rs => [
+    ...rs,
+    { key: '', name: '', hue: '#059669', host: '', blurb: '', active: true, comingSoon: true, newlyLaunched: false, order: rs.length },
+  ])
+
+  async function save() {
+    const keys = rows.map(r => (r.key || '').trim())
+    if (keys.some(k => !k)) { setMsg({ kind: 'err', text: 'Every sport needs a key (e.g. "rugby").' }); return }
+    if (new Set(keys).size !== keys.length) { setMsg({ kind: 'err', text: 'Sport keys must be unique.' }); return }
+    setBusy(true); setMsg(null)
+    try {
+      await saveRegistry(rows)
+      setMsg({ kind: 'ok', text: 'Saved. Reload the homepage to see it applied.' })
+    } catch (e) {
+      setMsg({ kind: 'err', text: e.message || 'Save failed.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!rows) return <div className="adm-section"><p className="adm-loading">Loading…</p></div>
+
+  const rowStyle = { border: '1px solid #e5e7eb', borderRadius: 10, padding: '1rem', marginBottom: '.75rem', display: 'grid', gap: '.6rem' }
+  const gridStyle = { display: 'grid', gap: '.6rem', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }
+
+  return (
+    <div className="adm-section">
+      <p className="adm-hint">
+        The sports shown on the public homepage hub and footer. Turn a sport off to hide it
+        from the public site — its own site and data stay untouched. Add a sport with no
+        website yet and mark it “Coming soon”. Only platform admins can edit this.
+      </p>
+      {rows.map((r, i) => (
+        <div key={i} style={rowStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+              <input type="checkbox" checked={r.active !== false} onChange={e => update(i, { active: e.target.checked })} />
+              <strong>{r.name || r.key || 'New sport'}</strong> — {r.active !== false ? 'shown' : 'hidden'}
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+              <input type="checkbox" checked={!!r.comingSoon} onChange={e => update(i, { comingSoon: e.target.checked })} /> Coming soon
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+              <input type="checkbox" checked={!!r.newlyLaunched} onChange={e => update(i, { newlyLaunched: e.target.checked })} /> Newly launched
+            </label>
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: '.4rem' }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, -1)} disabled={i === 0}>↑</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => move(i, 1)} disabled={i === rows.length - 1}>↓</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => remove(i)}>Remove</button>
+            </span>
+          </div>
+          <div style={gridStyle}>
+            <div className="field"><label>Name</label><input type="text" value={r.name || ''} onChange={e => update(i, { name: e.target.value })} /></div>
+            <div className="field"><label>Key</label><input type="text" value={r.key || ''} spellCheck={false} onChange={e => update(i, { key: e.target.value })} /></div>
+            <div className="field"><label>Website</label><input type="url" placeholder="https://…" value={r.host || ''} onChange={e => update(i, { host: e.target.value })} /></div>
+            <div className="field"><label>Colour</label><input type="color" value={r.hue || '#059669'} onChange={e => update(i, { hue: e.target.value })} /></div>
+          </div>
+          <div className="field"><label>Blurb</label><input type="text" value={r.blurb || ''} onChange={e => update(i, { blurb: e.target.value })} /></div>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: '.5rem', marginTop: '1rem' }}>
+        <button type="button" className="btn btn-ghost" onClick={add}>+ Add sport</button>
+        <button type="button" className="btn btn-dark" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save sports'}</button>
+      </div>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+    </div>
+  )
+}
+
 function SeoTab() {
   const [form, setForm] = useState(SEO_DEFAULTS)
   const [busy, setBusy] = useState(false)
@@ -1373,6 +1470,7 @@ export default function Admin() {
             {isAdmin && <Route path="payments"     element={<PaymentsTab />} />}
             {isAdmin && <Route path="activity"     element={<ActivityTab />} />}
             {isAdmin && <Route path="venues"       element={<VenuesTab />} />}
+            {isAdmin && <Route path="sports"       element={<SportsTab />} />}
             {isAdmin && <Route path="seo"          element={<SeoTab />} />}
             {ORG_TYPES.map(t => <Route key={t.key} path={TYPE_PREFIX[t.key]} element={<MyOrgList type={t.key} orgs={myOrgs} isAdmin={isAdmin} />} />)}
             <Route path="apply"    element={<OrgApply />} />

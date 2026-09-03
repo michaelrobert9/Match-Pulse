@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { CONTACT_EMAIL } from '../../lib/config'
 import * as C from '../../lib/homeContent'
 import { planPrice } from '../../lib/homeContent'
-import { SPORTS } from '../../lib/sports'
+import { useHubSports } from '../../lib/sportsRegistry'
 
 /* ── shared primitives ─────────────────────────────────────────────────── */
 
@@ -74,6 +74,7 @@ export function Hero() {
    sport's own site where its live scores, matches and results live. */
 export function SportFinder() {
   const f = C.sportFinder
+  const sports = useHubSports()
   return (
     <section className="sportfinder" id="find" aria-labelledby="find-h">
       <div className="wrap">
@@ -82,7 +83,7 @@ export function SportFinder() {
             hero), and a heading here would put the document outline out of order. */}
         <p id="find-h" className="sf-heading">{f.heading}</p>
         <div className="sf-grid">
-          {SPORTS.map(s => (
+          {sports.map(s => s.host && !s.comingSoon ? (
             <a key={s.key} className="sf-card" style={{ '--hue': s.hue }} href={s.host}>
               <span className="sf-dot" style={{ background: s.hue }} />
               <span className="sf-name">{s.name}</span>
@@ -90,6 +91,12 @@ export function SportFinder() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
               </span>
             </a>
+          ) : (
+            <div key={s.key} className="sf-card sf-card--soon" style={{ '--hue': s.hue }} aria-disabled="true">
+              <span className="sf-dot" style={{ background: s.hue }} />
+              <span className="sf-name">{s.name}</span>
+              <span className="sf-soon">Coming soon</span>
+            </div>
           ))}
         </div>
       </div>

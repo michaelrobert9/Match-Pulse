@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { SPORTS } from '../lib/sports'
+import { useHubSports } from '../lib/sportsRegistry'
 import { CONTACT_EMAIL } from '../lib/config'
 
 export default function Footer() {
+  const sports = useHubSports()
   return (
     <footer>
       <div className="wrap">
@@ -18,7 +19,7 @@ export default function Footer() {
           <div className="foot-col">
             <h5>Find Your Sport</h5>
             <ul>
-              {SPORTS.map(s => (
+              {sports.filter(s => s.host).map(s => (
                 <li key={s.key}><a href={s.host}>{s.name}</a></li>
               ))}
             </ul>
