@@ -995,12 +995,12 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 }
 .org-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--pc) 45%, var(--line)); }
 .org-card-logo {
-  width: 42px; height: 42px; border-radius: 9px; flex: none; overflow: hidden;
+  width: 42px; height: 42px; border-radius: 9px; flex: none;
   background: var(--canvas); border: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center;
   font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--pc, #059669); text-transform: uppercase;
 }
-.org-card-logo img { width: 100%; height: 100%; object-fit: cover; }
+.org-card-logo img { width: 100%; height: 100%; object-fit: contain; }
 .org-card-body { flex: 1; min-width: 0; }
 .org-card-name { display: block; font-weight: 600; }
 .org-card-meta { display: block; font-size: 13px; color: #6b7580; }
@@ -1008,12 +1008,13 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 
 .org-asset { display: flex; gap: 16px; align-items: flex-start; }
 .org-asset-preview {
-  flex: none; background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  flex: none; background: var(--canvas); border: 1px solid var(--line); border-radius: 10px;
   display: flex; align-items: center; justify-content: center; color: #9aa2ad; font-size: 12px;
 }
 .org-asset-preview.logo   { width: 72px;  height: 72px; }
-.org-asset-preview.banner { width: 160px; height: 72px; }
-.org-asset-preview img { width: 100%; height: 100%; object-fit: cover; }
+.org-asset-preview.banner { width: 160px; height: 72px; overflow: hidden; }
+.org-asset-preview img { width: 100%; height: 100%; object-fit: contain; }
+.org-asset-preview.banner img { object-fit: cover; }
 .org-asset-actions { display: flex; flex-direction: column; gap: 8px; }
 .org-asset-actions .btn + .btn { margin-left: 8px; }
 
@@ -1068,11 +1069,11 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 
 .op-card-body { display: flex; align-items: flex-start; gap: 22px; padding: 26px 28px 28px; }
 .op-logo {
-  width: 88px; height: 88px; flex: none; border-radius: 16px; overflow: hidden;
+  width: 88px; height: 88px; flex: none; border-radius: 16px;
   background: var(--card); border: 1px solid var(--line);
   display: grid; place-items: center; box-shadow: 0 6px 18px -12px rgba(11,18,32,.35);
 }
-.op-logo img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+.op-logo img { width: 100%; height: 100%; object-fit: contain; }
 .op-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; color: var(--pc, var(--pulse)); }
 
 .op-id { min-width: 0; }
@@ -1188,11 +1189,11 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 }
 .dir-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--hue) 45%, var(--line)); box-shadow: 0 18px 40px -26px color-mix(in srgb, var(--hue) 60%, transparent); }
 .dir-logo {
-  width: 56px; height: 56px; flex: none; border-radius: 13px; overflow: hidden;
+  width: 56px; height: 56px; flex: none; border-radius: 13px;
   background: color-mix(in srgb, var(--hue) 8%, var(--card)); border: 1px solid var(--line);
   display: grid; place-items: center;
 }
-.dir-logo img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
+.dir-logo img { width: 100%; height: 100%; object-fit: contain; }
 .dir-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: var(--hue, var(--pulse)); }
 .dir-card-id { min-width: 0; }
 .dir-card-id h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16px; margin: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1218,10 +1219,10 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .trn-sportchip { position: absolute; top: 12px; left: 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 9px; border-radius: 980px; background: color-mix(in srgb, var(--hue) 85%, #0b1220); color: #fff; }
 .trn-logo {
   position: absolute; bottom: 12px; left: 14px; width: 46px; height: 46px; border-radius: 12px;
-  background: #fff; border: 1px solid rgba(255,255,255,.85); display: grid; place-items: center; overflow: hidden;
+  background: #fff; border: 1px solid rgba(255,255,255,.85); display: grid; place-items: center;
   box-shadow: 0 6px 16px -8px rgba(11,18,32,.5);
 }
-.trn-logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.trn-logo img { width: 100%; height: 100%; object-fit: contain; }
 .trn-logo span { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 800; color: var(--hue, var(--pulse)); }
 .trn-body { padding: 16px 16px 18px; }
 .trn-body h3 { font-family: 'Space Grotesk', sans-serif; font-size: 16.5px; line-height: 1.2; margin: 0; }
