@@ -1316,48 +1316,56 @@ exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
   if (!name)     throw new HttpsError('failed-precondition', 'Application has no organisation name.')
   if (!ownerUid) throw new HttpsError('failed-precondition', 'Application has no applicant.')
 
-  const slug   = await uniqueOrgSlug(orgSlugify(name))
   const orgRef = db.collection('organizations').doc()
   const ts = () => admin.firestore.FieldValue.serverTimestamp()
-  // ONE atomic transaction: re-check the application is still pending, reserve
-  // the slug, create the org + owner staff doc, AND stamp the application
-  // approved — all or nothing. If anything fails, no org is left behind, and a
-  // retry sees the same pending state (or, if it already committed, a non-pending
-  // status and stops) — so a transient can never create a duplicate or a dangling
-  // org while the callable still reports an error.
-  await db.runTransaction(async (tx) => {
-    const fresh = await tx.get(appRef)
-    if (!fresh.exists) throw new HttpsError('not-found', 'Application no longer exists.')
-    const st = fresh.data().status
-    if (st && st !== 'pending') throw new HttpsError('failed-precondition', `Application already ${st}.`)
-    const slugRef = db.doc(`orgSlugs/${slug}`)
-    if ((await tx.get(slugRef)).exists) throw new HttpsError('aborted', 'Slug just taken, please retry.')
-    tx.set(slugRef, { orgId: orgRef.id, createdBy: ownerUid, createdAt: ts() })
-    tx.set(orgRef, {
-      name,
-      type,
-      region:                String(app.region || '').slice(0, 120),
-      slug,
-      ownerUserId:           ownerUid,
-      createdBy:             ownerUid,
-      createdViaApplication: appId,
-      createdAt:             ts(),
-      updatedAt:             ts(),
+  let slug
+  try {
+    slug = await uniqueOrgSlug(orgSlugify(name))
+    // ONE atomic transaction: re-check the application is still pending, reserve
+    // the slug, create the org + owner staff doc, AND stamp the application
+    // approved — all or nothing. If anything fails, no org is left behind, and a
+    // retry sees the same pending state (or, if it already committed, a non-pending
+    // status and stops) — so a transient can never create a duplicate or a dangling
+    // org while the callable still reports an error.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(appRef)
+      if (!fresh.exists) throw new HttpsError('not-found', 'Application no longer exists.')
+      const st = fresh.data().status
+      if (st && st !== 'pending') throw new HttpsError('failed-precondition', `Application already ${st}.`)
+      const slugRef = db.doc(`orgSlugs/${slug}`)
+      if ((await tx.get(slugRef)).exists) throw new HttpsError('aborted', 'Slug just taken, please retry.')
+      tx.set(slugRef, { orgId: orgRef.id, createdBy: ownerUid, createdAt: ts() })
+      tx.set(orgRef, {
+        name,
+        type,
+        region:                String(app.region || '').slice(0, 120),
+        slug,
+        ownerUserId:           ownerUid,
+        createdBy:             ownerUid,
+        createdViaApplication: appId,
+        createdAt:             ts(),
+        updatedAt:             ts(),
+      })
+      // The owner grant lives in staff/{uid} (role owner, org-wide). Writing it
+      // here drives syncOrgRoleClaim → orgRoles → claim and centralOrgStaffSync →
+      // each activated sport, so the owner actually has access in the sport apps.
+      // Without it, ownerUserId alone leaves the owner locked out everywhere.
+      tx.set(orgRef.collection('staff').doc(ownerUid), {
+        role: 'owner', teamId: null, createdAt: ts(), createdBy: request.auth.uid,
+      })
+      tx.update(appRef, {
+        status:     'approved',
+        reviewedBy: request.auth.uid,
+        reviewedAt: ts(),
+        orgId:      orgRef.id,
+      })
     })
-    // The owner grant lives in staff/{uid} (role owner, org-wide). Writing it
-    // here drives syncOrgRoleClaim → orgRoles → claim and centralOrgStaffSync →
-    // each activated sport, so the owner actually has access in the sport apps.
-    // Without it, ownerUserId alone leaves the owner locked out everywhere.
-    tx.set(orgRef.collection('staff').doc(ownerUid), {
-      role: 'owner', teamId: null, createdAt: ts(), createdBy: request.auth.uid,
-    })
-    tx.update(appRef, {
-      status:     'approved',
-      reviewedBy: request.auth.uid,
-      reviewedAt: ts(),
-      orgId:      orgRef.id,
-    })
-  })
+  } catch (err) {
+    if (err instanceof HttpsError) throw err
+    // Surface the real cause instead of a bare "internal".
+    logger.error('reviewOrgApplication approve failed', { appId, name, ownerUid, message: err.message, stack: err.stack })
+    throw new HttpsError('internal', `Approve failed: ${err.message}`)
+  }
   logger.info('Org application approved', { appId, orgId: orgRef.id, owner: ownerUid })
   return { ok: true, status: 'approved', orgId: orgRef.id, slug }
 })
