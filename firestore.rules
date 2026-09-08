@@ -358,6 +358,15 @@ service cloud.firestore {
       allow write: if isPlatformAdmin();
     }
 
+    // _meta/sports is the admin-editable sports registry (which sports show on
+    // the public hub, their names/colours/websites, and "coming soon" entries).
+    // Read publicly (the homepage and footer load it); written only by a
+    // platform admin from the admin panel's Sports tab.
+    match /_meta/sports {
+      allow read:  if true;
+      allow write: if isPlatformAdmin();
+    }
+
     // Everything else under _meta (e.g. payfastConfig, which holds the PayFast
     // passphrase) stays closed to clients — the webhook reads it via the Admin
     // SDK, which bypasses rules.
