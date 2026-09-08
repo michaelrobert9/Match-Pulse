@@ -1289,6 +1289,7 @@ const ORG_APP_TYPES = ['school', 'club', 'association', 'league']
 
 exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
   if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  try {
   const appId  = String(request.data?.applicationId || '').trim()
   const action = String(request.data?.action || '')
   if (!appId) throw new HttpsError('invalid-argument', 'applicationId required.')
@@ -1360,6 +1361,20 @@ exports.reviewOrgApplication = onCall({ region: REGION }, async (request) => {
   })
   logger.info('Org application approved', { appId, orgId: orgRef.id, owner: ownerUid })
   return { ok: true, status: 'approved', orgId: orgRef.id, slug }
+  } catch (err) {
+    // Typed failures (invalid-argument, not-found, failed-precondition, …) are
+    // intentional — surface them verbatim. Anything else would otherwise reach
+    // the client as a bare "internal" with no clue why; log the stack and pass
+    // the real message through so the reviewer (and the logs) can see the cause.
+    if (err instanceof HttpsError) throw err
+    logger.error('reviewOrgApplication failed', {
+      applicationId: String(request.data?.applicationId || ''),
+      action:        String(request.data?.action || ''),
+      message:       err?.message,
+      stack:         err?.stack,
+    })
+    throw new HttpsError('internal', `Could not review application: ${err?.message || 'unexpected error'}`)
+  }
 })
 
 // ── centralOrgIdentitySync ───────────────────────────────────────────────────
