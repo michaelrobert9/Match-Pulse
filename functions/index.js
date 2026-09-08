@@ -1695,8 +1695,8 @@ function mapMatch(doc, sport) {
     sport,
     status:     m.status ?? null,
     matchDate:  matchToMillis(m.matchDate) ?? matchToMillis(m.scheduledAt),
-    homeDisplay: m.homeDisplay ?? m.homeName ?? null,
-    awayDisplay: m.awayDisplay ?? m.awayName ?? null,
+    homeDisplay: m.homeDisplay ?? m.homeName ?? m.homeTeamName ?? m.homeTeam ?? m.home ?? null,
+    awayDisplay: m.awayDisplay ?? m.awayName ?? m.awayTeamName ?? m.awayTeam ?? m.away ?? null,
     homeScore:  m.homeScore ?? null,
     awayScore:  m.awayScore ?? null,
     homeOrgId:  m.homeOrgId ?? null,
@@ -1726,14 +1726,23 @@ async function aggregateSportMatches(sport, orgId) {
   const ids = new Set()
   for (const m of all) { if (m.homeOrgId) ids.add(m.homeOrgId); if (m.awayOrgId) ids.add(m.awayOrgId) }
   const logos = {}
+  const orgNames = {}
   if (ids.size) {
     const refs = [...ids].map(id => sportDb.doc(`organizations/${id}`))
     const snaps = await sportDb.getAll(...refs)
-    for (const s of snaps) if (s.exists) logos[s.id] = s.data()?.logoUrl || null
+    for (const s of snaps) if (s.exists) {
+      const d = s.data() || {}
+      logos[s.id]    = d.logoUrl || null
+      orgNames[s.id] = d.matchName || d.name || null
+    }
   }
   for (const m of all) {
     m.homeLogoUrl = m.homeOrgId ? (logos[m.homeOrgId] || null) : null
     m.awayLogoUrl = m.awayOrgId ? (logos[m.awayOrgId] || null) : null
+    // No team-name field on the match → fall back to the organisation's name
+    // (from this sport's org doc) rather than a bare "Home"/"Away".
+    if (!m.homeDisplay && m.homeOrgId) m.homeDisplay = orgNames[m.homeOrgId] || null
+    if (!m.awayDisplay && m.awayOrgId) m.awayDisplay = orgNames[m.awayOrgId] || null
   }
 
   const results  = all.filter(m => m.status === 'final').sort((a, b) => (b.matchDate ?? 0) - (a.matchDate ?? 0))
