@@ -1688,6 +1688,29 @@ function deriveMatchLevel(m) {
   return null
 }
 
+// Compose a participant's display name to the platform rule:
+//   • the organisation's MATCH NAME (matchName, else name) may stand alone;
+//   • a team is always shown as "<org match name> - <team>";
+//   • a bare team name is NEVER shown (it has no reference to who it belongs to).
+// `pre` is any label the sport already composed; `org` is the resolved org match
+// name; `team` is the raw team token from the match doc.
+function composeName(pre, org, team) {
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const orgN = norm(org)
+  // A sport-composed label that already references the org is trusted as-is.
+  if (pre && orgN && norm(pre).includes(orgN)) return pre
+  if (org) {
+    // A raw label that doesn't reference the org is treated as a team token.
+    const team2 = team || (pre && !norm(pre).includes(orgN) ? pre : null)
+    const t = norm(team2)
+    if (team2 && t && t !== orgN && !t.includes(orgN)) return `${org} - ${team2}`
+    return org   // org match-name standalone
+  }
+  // No org resolved: a sport-composed label may stand (it should carry the org);
+  // never emit a bare team name.
+  return pre || null
+}
+
 function mapMatch(doc, sport) {
   const m = doc.data() || {}
   return {
@@ -1695,8 +1718,14 @@ function mapMatch(doc, sport) {
     sport,
     status:     m.status ?? null,
     matchDate:  matchToMillis(m.matchDate) ?? matchToMillis(m.scheduledAt),
-    homeDisplay: m.homeDisplay ?? m.homeName ?? m.homeTeamName ?? m.homeTeam ?? m.home ?? null,
-    awayDisplay: m.awayDisplay ?? m.awayName ?? m.awayTeamName ?? m.awayTeam ?? m.away ?? null,
+    // Pre-composed label the sport may have stored (already "org - team"), and
+    // the RAW team token, kept separate. aggregateSportMatches composes the final
+    // display so the rule holds: org match-name may stand alone, a team is always
+    // "<org> - <team>", and a bare team name is never shown.
+    homeDisplay: m.homeDisplay ?? m.homeName ?? null,
+    awayDisplay: m.awayDisplay ?? m.awayName ?? null,
+    homeTeam:   m.homeTeamName ?? m.homeTeam ?? null,
+    awayTeam:   m.awayTeamName ?? m.awayTeam ?? null,
     homeScore:  m.homeScore ?? null,
     awayScore:  m.awayScore ?? null,
     homeOrgId:  m.homeOrgId ?? null,
@@ -1739,10 +1768,11 @@ async function aggregateSportMatches(sport, orgId) {
   for (const m of all) {
     m.homeLogoUrl = m.homeOrgId ? (logos[m.homeOrgId] || null) : null
     m.awayLogoUrl = m.awayOrgId ? (logos[m.awayOrgId] || null) : null
-    // No team-name field on the match → fall back to the organisation's name
-    // (from this sport's org doc) rather than a bare "Home"/"Away".
-    if (!m.homeDisplay && m.homeOrgId) m.homeDisplay = orgNames[m.homeOrgId] || null
-    if (!m.awayDisplay && m.awayOrgId) m.awayDisplay = orgNames[m.awayOrgId] || null
+    // Compose the display per the naming rule (org match-name, else "org - team",
+    // never a bare team). Uses the org's name resolved from this sport's org doc.
+    m.homeDisplay = composeName(m.homeDisplay, m.homeOrgId ? orgNames[m.homeOrgId] : null, m.homeTeam)
+    m.awayDisplay = composeName(m.awayDisplay, m.awayOrgId ? orgNames[m.awayOrgId] : null, m.awayTeam)
+    delete m.homeTeam; delete m.awayTeam
   }
 
   const results  = all.filter(m => m.status === 'final').sort((a, b) => (b.matchDate ?? 0) - (a.matchDate ?? 0))
