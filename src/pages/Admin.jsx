@@ -384,6 +384,7 @@ function UsersTab({ onEditOrg }) {
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
   const [seg,  setSeg]  = useState('all')   // 'all' | 'plan' | 'user'
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
   const [sel,  setSel]  = useState(null)
 
   async function load() {
@@ -433,6 +434,35 @@ function UsersTab({ onEditOrg }) {
     )
   }, [rows, q, seg])
 
+  const sorted = useMemo(() => {
+    if (!filtered) return null
+    const val = (u) => {
+      switch (sort.key) {
+        case 'email':   return (u.email || '').toLowerCase()
+        case 'plan':    return (u.plan.label || '').toLowerCase()
+        case 'created': return u.createdAt?.toMillis?.() ?? (typeof u.createdAt === 'number' ? u.createdAt : 0)
+        case 'admin':   return u.platformAdmin ? 1 : 0
+        default:        return (u.displayName || u.email || '').toLowerCase()
+      }
+    }
+    const dir = sort.dir === 'desc' ? -1 : 1
+    return [...filtered].sort((a, b) => {
+      const av = val(a), bv = val(b)
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
+      return String(av).localeCompare(String(bv), undefined, { sensitivity: 'base' }) * dir
+    })
+  }, [filtered, sort])
+
+  // New column defaults to ascending, except Created which starts newest-first;
+  // clicking the active column again reverses it.
+  function onSort(key) {
+    setSort(s => s.key === key
+      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: key === 'created' ? 'desc' : 'asc' })
+  }
+  const arrow = (key) => sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+  const ariaSort = (key) => sort.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+
   if (sel) return <UserDetail key={sel.uid} user={sel} orgsById={orgsById} onBack={() => setSel(null)} onChanged={refresh} onEditOrg={onEditOrg} />
 
   return (
@@ -452,10 +482,16 @@ function UsersTab({ onEditOrg }) {
         <div className="adm-table-wrap">
           <table className="adm-table adm-table-click">
             <thead>
-              <tr><th>Name</th><th>Email</th><th>Plan</th><th>Created</th><th>Admin</th></tr>
+              <tr>
+                <th aria-sort={ariaSort('name')}><button type="button" className="adm-th-sort" onClick={() => onSort('name')}>Name{arrow('name')}</button></th>
+                <th aria-sort={ariaSort('email')}><button type="button" className="adm-th-sort" onClick={() => onSort('email')}>Email{arrow('email')}</button></th>
+                <th aria-sort={ariaSort('plan')}><button type="button" className="adm-th-sort" onClick={() => onSort('plan')}>Plan{arrow('plan')}</button></th>
+                <th aria-sort={ariaSort('created')}><button type="button" className="adm-th-sort" onClick={() => onSort('created')}>Created{arrow('created')}</button></th>
+                <th aria-sort={ariaSort('admin')}><button type="button" className="adm-th-sort" onClick={() => onSort('admin')}>Admin{arrow('admin')}</button></th>
+              </tr>
             </thead>
             <tbody>
-              {filtered.map(u => (
+              {sorted.map(u => (
                 <tr key={u.uid} onClick={() => setSel(u)} className="adm-row-click">
                   <td>
                     <div className="adm-name">{u.displayName || <span className="muted">(no name)</span>}</div>
@@ -467,7 +503,7 @@ function UsersTab({ onEditOrg }) {
                   <td>{u.platformAdmin ? <span className="pill pill-admin">Admin</span> : ''}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={5} className="muted">No users match.</td></tr>}
+              {sorted.length === 0 && <tr><td colSpan={5} className="muted">No users match.</td></tr>}
             </tbody>
           </table>
         </div>

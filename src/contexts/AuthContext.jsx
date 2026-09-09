@@ -46,16 +46,18 @@ export function planStatus(e) {
 }
 
 export function AuthProvider({ children }) {
-  const [user,       setUser]       = useState(null)
-  const [profile,    setProfile]    = useState(null)
-  const [loading,    setLoading]    = useState(true)
+  const [user,          setUser]          = useState(null)
+  const [profile,       setProfile]       = useState(null)
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [loading,       setLoading]       = useState(true)
 
   useEffect(() => {
     if (!configured) { setLoading(false); return }
 
     return onAuthStateChanged(auth, async (u) => {
-      if (!u) { setUser(null); setProfile(null); setLoading(false); return }
+      if (!u) { setUser(null); setProfile(null); setEmailVerified(false); setLoading(false); return }
       setUser(u)
+      setEmailVerified(u.emailVerified)
       // Refresh the token so entitlement custom claims (set by syncUserClaims)
       // are current — sport subdomains gate on these, so a stale token after a
       // purchase would lock the buyer out of what they just paid for.
@@ -81,7 +83,13 @@ export function AuthProvider({ children }) {
           }, { merge: true }).catch(() => {})
           setProfile({ ...seed, ...entitlementOf(null) })
         } else {
-          setProfile(snap.data())
+          const data = snap.data()
+          // Backfill the creation date once, if an older account never got one,
+          // so the back-office "activated on" date stays populated. Best-effort.
+          if (!data.createdAt) {
+            setDoc(ref, { createdAt: serverTimestamp() }, { merge: true }).catch(() => {})
+          }
+          setProfile(data)
         }
       } catch {
         setProfile(null)
@@ -120,6 +128,18 @@ export function AuthProvider({ children }) {
     return cred
   }
 
+  // Re-check verification after the user clicks the emailed link. reload() pulls
+  // the latest state; on success we force a fresh token so email_verified is on
+  // it immediately (the claim rules read it off the token, not the user record).
+  const reloadUser = useCallback(async () => {
+    if (!auth?.currentUser) return false
+    await auth.currentUser.reload()
+    const verified = auth.currentUser.emailVerified
+    setEmailVerified(verified)
+    if (verified) { try { await auth.currentUser.getIdToken(true) } catch { /* non-fatal */ } }
+    return verified
+  }, [])
+
   const login           = (email, password) => signInWithEmailAndPassword(auth, email, password)
   const signInWithGoogle = () => signInWithPopup(auth, googleProvider)
   const resetPassword   = (email) => sendPasswordResetEmail(auth, email)
@@ -131,9 +151,10 @@ export function AuthProvider({ children }) {
       user,
       uid: user?.uid ?? null,
       profile,
+      emailVerified,
       plan: planStatus(entitlementOf(profile)),
       loading,
-      login, signUp, signInWithGoogle, resetPassword, resendVerification, logout, refresh,
+      login, signUp, signInWithGoogle, resetPassword, resendVerification, reloadUser, logout, refresh,
     }}>
       {children}
     </AuthContext.Provider>
