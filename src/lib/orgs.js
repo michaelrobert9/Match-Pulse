@@ -280,3 +280,10 @@ export async function addOrgMember(orgId, email, role = 'staff') {
   const { data } = await call({ orgId, email, role })
   return data
 }
+
+// Platform admin: link a known account (by uid) to an org as manager/helper.
+export async function linkOrgMemberByUid(orgId, uid, role = 'admin') {
+  const call = httpsCallable(functions, 'addOrgMember')
+  const { data } = await call({ orgId, uid, role })
+  return data
+}

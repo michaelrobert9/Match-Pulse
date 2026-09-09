@@ -638,8 +638,9 @@ exports.addOrgMember = onCall({ region: REGION }, async (request) => {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
   const orgId = String(request.data?.orgId || '').trim()
   const emailRaw = String(request.data?.email || '').trim()
+  const directUid = String(request.data?.uid || '').trim()   // admin path: link a known account
   const role = request.data?.role === 'admin' ? 'admin' : 'staff'
-  if (!orgId || !emailRaw) throw new HttpsError('invalid-argument', 'orgId and email required.')
+  if (!orgId || (!emailRaw && !directUid)) throw new HttpsError('invalid-argument', 'orgId and email (or uid) required.')
 
   const orgSnap = await db.doc(`organizations/${orgId}`).get()
   if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
@@ -650,16 +651,22 @@ exports.addOrgMember = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('permission-denied', 'Only the org owner, an org admin, or a platform admin can add people.')
   }
 
-  // Resolve the email to an existing account (try as-typed, then lowercased).
-  const email = emailRaw.toLowerCase()
+  // Resolve the target account: a uid supplied by an admin, else look up the email.
   let userDoc = null
-  for (const e of [emailRaw, email]) {
-    const snap = await db.collection('users').where('email', '==', e).limit(1).get()
-    if (!snap.empty) { userDoc = snap.docs[0]; break }
-    if (e === email) break
-  }
-  if (!userDoc) {
-    throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+  if (directUid) {
+    if (!master) throw new HttpsError('permission-denied', 'Only a platform admin can link by uid.')
+    userDoc = await db.doc(`users/${directUid}`).get()
+    if (!userDoc.exists) throw new HttpsError('not-found', 'No such user account.')
+  } else {
+    const email = emailRaw.toLowerCase()
+    for (const e of [emailRaw, email]) {
+      const snap = await db.collection('users').where('email', '==', e).limit(1).get()
+      if (!snap.empty) { userDoc = snap.docs[0]; break }
+      if (e === email) break
+    }
+    if (!userDoc) {
+      throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+    }
   }
   const targetUid = userDoc.id
   if (targetUid === org.ownerUserId) throw new HttpsError('failed-precondition', 'That person already owns this organisation.')
@@ -1053,6 +1060,9 @@ exports.submitContactForm = onCall({ region: REGION }, async (request) => {
   const email   = String(request.data?.email   || '').trim().toLowerCase().slice(0, 200)
   const phone   = String(request.data?.phone   || '').trim().slice(0, 40)
   const message = String(request.data?.message || '').trim().slice(0, 4000)
+  // Optional origin tag, e.g. 'hockey' / 'rugby' when a sport site's contact
+  // form calls this same callable. Defaults to 'main' for the main website.
+  const source  = String(request.data?.source  || 'main').trim().toLowerCase().slice(0, 40) || 'main'
 
   if (!name || !email || !message) {
     throw new HttpsError('invalid-argument', 'Name, email and message are required.')
@@ -1072,7 +1082,7 @@ exports.submitContactForm = onCall({ region: REGION }, async (request) => {
   }
 
   await db.collection('contactMessages').add({
-    name, email, phone, message,
+    name, email, phone, message, source,
     fromUid:    request.auth?.uid ?? null,
     userAgent:  String(request.rawRequest?.headers?.['user-agent'] || '').slice(0, 200),
     read:       false,
@@ -1703,6 +1713,29 @@ function deriveMatchLevel(m) {
   return null
 }
 
+// Compose a participant's display name to the platform rule:
+//   • the organisation's MATCH NAME (matchName, else name) may stand alone;
+//   • a team is always shown as "<org match name> - <team>";
+//   • a bare team name is NEVER shown (it has no reference to who it belongs to).
+// `pre` is any label the sport already composed; `org` is the resolved org match
+// name; `team` is the raw team token from the match doc.
+function composeName(pre, org, team) {
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const orgN = norm(org)
+  // A sport-composed label that already references the org is trusted as-is.
+  if (pre && orgN && norm(pre).includes(orgN)) return pre
+  if (org) {
+    // A raw label that doesn't reference the org is treated as a team token.
+    const team2 = team || (pre && !norm(pre).includes(orgN) ? pre : null)
+    const t = norm(team2)
+    if (team2 && t && t !== orgN && !t.includes(orgN)) return `${org} - ${team2}`
+    return org   // org match-name standalone
+  }
+  // No org resolved: a sport-composed label may stand (it should carry the org);
+  // never emit a bare team name.
+  return pre || null
+}
+
 function mapMatch(doc, sport) {
   const m = doc.data() || {}
   return {
@@ -1710,8 +1743,14 @@ function mapMatch(doc, sport) {
     sport,
     status:     m.status ?? null,
     matchDate:  matchToMillis(m.matchDate) ?? matchToMillis(m.scheduledAt),
-    homeDisplay: m.homeDisplay ?? m.homeName ?? m.homeTeamName ?? m.homeTeam ?? m.home ?? null,
-    awayDisplay: m.awayDisplay ?? m.awayName ?? m.awayTeamName ?? m.awayTeam ?? m.away ?? null,
+    // Pre-composed label the sport may have stored (already "org - team"), and
+    // the RAW team token, kept separate. aggregateSportMatches composes the final
+    // display so the rule holds: org match-name may stand alone, a team is always
+    // "<org> - <team>", and a bare team name is never shown.
+    homeDisplay: m.homeDisplay ?? m.homeName ?? null,
+    awayDisplay: m.awayDisplay ?? m.awayName ?? null,
+    homeTeam:   m.homeTeamName ?? m.homeTeam ?? null,
+    awayTeam:   m.awayTeamName ?? m.awayTeam ?? null,
     homeScore:  m.homeScore ?? null,
     awayScore:  m.awayScore ?? null,
     homeOrgId:  m.homeOrgId ?? null,
@@ -1754,10 +1793,11 @@ async function aggregateSportMatches(sport, orgId) {
   for (const m of all) {
     m.homeLogoUrl = m.homeOrgId ? (logos[m.homeOrgId] || null) : null
     m.awayLogoUrl = m.awayOrgId ? (logos[m.awayOrgId] || null) : null
-    // No team-name field on the match → fall back to the organisation's name
-    // (from this sport's org doc) rather than a bare "Home"/"Away".
-    if (!m.homeDisplay && m.homeOrgId) m.homeDisplay = orgNames[m.homeOrgId] || null
-    if (!m.awayDisplay && m.awayOrgId) m.awayDisplay = orgNames[m.awayOrgId] || null
+    // Compose the display per the naming rule (org match-name, else "org - team",
+    // never a bare team). Uses the org's name resolved from this sport's org doc.
+    m.homeDisplay = composeName(m.homeDisplay, m.homeOrgId ? orgNames[m.homeOrgId] : null, m.homeTeam)
+    m.awayDisplay = composeName(m.awayDisplay, m.awayOrgId ? orgNames[m.awayOrgId] : null, m.awayTeam)
+    delete m.homeTeam; delete m.awayTeam
   }
 
   const results  = all.filter(m => m.status === 'final').sort((a, b) => (b.matchDate ?? 0) - (a.matchDate ?? 0))

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, where, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
-import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES } from '../lib/orgs'
+import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES, linkOrgMemberByUid, removeOrgPerson } from '../lib/orgs'
 import { TYPE_PREFIX } from '../lib/orgProfile'
 import { identityDb, functions } from '../firebase'
 import { listGuardianshipsForParent, setGuardianshipStatus, deleteGuardianship, SPORT_LABEL } from '../lib/guardianships'
@@ -165,6 +165,33 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
   for (const [oid, grant] of Object.entries(user.raw.orgRoles || {})) if (!orgRel[oid]) orgRel[oid] = roleLabel(grant)
   const orgList = Object.entries(orgRel)
 
+  // Link this user to an organisation (the way to give someone working access —
+  // an account is always attached to an org, never standalone). Owner is a
+  // deliberate transfer done from the org page, so here it's Manager/Helper.
+  const [linkOrg, setLinkOrg]   = useState('')
+  const [linkRole, setLinkRole] = useState('admin')
+  const orgOptions = Object.values(orgsById)
+    .filter(o => !orgRel[o.id])
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
+  async function linkToOrg() {
+    if (!linkOrg) return
+    setBusy('link'); setMsg(null)
+    try {
+      await linkOrgMemberByUid(linkOrg, user.uid, linkRole)
+      setMsg({ kind: 'ok', text: `Linked to ${orgsById[linkOrg]?.name || 'the organisation'} as ${linkRole === 'admin' ? 'manager' : 'helper'}. Access reaches the sport sites on their next sign-in.` })
+      setLinkOrg('')
+      onChanged?.()
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not link.' }) }
+    finally { setBusy('') }
+  }
+  async function unlinkOrg(oid) {
+    if (!window.confirm(`Remove this user from ${orgsById[oid]?.name || 'this organisation'}? It revokes their access in every sport for it. Their account and any matches are untouched.`)) return
+    setBusy('unlink:' + oid); setMsg(null)
+    try { await removeOrgPerson(oid, user.uid); setMsg({ kind: 'ok', text: 'Removed from the organisation.' }); onChanged?.() }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not remove.' }) }
+    finally { setBusy('') }
+  }
+
   const bind = (k) => ({ value: form[k], onChange: e => setForm(f => ({ ...f, [k]: e.target.value })) })
 
   const detailsChanged =
@@ -277,16 +304,31 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
         {/* Org access */}
         <section className="adm-ud-card">
           <h4>Organisation access</h4>
-          {orgList.length === 0 ? <p className="muted">No organisations.</p> : (
+          <p className="adm-field-hint">A person gets working access to MatchPulse by being linked to an organisation — there is no standalone account. Link them here as a manager (full access) or helper.</p>
+          {orgList.length === 0 ? <p className="muted">Not linked to any organisation yet.</p> : (
             <ul className="adm-ud-list">
               {orgList.map(([oid, rel]) => (
                 <li key={oid}>
                   <button type="button" className="linklike" onClick={() => onEditOrg?.(oid)}>{orgsById[oid]?.name || oid}</button>
                   <span className="adm-ud-role">{rel}</span>
+                  {rel !== 'Owner' && (
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'unlink:' + oid} onClick={() => unlinkOrg(oid)}>Remove</button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
+          <div className="op-invite" style={{ marginTop: 12 }}>
+            <select value={linkOrg} onChange={e => setLinkOrg(e.target.value)}>
+              <option value="">— choose an organisation —</option>
+              {orgOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            <select value={linkRole} onChange={e => setLinkRole(e.target.value)}>
+              <option value="admin">Manager — full access</option>
+              <option value="staff">Helper — limited</option>
+            </select>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'link' || !linkOrg} onClick={linkToOrg}>{busy === 'link' ? 'Linking…' : 'Link to organisation'}</button>
+          </div>
         </section>
 
         {/* Players linked to this account (parent/guardian management) */}
@@ -747,7 +789,10 @@ function MessagesTab() {
             <li key={m.id} className={m.read ? 'read' : 'unread'}>
               <div className="adm-msg-head">
                 <div>
-                  <div className="adm-msg-name">{m.name || <span className="muted">(no name)</span>}</div>
+                  <div className="adm-msg-name">
+                    {m.name || <span className="muted">(no name)</span>}
+                    {m.source && m.source !== 'main' && <span className="pill pill-admin" style={{ marginLeft: 8, textTransform: 'capitalize' }}>{m.source}</span>}
+                  </div>
                   <div className="adm-msg-meta">
                     <a href={`mailto:${m.email}`}>{m.email}</a>
                     {m.phone && <span> · <a href={`tel:${m.phone}`}>{m.phone}</a></span>}
@@ -1236,6 +1281,7 @@ function AppCard({ a, busy, onAct, reviewed }) {
         <div className="adm-app-actions">
           <button type="button" className="btn btn-primary btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'approve')}>{busy === a.id ? 'Working…' : 'Approve'}</button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'reject')}>Reject</button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'dismiss')} title="Already handled — just clear it from the queue">Dismiss</button>
         </div>
       )}
     </li>
@@ -1250,6 +1296,16 @@ function ApplicationsTab() {
   async function load() { try { setRows(await listAllApplications()) } catch (e) { setErr(e.message || 'Could not load applications.') } }
   useEffect(() => { load() }, [])
   async function act(a, action) {
+    // Dismiss = "I've already handled this manually" — just clear it from the
+    // queue. It does not create an org or reject the applicant.
+    if (action === 'dismiss') {
+      if (!window.confirm(`Dismiss "${a.orgName}"? Use this when you've already created it (or handled it) manually. This only clears it from the queue — it creates nothing and rejects no one.`)) return
+      setBusy(a.id); setMsg(null)
+      try { await withdrawApplication(a.id); setMsg({ kind: 'ok', text: `${a.orgName} cleared from the queue.` }); load() }
+      catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not dismiss.' }) }
+      finally { setBusy('') }
+      return
+    }
     let reason = ''
     if (action === 'reject') { reason = window.prompt(`Reject "${a.orgName}"? Optional reason (shown to the applicant):`, ''); if (reason === null) return }
     setBusy(a.id); setMsg(null)
@@ -1290,7 +1346,7 @@ const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
 
 // Role-filtered sidebar: platform admins get the platform sections; anyone who
 // owns organisations gets a "My Schools / My Clubs / …" section per type they own.
-function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
+function AdminNav({ isAdmin, typesPresent, pendingApps = 0, unreadMsgs = 0, onNavigate }) {
   // Owners' "My Schools / Clubs / …" links. For a platform admin these sit
   // directly beneath the "Organisations" tab; for an owner (no platform tabs)
   // they are the whole nav.
@@ -1312,6 +1368,7 @@ function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
               <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
                 {Icon && <Icon />}<span>{t.label}</span>
                 {t.key === 'applications' && pendingApps > 0 && <span className="adm-nav-badge">{pendingApps}</span>}
+                {t.key === 'messages' && unreadMsgs > 0 && <span className="adm-nav-badge">{unreadMsgs}</span>}
               </NavLink>
             )
             // Slot the owner's own orgs right under the Organisations tab.
@@ -1392,6 +1449,7 @@ export default function Admin() {
   const [open,   setOpen]   = useState(false)
   const [myOrgs, setMyOrgs] = useState([])
   const [pendingApps, setPendingApps] = useState(0)
+  const [unreadMsgs, setUnreadMsgs] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -1406,6 +1464,9 @@ export default function Admin() {
     if (!isAdmin) return
     listAllApplications()
       .then(a => setPendingApps(a.filter(x => (x.status || 'pending') === 'pending').length))
+      .catch(() => {})
+    getDocs(query(collection(identityDb, 'contactMessages'), where('read', '==', false)))
+      .then(s => setUnreadMsgs(s.size))
       .catch(() => {})
   }, [isAdmin, location.pathname])
   useEffect(() => { setOpen(false) }, [location.pathname])
@@ -1439,7 +1500,7 @@ export default function Admin() {
     <div className="adm-shell">
       <aside className="adm-side">
         <div className="adm-side-head"><Brand /></div>
-        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} />
+        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} unreadMsgs={unreadMsgs} />
         <Foot />
       </aside>
 
@@ -1454,7 +1515,7 @@ export default function Admin() {
         </header>
         {open && (
           <div className="adm-mobnav">
-            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} onNavigate={() => setOpen(false)} />
+            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} unreadMsgs={unreadMsgs} onNavigate={() => setOpen(false)} />
             <Foot />
           </div>
         )}
