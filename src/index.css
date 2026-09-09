@@ -1422,7 +1422,7 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .op-remove { color: #b4262a; border-color: rgba(229,72,77,.3); }
 .op-remove:hover { background: rgba(229,72,77,.08); color: #911d20; }
 .op-invite { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0 4px; }
-.op-invite input[type=email] { flex: 1; min-width: 220px; }
+.op-invite input { flex: 1; min-width: 220px; }
 .op-invite select { flex: none; }
 
 /* Nav pending-count badge (admin approvals notification) */

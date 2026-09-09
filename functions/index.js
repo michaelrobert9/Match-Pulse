@@ -542,6 +542,62 @@ exports.adminDeleteUser = onCall({ region: REGION }, async (request) => {
   return { ok: true, uid }
 })
 
+// ── adminGetUsersAuth ─────────────────────────────────────────────────────────
+// emailVerified/disabled live in Firebase Auth, not the users doc, so the admin
+// Users list can't know them from Firestore. This returns the Auth state for a
+// batch of uids so the back office can badge verified vs unverified. Admin only.
+exports.adminGetUsersAuth = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uids = Array.isArray(request.data?.uids) ? request.data.uids.map(String).filter(Boolean) : []
+  const out = {}
+  // admin.auth().getUsers takes at most 100 identifiers per call.
+  for (let i = 0; i < uids.length; i += 100) {
+    const batch = uids.slice(i, i + 100).map(uid => ({ uid }))
+    try {
+      const res = await admin.auth().getUsers(batch)
+      for (const u of res.users) out[u.uid] = { emailVerified: u.emailVerified === true, disabled: u.disabled === true }
+    } catch (e) { logger.warn('adminGetUsersAuth batch failed', { message: e.message }) }
+  }
+  return { auth: out }
+})
+
+// ── adminSendVerification ─────────────────────────────────────────────────────
+// Firebase only auto-sends its verification email to the signed-in user (client
+// SDK), so an admin can't trigger it for someone else. Instead we generate the
+// verification LINK (Admin SDK) and return it, for the admin to send. Admin only.
+exports.adminSendVerification = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  let rec
+  try { rec = await admin.auth().getUser(uid) }
+  catch (e) { throw new HttpsError('not-found', 'No such sign-in account.') }
+  if (!rec.email) throw new HttpsError('failed-precondition', 'This account has no email address.')
+  if (rec.emailVerified) return { ok: true, alreadyVerified: true, email: rec.email }
+  let link
+  try { link = await admin.auth().generateEmailVerificationLink(rec.email) }
+  catch (e) {
+    logger.error('generateEmailVerificationLink failed', { uid, message: e.message })
+    throw new HttpsError('internal', 'Could not generate a verification link: ' + e.message)
+  }
+  logger.info('Admin generated verification link', { uid, by: request.auth.uid })
+  return { ok: true, email: rec.email, link }
+})
+
+// ── adminSetEmailVerified ─────────────────────────────────────────────────────
+// Force an account's verified flag — for when the admin has confirmed the person
+// out of band and email delivery is the only blocker. Immediate; no email. Admin.
+exports.adminSetEmailVerified = onCall({ region: REGION }, async (request) => {
+  if (!(await callerIsAdmin(request))) throw new HttpsError('permission-denied', 'Platform admin only.')
+  const uid = String(request.data?.uid || '').trim()
+  const verified = request.data?.verified === true
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.')
+  try { await admin.auth().updateUser(uid, { emailVerified: verified }) }
+  catch (e) { throw new HttpsError('internal', 'Could not update verification: ' + e.message) }
+  logger.info('Admin set emailVerified', { uid, verified, by: request.auth.uid })
+  return { ok: true, uid, emailVerified: verified }
+})
+
 // ── getOrgPeople ─────────────────────────────────────────────────────────────
 // Everyone attached to an org: the owner + org staff, centrally and in every
 // sport (roles live in organizations/{orgId}/staff). For the org owner or a
