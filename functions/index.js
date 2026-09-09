@@ -1053,6 +1053,9 @@ exports.submitContactForm = onCall({ region: REGION }, async (request) => {
   const email   = String(request.data?.email   || '').trim().toLowerCase().slice(0, 200)
   const phone   = String(request.data?.phone   || '').trim().slice(0, 40)
   const message = String(request.data?.message || '').trim().slice(0, 4000)
+  // Optional origin tag, e.g. 'hockey' / 'rugby' when a sport site's contact
+  // form calls this same callable. Defaults to 'main' for the main website.
+  const source  = String(request.data?.source  || 'main').trim().toLowerCase().slice(0, 40) || 'main'
 
   if (!name || !email || !message) {
     throw new HttpsError('invalid-argument', 'Name, email and message are required.')
@@ -1072,7 +1075,7 @@ exports.submitContactForm = onCall({ region: REGION }, async (request) => {
   }
 
   await db.collection('contactMessages').add({
-    name, email, phone, message,
+    name, email, phone, message, source,
     fromUid:    request.auth?.uid ?? null,
     userAgent:  String(request.rawRequest?.headers?.['user-agent'] || '').slice(0, 200),
     read:       false,

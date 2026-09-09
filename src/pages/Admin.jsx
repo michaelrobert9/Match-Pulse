@@ -745,7 +745,10 @@ function MessagesTab() {
             <li key={m.id} className={m.read ? 'read' : 'unread'}>
               <div className="adm-msg-head">
                 <div>
-                  <div className="adm-msg-name">{m.name || <span className="muted">(no name)</span>}</div>
+                  <div className="adm-msg-name">
+                    {m.name || <span className="muted">(no name)</span>}
+                    {m.source && m.source !== 'main' && <span className="pill pill-admin" style={{ marginLeft: 8, textTransform: 'capitalize' }}>{m.source}</span>}
+                  </div>
                   <div className="adm-msg-meta">
                     <a href={`mailto:${m.email}`}>{m.email}</a>
                     {m.phone && <span> · <a href={`tel:${m.phone}`}>{m.phone}</a></span>}
