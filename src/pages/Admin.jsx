@@ -192,6 +192,33 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
     finally { setBusy('') }
   }
 
+  // Email verification (Firebase Auth state, fetched via an admin callable).
+  const [vState, setVState] = useState(null)   // null = checking/unknown, true, false
+  const [vlink,  setVlink]  = useState('')
+  useEffect(() => {
+    let cancel = false
+    setVState(null); setVlink('')
+    httpsCallable(functions, 'adminGetUsersAuth')({ uids: [user.uid] })
+      .then(({ data }) => { if (!cancel) setVState(data?.auth?.[user.uid]?.emailVerified ?? null) })
+      .catch(() => {})
+    return () => { cancel = true }
+  }, [user.uid])
+  async function genVerifyLink() {
+    setBusy('vlink'); setMsg(null); setVlink('')
+    try {
+      const { data } = await httpsCallable(functions, 'adminSendVerification')({ uid: user.uid })
+      if (data.alreadyVerified) { setVState(true); setMsg({ kind: 'ok', text: 'This account is already verified.' }) }
+      else { setVlink(data.link || ''); setMsg({ kind: 'ok', text: `Verification link generated for ${data.email}. Copy it, or use “Email it” to send.` }) }
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not generate a link.' }) }
+    finally { setBusy('') }
+  }
+  async function forceVerify(v) {
+    setBusy('vset'); setMsg(null)
+    try { await httpsCallable(functions, 'adminSetEmailVerified')({ uid: user.uid, verified: v }); setVState(v); setVlink(''); setMsg({ kind: 'ok', text: v ? 'Marked as verified.' : 'Marked as unverified.' }) }
+    catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update.' }) }
+    finally { setBusy('') }
+  }
+
   const bind = (k) => ({ value: form[k], onChange: e => setForm(f => ({ ...f, [k]: e.target.value })) })
 
   const detailsChanged =
@@ -303,6 +330,31 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
 
         {/* Org access */}
         <section className="adm-ud-card">
+          <h4>Email verification</h4>
+          <p className="adm-msg-meta" style={{ marginBottom: 10 }}>
+            Status:{' '}
+            {vState === true ? <span className="pill pill-ok">Verified</span>
+              : vState === false ? <span className="pill pill-warn">Unverified</span>
+              : <span className="muted">checking…</span>}
+          </p>
+          <div className="op-invite">
+            {vState !== true && (
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy === 'vlink'} onClick={genVerifyLink}>{busy === 'vlink' ? 'Working…' : 'Send verification link'}</button>
+            )}
+            {vState !== true
+              ? <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'vset'} onClick={() => forceVerify(true)}>Mark verified</button>
+              : <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'vset'} onClick={() => forceVerify(false)}>Mark unverified</button>}
+          </div>
+          {vlink && (
+            <div className="op-invite" style={{ marginTop: 8 }}>
+              <input type="text" readOnly value={vlink} onFocus={e => e.target.select()} />
+              <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(user.email || '')}?subject=${encodeURIComponent('Verify your MatchPulse email')}&body=${encodeURIComponent(`Hi,\n\nPlease verify your MatchPulse email address by opening this link:\n\n${vlink}\n\nThanks,\nMatchPulse`)}`}>Email it</a>
+            </div>
+          )}
+          <p className="adm-field-hint">Firebase only auto-sends its verification email to a person while they're signed in, so here we generate the link for you to send. “Mark verified” confirms the account immediately without any email — use it only when you've confirmed the person another way.</p>
+        </section>
+
+        <section className="adm-ud-card">
           <h4>Organisation access</h4>
           <p className="adm-field-hint">A person gets working access to MatchPulse by being linked to an organisation — there is no standalone account. Link them here as a manager (full access) or helper.</p>
           {orgList.length === 0 ? <p className="muted">Not linked to any organisation yet.</p> : (
@@ -405,6 +457,13 @@ function UsersTab({ onEditOrg }) {
       list.sort((a, b) => (a.displayName || a.email || '').localeCompare(b.displayName || b.email || '', undefined, { sensitivity: 'base' }))
       setRows(list)
       const map = {}; for (const o of orgs) map[o.id] = o; setOrgsById(map)
+      // Enrich with Firebase Auth verification state (not in the users doc).
+      httpsCallable(functions, 'adminGetUsersAuth')({ uids: list.map(r => r.uid) })
+        .then(({ data }) => {
+          const am = data?.auth || {}
+          setRows(cur => cur ? cur.map(r => ({ ...r, verified: am[r.uid]?.emailVerified ?? null })) : cur)
+        })
+        .catch(() => {})
       return list
     } catch (e) { setErr(e.message || 'Could not load users.'); return [] }
   }
@@ -441,6 +500,7 @@ function UsersTab({ onEditOrg }) {
         case 'email':   return (u.email || '').toLowerCase()
         case 'plan':    return (u.plan.label || '').toLowerCase()
         case 'created': return u.createdAt?.toMillis?.() ?? (typeof u.createdAt === 'number' ? u.createdAt : 0)
+        case 'verified': return u.verified === true ? 2 : u.verified === false ? 1 : 0
         case 'admin':   return u.platformAdmin ? 1 : 0
         default:        return (u.displayName || u.email || '').toLowerCase()
       }
@@ -486,6 +546,7 @@ function UsersTab({ onEditOrg }) {
                 <th aria-sort={ariaSort('name')}><button type="button" className="adm-th-sort" onClick={() => onSort('name')}>Name{arrow('name')}</button></th>
                 <th aria-sort={ariaSort('email')}><button type="button" className="adm-th-sort" onClick={() => onSort('email')}>Email{arrow('email')}</button></th>
                 <th aria-sort={ariaSort('plan')}><button type="button" className="adm-th-sort" onClick={() => onSort('plan')}>Plan{arrow('plan')}</button></th>
+                <th aria-sort={ariaSort('verified')}><button type="button" className="adm-th-sort" onClick={() => onSort('verified')}>Verified{arrow('verified')}</button></th>
                 <th aria-sort={ariaSort('created')}><button type="button" className="adm-th-sort" onClick={() => onSort('created')}>Created{arrow('created')}</button></th>
                 <th aria-sort={ariaSort('admin')}><button type="button" className="adm-th-sort" onClick={() => onSort('admin')}>Admin{arrow('admin')}</button></th>
               </tr>
@@ -499,11 +560,16 @@ function UsersTab({ onEditOrg }) {
                   </td>
                   <td>{u.email || <span className="muted">—</span>}</td>
                   <td><span className={`plan-badge plan-${u.plan.key}`}>{u.plan.label}</span></td>
+                  <td>
+                    {u.verified === true ? <span className="pill pill-ok">Verified</span>
+                      : u.verified === false ? <span className="pill pill-warn">Unverified</span>
+                      : <span className="muted">—</span>}
+                  </td>
                   <td>{fmtDate(u.createdAt)}</td>
                   <td>{u.platformAdmin ? <span className="pill pill-admin">Admin</span> : ''}</td>
                 </tr>
               ))}
-              {sorted.length === 0 && <tr><td colSpan={5} className="muted">No users match.</td></tr>}
+              {sorted.length === 0 && <tr><td colSpan={6} className="muted">No users match.</td></tr>}
             </tbody>
           </table>
         </div>
