@@ -121,8 +121,9 @@ function Panel({ title, description, children }) {
 }
 
 export default function Account() {
-  const { user, profile, plan, refresh, logout, resendVerification } = useAuth()
+  const { user, profile, plan, emailVerified, refresh, logout, resendVerification, reloadUser } = useAuth()
   const [verifyBusy, setVerifyBusy] = useState(false)
+  const [checkBusy,  setCheckBusy]  = useState(false)
 
   async function resendVerify() {
     setVerifyBusy(true)
@@ -133,6 +134,20 @@ export default function Account() {
       setMsg({ kind: 'err', text: 'Could not send the verification email just now. Please try again shortly.' })
     } finally {
       setVerifyBusy(false)
+    }
+  }
+
+  async function checkVerified() {
+    setCheckBusy(true)
+    try {
+      const ok = await reloadUser()
+      setMsg(ok
+        ? { kind: 'ok',  text: 'Thanks — your email is verified.' }
+        : { kind: 'err', text: 'Still not verified. Open the link in the email (check spam), then try again.' })
+    } catch {
+      setMsg({ kind: 'err', text: 'Could not check just now. Please try again shortly.' })
+    } finally {
+      setCheckBusy(false)
     }
   }
   const navigate = useNavigate()
@@ -277,15 +292,20 @@ export default function Account() {
           <p className="acct-email">{user?.email}</p>
         </header>
 
-        {user && !user.emailVerified && (
+        {user && !emailVerified && (
           <div className="verify-banner" role="status">
             <div>
-              <strong>Verify your email.</strong> We sent a confirmation link to {user.email}. Please
-              click it to confirm your address — it keeps your account and any invoices reaching you.
+              <strong>Your account isn't verified yet.</strong> We've sent a verification link to {user.email}.
+              Please check your inbox and your spam folder, open the link, then try again.
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" disabled={verifyBusy} onClick={resendVerify}>
-              {verifyBusy ? 'Sending…' : 'Resend email'}
-            </button>
+            <div className="verify-actions">
+              <button type="button" className="btn btn-ghost btn-sm" disabled={verifyBusy} onClick={resendVerify}>
+                {verifyBusy ? 'Sending…' : 'Resend verification email'}
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={checkBusy} onClick={checkVerified}>
+                {checkBusy ? 'Checking…' : 'I have verified, check again'}
+              </button>
+            </div>
           </div>
         )}
 

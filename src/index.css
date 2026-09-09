@@ -1275,6 +1275,7 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 }
 .verify-banner > div { flex: 1; min-width: 220px; line-height: 1.45; }
 .verify-banner strong { color: #92400e; }
+.verify-banner .verify-actions { flex: 0 0 auto; min-width: 0; display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Upgrade options inside the account "Your plan" panel */
 .upgrade-grid { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 18px; }
