@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, orderBy, query, where, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import { statusOf } from '../lib/billing'
 import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES } from '../lib/orgs'
