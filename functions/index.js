@@ -638,8 +638,9 @@ exports.addOrgMember = onCall({ region: REGION }, async (request) => {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.')
   const orgId = String(request.data?.orgId || '').trim()
   const emailRaw = String(request.data?.email || '').trim()
+  const directUid = String(request.data?.uid || '').trim()   // admin path: link a known account
   const role = request.data?.role === 'admin' ? 'admin' : 'staff'
-  if (!orgId || !emailRaw) throw new HttpsError('invalid-argument', 'orgId and email required.')
+  if (!orgId || (!emailRaw && !directUid)) throw new HttpsError('invalid-argument', 'orgId and email (or uid) required.')
 
   const orgSnap = await db.doc(`organizations/${orgId}`).get()
   if (!orgSnap.exists) throw new HttpsError('not-found', 'No such organisation.')
@@ -650,16 +651,22 @@ exports.addOrgMember = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('permission-denied', 'Only the org owner, an org admin, or a platform admin can add people.')
   }
 
-  // Resolve the email to an existing account (try as-typed, then lowercased).
-  const email = emailRaw.toLowerCase()
+  // Resolve the target account: a uid supplied by an admin, else look up the email.
   let userDoc = null
-  for (const e of [emailRaw, email]) {
-    const snap = await db.collection('users').where('email', '==', e).limit(1).get()
-    if (!snap.empty) { userDoc = snap.docs[0]; break }
-    if (e === email) break
-  }
-  if (!userDoc) {
-    throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+  if (directUid) {
+    if (!master) throw new HttpsError('permission-denied', 'Only a platform admin can link by uid.')
+    userDoc = await db.doc(`users/${directUid}`).get()
+    if (!userDoc.exists) throw new HttpsError('not-found', 'No such user account.')
+  } else {
+    const email = emailRaw.toLowerCase()
+    for (const e of [emailRaw, email]) {
+      const snap = await db.collection('users').where('email', '==', e).limit(1).get()
+      if (!snap.empty) { userDoc = snap.docs[0]; break }
+      if (e === email) break
+    }
+    if (!userDoc) {
+      throw new HttpsError('not-found', 'No MatchPulse account uses that email yet. Ask them to sign up first, then add them.')
+    }
   }
   const targetUid = userDoc.id
   if (targetUid === org.ownerUserId) throw new HttpsError('failed-precondition', 'That person already owns this organisation.')
