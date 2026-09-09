@@ -1139,6 +1139,7 @@ function AppCard({ a, busy, onAct, reviewed }) {
         <div className="adm-app-actions">
           <button type="button" className="btn btn-primary btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'approve')}>{busy === a.id ? 'Working…' : 'Approve'}</button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'reject')}>Reject</button>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={busy === a.id} onClick={() => onAct(a, 'dismiss')} title="Already handled — just clear it from the queue">Dismiss</button>
         </div>
       )}
     </li>
@@ -1153,6 +1154,16 @@ function ApplicationsTab() {
   async function load() { try { setRows(await listAllApplications()) } catch (e) { setErr(e.message || 'Could not load applications.') } }
   useEffect(() => { load() }, [])
   async function act(a, action) {
+    // Dismiss = "I've already handled this manually" — just clear it from the
+    // queue. It does not create an org or reject the applicant.
+    if (action === 'dismiss') {
+      if (!window.confirm(`Dismiss "${a.orgName}"? Use this when you've already created it (or handled it) manually. This only clears it from the queue — it creates nothing and rejects no one.`)) return
+      setBusy(a.id); setMsg(null)
+      try { await withdrawApplication(a.id); setMsg({ kind: 'ok', text: `${a.orgName} cleared from the queue.` }); load() }
+      catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not dismiss.' }) }
+      finally { setBusy('') }
+      return
+    }
     let reason = ''
     if (action === 'reject') { reason = window.prompt(`Reject "${a.orgName}"? Optional reason (shown to the applicant):`, ''); if (reason === null) return }
     setBusy(a.id); setMsg(null)
@@ -1193,7 +1204,7 @@ const navCls = ({ isActive }) => 'adm-nav-item' + (isActive ? ' active' : '')
 
 // Role-filtered sidebar: platform admins get the platform sections; anyone who
 // owns organisations gets a "My Schools / My Clubs / …" section per type they own.
-function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
+function AdminNav({ isAdmin, typesPresent, pendingApps = 0, unreadMsgs = 0, onNavigate }) {
   // Owners' "My Schools / Clubs / …" links. For a platform admin these sit
   // directly beneath the "Organisations" tab; for an owner (no platform tabs)
   // they are the whole nav.
@@ -1215,6 +1226,7 @@ function AdminNav({ isAdmin, typesPresent, pendingApps = 0, onNavigate }) {
               <NavLink key={t.key} to={`/admin/${t.key}`} end className={navCls} onClick={onNavigate}>
                 {Icon && <Icon />}<span>{t.label}</span>
                 {t.key === 'applications' && pendingApps > 0 && <span className="adm-nav-badge">{pendingApps}</span>}
+                {t.key === 'messages' && unreadMsgs > 0 && <span className="adm-nav-badge">{unreadMsgs}</span>}
               </NavLink>
             )
             // Slot the owner's own orgs right under the Organisations tab.
@@ -1295,6 +1307,7 @@ export default function Admin() {
   const [open,   setOpen]   = useState(false)
   const [myOrgs, setMyOrgs] = useState([])
   const [pendingApps, setPendingApps] = useState(0)
+  const [unreadMsgs, setUnreadMsgs] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -1309,6 +1322,9 @@ export default function Admin() {
     if (!isAdmin) return
     listAllApplications()
       .then(a => setPendingApps(a.filter(x => (x.status || 'pending') === 'pending').length))
+      .catch(() => {})
+    getDocs(query(collection(identityDb, 'contactMessages'), where('read', '==', false)))
+      .then(s => setUnreadMsgs(s.size))
       .catch(() => {})
   }, [isAdmin, location.pathname])
   useEffect(() => { setOpen(false) }, [location.pathname])
@@ -1342,7 +1358,7 @@ export default function Admin() {
     <div className="adm-shell">
       <aside className="adm-side">
         <div className="adm-side-head"><Brand /></div>
-        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} />
+        <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} unreadMsgs={unreadMsgs} />
         <Foot />
       </aside>
 
@@ -1357,7 +1373,7 @@ export default function Admin() {
         </header>
         {open && (
           <div className="adm-mobnav">
-            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} onNavigate={() => setOpen(false)} />
+            <AdminNav isAdmin={isAdmin} typesPresent={typesPresent} pendingApps={pendingApps} unreadMsgs={unreadMsgs} onNavigate={() => setOpen(false)} />
             <Foot />
           </div>
         )}
