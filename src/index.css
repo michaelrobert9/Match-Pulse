@@ -1433,6 +1433,17 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 
 .route-loading { min-height: 60vh; display: grid; place-items: center; color: #8a949e; font-size: 15px; }
 
+/* Error boundary fallback — shown instead of a blank page when a route crashes
+   or a lazy chunk fails to load (usually a stale index.html after a deploy). */
+.app-error { min-height: 78vh; display: grid; place-items: center; padding: 56px 20px 72px; background: var(--paper); }
+.app-error-card {
+  width: 100%; max-width: 460px; text-align: center; background: var(--card);
+  border: 1px solid var(--line); border-radius: 20px; padding: 34px 30px 30px;
+  box-shadow: 0 28px 64px -34px rgba(11,18,32,.28);
+}
+.app-error-card h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin: 0 0 10px; }
+.app-error-card p { color: #4a545e; line-height: 1.6; margin: 0 0 22px; }
+
 /* ── Venues ───────────────────────────────────────────────────────────────── */
 /* Public venue page */
 .venue { padding: 40px 0 88px; background: var(--paper); min-height: 60vh; }

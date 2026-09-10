@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-do
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 import Home from './pages/Home'
 // Every route below the landing page is code-split: its JavaScript is fetched
 // only when that page is first visited, so the initial load stays small/fast.
@@ -91,6 +92,7 @@ export default function App() {
     <>
       <ScrollToTop />
       {!bareChrome && <Nav />}
+      <ErrorBoundary>
       <Suspense fallback={<div className="route-loading">Loading…</div>}>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -146,6 +148,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
+      </ErrorBoundary>
       {!bareChrome && <Footer />}
     </>
   )
