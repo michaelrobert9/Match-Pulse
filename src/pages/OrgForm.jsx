@@ -8,7 +8,7 @@ import { HOME_GROUND_PRICE } from '../lib/config'
 import { VenueForm } from '../components/VenueManager'
 import { getVenueById, listVenueIndex, setOrgHomeVenue, venueLocality } from '../lib/venues'
 import {
-  ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
+  ORG_TYPES, GENDER_PROFILES, SA_PROVINCES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
   deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson, addOrgMember,
@@ -489,7 +489,15 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           </div>
           <div className="field">
             <label htmlFor="o-region">Region</label>
-            <input id="o-region" type="text" value={f.region} onChange={set('region')} placeholder="e.g. KwaZulu-Natal" />
+            <select id="o-region" value={f.region || ''} onChange={set('region')}>
+              <option value="">Select a province…</option>
+              {SA_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+              {/* Preserve any legacy free-text region that isn't one of the nine
+                  provinces, so editing an older org doesn't silently drop it. */}
+              {f.region && !SA_PROVINCES.includes(f.region) && (
+                <option value={f.region}>{f.region}</option>
+              )}
+            </select>
           </div>
           <div className="field">
             <label htmlFor="o-website">Website</label>

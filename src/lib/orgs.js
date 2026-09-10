@@ -26,6 +26,21 @@ export const ORG_TYPES = [
 ]
 export const typeHasMatchName = (type) => ORG_TYPES.find(t => t.key === type)?.hasMatchName === true
 
+// The nine South African provinces, for the org Region field. Stored as the
+// plain province name (what the school import already wrote), so existing
+// records keep matching. Kept in one place so every form uses the same spelling.
+export const SA_PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'Northern Cape',
+  'North West',
+  'Western Cape',
+]
+
 export const GENDER_PROFILES = [
   { key: 'boys',  label: 'Boys' },
   { key: 'girls', label: 'Girls' },
