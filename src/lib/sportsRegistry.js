@@ -15,11 +15,14 @@
 import { useEffect, useState } from 'react'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { identityDb } from '../firebase'
-import { SPORTS } from './sports'
+import { SPORTS, COMING_SOON_SPORTS } from './sports'
 
-// The built-in sports, shaped as registry rows (all active by default).
+// The built-in sports, shaped as registry rows (all active by default). The
+// live sports first, then the built-but-not-yet-launched ones as comingSoon
+// rows so the public hub shows them (as disabled "Coming soon" cards) out of
+// the box, without an admin having to add them by hand.
 export function defaultRegistry() {
-  return SPORTS.map((s, i) => ({
+  const live = SPORTS.map((s, i) => ({
     key: s.key,
     name: s.name,
     hue: s.hue,
@@ -30,6 +33,18 @@ export function defaultRegistry() {
     active: true,
     order: i,
   }))
+  const soon = COMING_SOON_SPORTS.map((s, i) => ({
+    key: s.key,
+    name: s.name,
+    hue: s.hue,
+    host: s.host,
+    blurb: s.blurb || '',
+    newlyLaunched: false,
+    comingSoon: true,
+    active: true,
+    order: live.length + i,
+  }))
+  return [...live, ...soon]
 }
 
 function normalise(list) {
@@ -37,6 +52,21 @@ function normalise(list) {
     .map((s, i) => ({ active: true, comingSoon: false, order: i, ...s }))
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+}
+
+// Merge a stored registry with the built-in defaults: a saved row wins for a
+// sport it already carries (so admin edits — colour, order, active, hidden —
+// are preserved), but any built-in sport the saved list is missing is appended.
+// Without this, a registry saved before a new sport was added (e.g. Soccer)
+// would keep it off the public hub forever. To hide a built-in, toggle it
+// inactive in the editor rather than deleting the row.
+function reconcileWithDefaults(saved) {
+  const norm = normalise(saved)
+  const have = new Set(norm.map(s => s.key))
+  const missing = defaultRegistry().filter(d => !have.has(d.key))
+  if (!missing.length) return norm
+  const maxOrder = norm.reduce((m, s) => Math.max(m, s.order ?? 0), -1)
+  return [...norm, ...missing.map((d, i) => ({ ...d, order: maxOrder + 1 + i }))]
 }
 
 // One shared in-flight load per page, so the Footer and the homepage don't each
@@ -51,7 +81,7 @@ export function loadRegistry({ fresh = false } = {}) {
     try {
       const snap = await getDoc(doc(identityDb, '_meta', 'sports'))
       const arr = snap.exists() ? snap.data().sports : null
-      if (Array.isArray(arr) && arr.length) return normalise(arr)
+      if (Array.isArray(arr) && arr.length) return reconcileWithDefaults(arr)
     } catch {
       /* offline or blocked — fall back to the built-in defaults */
     }

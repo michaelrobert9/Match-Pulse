@@ -309,17 +309,15 @@ exports.payfastITN = onRequest({ region: REGION }, async (req, res) => {
     }
 
     if (buyer.plan === 'pro') {
-      // Extend from the later of now and any remaining term, so an early renewal
-      // adds a year rather than throwing the remainder away.
+      // Calendar-year access (to 31 Dec); an early renewal adds a whole year.
       const current = userSnap.data().entitlementExpiresAt?.toDate?.() ?? null
-      const from    = current && current > new Date() ? current : new Date()
-      const expires = new Date(from); expires.setFullYear(expires.getFullYear() + 1)
+      const expires = calendarYearProExpiry(current, 1)
       await userRef.update({
         entitlement:          'pro',
-        entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expires),
+        entitlementExpiresAt: expires,
         entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
       })
-      logger.info('Pro granted', { uid: buyer.uid, expires, via: buyer.via })
+      logger.info('Pro granted', { uid: buyer.uid, expires: expires.toDate(), via: buyer.via })
     } else {
       await userRef.update({
         entitlement:          'event',
@@ -349,11 +347,20 @@ exports.payfastITN = onRequest({ region: REGION }, async (req, res) => {
 // The sport registry here must stay in step with src/lib/sports.js. If a sport's
 // named DB doesn't exist yet the read errors and we quietly report inactive —
 // safer than surfacing a scary error in the admin panel.
+// Each key is BOTH the sport key and its named Firestore database id
+// (sportDbFor: dbId === key). A sport is activatable only once it appears here,
+// so keep this in step with src/lib/sports.js ACTIVATABLE_SPORTS. The named
+// database must already exist in the project for activation to write into it.
 const SPORT_DBS = [
-  { key: 'hockey',    dbId: 'hockey',    collection: 'hockeyProfiles'    },
-  { key: 'netball',   dbId: 'netball',   collection: 'netballProfiles'   },
-  { key: 'rugby',     dbId: 'rugby',     collection: 'rugbyProfiles'     },
-  { key: 'waterpolo', dbId: 'waterpolo', collection: 'waterpoloProfiles' },
+  { key: 'hockey',     dbId: 'hockey',     collection: 'hockeyProfiles'     },
+  { key: 'netball',    dbId: 'netball',    collection: 'netballProfiles'    },
+  { key: 'rugby',      dbId: 'rugby',      collection: 'rugbyProfiles'      },
+  { key: 'waterpolo',  dbId: 'waterpolo',  collection: 'waterpoloProfiles'  },
+  { key: 'soccer',     dbId: 'soccer',     collection: 'soccerProfiles'     },
+  { key: 'basketball', dbId: 'basketball', collection: 'basketballProfiles' },
+  { key: 'cricket',    dbId: 'cricket',    collection: 'cricketProfiles'    },
+  { key: 'sevens',     dbId: 'sevens',     collection: 'sevensProfiles'     },
+  { key: 'touchrugby', dbId: 'touchrugby', collection: 'touchrugbyProfiles' },
 ]
 
 async function callerIsAdmin(request) {
@@ -394,6 +401,24 @@ exports.getUserSportActivity = onCall({ region: REGION }, async (request) => {
 // tool and invoice payment. Field shapes match the PayFast ITN exactly, so
 // syncUserClaims mirrors any of the three paths onto the token identically.
 // Returns the user doc's data from before the change (for audit rows).
+// All-In runs for whole CALENDAR years: access always ends on 31 December, not
+// on a rolling 12-month anniversary. A mid-year purchase covers the rest of THIS
+// year (e.g. buy in July → access to 31 Dec); an early renewal adds whole
+// calendar years on top of the current end-year. `years` is how many calendar
+// years to grant (default 1 = through the end of the current year). We do not
+// pro-rate the price — a partial first year is charged in full (handled offline).
+// The instant is pinned to 23:59:59 SAST (UTC+2, the audience's zone), i.e.
+// 21:59:59 UTC, so it reads as "31 December" for local users.
+function calendarYearProExpiry(currentExpiryDate, years = 1) {
+  const now    = new Date()
+  const active = currentExpiryDate && currentExpiryDate > now
+  // Fresh/expired: base is last year, so base + years lands on the current year
+  // for years=1. Active renewal: base is the current end-year, so it extends.
+  const baseYear = active ? currentExpiryDate.getUTCFullYear() : now.getUTCFullYear() - 1
+  const endYear  = baseYear + Math.max(1, years)
+  return admin.firestore.Timestamp.fromDate(new Date(Date.UTC(endYear, 11, 31, 21, 59, 59)))
+}
+
 async function applyEntitlement(uid, { plan, credits = 1, years = 1 }) {
   const userRef  = db.doc(`users/${uid}`)
   const userSnap = await userRef.get()
@@ -402,14 +427,11 @@ async function applyEntitlement(uid, { plan, credits = 1, years = 1 }) {
 
   let update
   if (plan === 'pro') {
-    // Same extension rule as the ITN: from the later of now and any remaining
-    // term, so a renewal stacks rather than clobbering paid time.
+    // Calendar-year access (to 31 Dec); an early renewal adds whole years.
     const current = beforeData.entitlementExpiresAt?.toDate?.() ?? null
-    const from    = current && current > new Date() ? current : new Date()
-    const expires = new Date(from); expires.setFullYear(expires.getFullYear() + years)
     update = {
       entitlement:          'pro',
-      entitlementExpiresAt: admin.firestore.Timestamp.fromDate(expires),
+      entitlementExpiresAt: calendarYearProExpiry(current, years),
       entitlementUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }
   } else if (plan === 'event') {

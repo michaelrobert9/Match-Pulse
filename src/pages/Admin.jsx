@@ -277,7 +277,9 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
           <p className="adm-ud-joined">Joined {fmtDate(user.createdAt ?? user.raw?.createdAt)}</p>
         </div>
         <div className="adm-ud-badges">
-          <span className={`plan-badge plan-${user.plan.key}`}>{user.plan.label}</span>
+          {orgList.length > 0 && <span className="pill pill-everyday">Everyday MatchPulse</span>}
+          {user.plan.hasPlan && <span className={`plan-badge plan-${user.plan.key}`}>{user.plan.label}</span>}
+          {!user.plan.hasPlan && orgList.length === 0 && <span className="pill pill-muted">No plan</span>}
           {user.platformAdmin && <span className="pill pill-admin">Admin</span>}
         </div>
       </div>
@@ -299,6 +301,13 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
         {/* Plan */}
         <section className="adm-ud-card">
           <h4>Plan</h4>
+          <p className="adm-plan-state">
+            {user.plan.key === 'none'       && 'No plan — this account can’t create competitions.'}
+            {user.plan.key === 'plus'       && <><strong>{user.raw.eventCredits ?? 0}</strong> competition credit{(user.raw.eventCredits ?? 0) === 1 ? '' : 's'} remaining.</>}
+            {user.plan.key === 'plus_spent' && 'Single Competition — no competition credits left.'}
+            {user.plan.key === 'pro'        && <>All-In — unlimited competitions, active until <strong>{fmtDate(user.plan.expiresAt)}</strong>.</>}
+            {user.plan.key === 'expired'    && <>All-In — lapsed on <strong>{fmtDate(user.plan.expiresAt)}</strong>.</>}
+          </p>
           <form className="acct-form" onSubmit={applyPlan}>
             <div className="field">
               <label>Plan to set</label>
@@ -312,7 +321,11 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
               <div className="field"><label>Competition credits</label><input type="number" min="0" max="100" {...bind('credits')} /></div>
             )}
             {form.plan === 'pro' && (
-              <div className="field"><label>Years to add</label><input type="number" min="1" max="5" {...bind('years')} /></div>
+              <div className="field">
+                <label>Calendar years of access</label>
+                <input type="number" min="1" max="5" {...bind('years')} />
+                <p className="adm-field-hint">All-In runs by the calendar: access ends 31 December. 1 = to the end of this year; each extra year adds a full 1 Jan–31 Dec. Mid-year buyers pay full price for the part-year.</p>
+              </div>
             )}
             <div className="field">
               <label>Reason</label>
@@ -355,9 +368,9 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
         </section>
 
         <section className="adm-ud-card">
-          <h4>Organisation access</h4>
-          <p className="adm-field-hint">A person gets working access to MatchPulse by being linked to an organisation — there is no standalone account. Link them here as a manager (full access) or helper.</p>
-          {orgList.length === 0 ? <p className="muted">Not linked to any organisation yet.</p> : (
+          <h4>Organisation access <span className="opt">= Everyday MatchPulse</span></h4>
+          <p className="adm-field-hint">Linking a person to an organisation is what makes them an <strong>Everyday MatchPulse</strong> account — free access to manage that org's sport (fixtures, results), no plan required. Link them as a manager (full access) or helper. Remove them from every organisation and they're no longer an Everyday account. This is separate from the paid Plan above.</p>
+          {orgList.length === 0 ? <p className="muted">Not linked to any organisation yet — this account is not an Everyday MatchPulse account.</p> : (
             <ul className="adm-ud-list">
               {orgList.map(([oid, rel]) => (
                 <li key={oid}>
@@ -388,7 +401,8 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
 
         {/* Competitions */}
         <section className="adm-ud-card">
-          <h4>Competitions</h4>
+          <h4>Competitions{comps ? ` (${comps.length})` : ''}</h4>
+          <p className="adm-field-hint">Every competition this account can manage — ones it owns, and ones reached through an organisation it belongs to. A granted competition shows here once the person is set as its owner or an org manager on the sport site.</p>
           {comps === null ? <p className="adm-loading">Loading…</p>
             : comps.length === 0 ? <p className="muted">None connected.</p>
             : (
@@ -435,7 +449,7 @@ function UsersTab({ onEditOrg }) {
   const [orgsById, setOrgsById] = useState({})
   const [err,  setErr]  = useState('')
   const [q,    setQ]    = useState('')
-  const [seg,  setSeg]  = useState('all')   // 'all' | 'plan' | 'user'
+  const [seg,  setSeg]  = useState('all')   // 'all' | 'plan' | 'everyday' | 'none'
   const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
   const [sel,  setSel]  = useState(null)
 
@@ -445,11 +459,17 @@ function UsersTab({ onEditOrg }) {
         getDocs(collection(identityDb, 'users')),
         listAllOrgs().catch(() => []),
       ])
+      // Everyday MatchPulse = free access to manage an organisation's sport.
+      // Derived from org membership: owning an org, or holding any role in one
+      // (owner / manager / helper). It's separate from the paid plans — someone
+      // can be an Everyday account and also hold Single Competition or All-In.
+      const orgOwners = new Set(orgs.filter(o => o.ownerUserId).map(o => o.ownerUserId))
       const list = snap.docs.map(d => {
         const data = d.data()
+        const everyday = orgOwners.has(d.id) || Object.keys(data.orgRoles || {}).length > 0
         return {
           uid: d.id, email: data.email ?? '', displayName: data.displayName ?? '',
-          plan: planStatus(data), hasPlan: planStatus(data).hasPlan, createdAt: data.createdAt ?? null,
+          plan: planStatus(data), hasPlan: planStatus(data).hasPlan, everyday, createdAt: data.createdAt ?? null,
           platformAdmin: data.platformAdmin === true, raw: data,
         }
       })
@@ -476,16 +496,21 @@ function UsersTab({ onEditOrg }) {
   }
 
   const counts = useMemo(() => {
-    if (!rows) return { all: 0, plan: 0, user: 0 }
-    const plan = rows.filter(r => r.hasPlan).length
-    return { all: rows.length, plan, user: rows.length - plan }
+    if (!rows) return { all: 0, plan: 0, everyday: 0, none: 0 }
+    return {
+      all:      rows.length,
+      plan:     rows.filter(r => r.hasPlan).length,
+      everyday: rows.filter(r => r.everyday).length,
+      none:     rows.filter(r => !r.hasPlan && !r.everyday).length,
+    }
   }, [rows])
 
   const filtered = useMemo(() => {
     if (!rows) return null
     let list = rows
     if (seg === 'plan') list = list.filter(r => r.hasPlan)
-    else if (seg === 'user') list = list.filter(r => !r.hasPlan)
+    else if (seg === 'everyday') list = list.filter(r => r.everyday)
+    else if (seg === 'none') list = list.filter(r => !r.hasPlan && !r.everyday)
     if (!q.trim()) return list
     const needle = q.trim().toLowerCase()
     return list.filter(r =>
@@ -498,7 +523,8 @@ function UsersTab({ onEditOrg }) {
     const val = (u) => {
       switch (sort.key) {
         case 'email':   return (u.email || '').toLowerCase()
-        case 'plan':    return (u.plan.label || '').toLowerCase()
+        case 'access':  return u.everyday ? 1 : 0
+        case 'plan':    return u.hasPlan ? (u.plan.label || '').toLowerCase() : ''
         case 'created': return u.createdAt?.toMillis?.() ?? (typeof u.createdAt === 'number' ? u.createdAt : 0)
         case 'verified': return u.verified === true ? 2 : u.verified === false ? 1 : 0
         case 'admin':   return u.platformAdmin ? 1 : 0
@@ -528,11 +554,12 @@ function UsersTab({ onEditOrg }) {
   return (
     <div className="adm-section">
       <div className="dir-tabs" role="tablist" style={{ marginBottom: 12 }}>
-        <button role="tab" aria-selected={seg === 'all'}  className={seg === 'all'  ? 'active' : ''} onClick={() => setSeg('all')}>All{rows ? ` (${counts.all})` : ''}</button>
-        <button role="tab" aria-selected={seg === 'plan'} className={seg === 'plan' ? 'active' : ''} onClick={() => setSeg('plan')}>Plan holders{rows ? ` (${counts.plan})` : ''}</button>
-        <button role="tab" aria-selected={seg === 'user'} className={seg === 'user' ? 'active' : ''} onClick={() => setSeg('user')}>Users, no plan{rows ? ` (${counts.user})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'all'}      className={seg === 'all'      ? 'active' : ''} onClick={() => setSeg('all')}>All{rows ? ` (${counts.all})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'plan'}     className={seg === 'plan'     ? 'active' : ''} onClick={() => setSeg('plan')}>Plan holders{rows ? ` (${counts.plan})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'everyday'} className={seg === 'everyday' ? 'active' : ''} onClick={() => setSeg('everyday')}>Everyday MatchPulse{rows ? ` (${counts.everyday})` : ''}</button>
+        <button role="tab" aria-selected={seg === 'none'}     className={seg === 'none'     ? 'active' : ''} onClick={() => setSeg('none')}>No plan{rows ? ` (${counts.none})` : ''}</button>
       </div>
-      <p className="adm-hint">Plan holders have a Single Competition or All-In plan and need activation and management. Users, no plan are plain accounts (players and guardians) and need little admin.</p>
+      <p className="adm-hint"><strong>Plan holders</strong> have a paid Single Competition or All-In plan. <strong>Everyday MatchPulse</strong> accounts manage an organisation's sport for free — anyone linked to an org (owner, manager or helper); the two overlap. <strong>No plan</strong> are plain accounts (players and guardians) with neither. To make someone Everyday MatchPulse, open them and link them to an organisation.</p>
       <div className="adm-toolbar">
         <input type="search" value={q} placeholder="Search by name, email or UID" onChange={e => setQ(e.target.value)} />
         <span className="adm-count">{filtered ? `${filtered.length} of ${rows.length}` : ''}</span>
@@ -545,6 +572,7 @@ function UsersTab({ onEditOrg }) {
               <tr>
                 <th aria-sort={ariaSort('name')}><button type="button" className="adm-th-sort" onClick={() => onSort('name')}>Name{arrow('name')}</button></th>
                 <th aria-sort={ariaSort('email')}><button type="button" className="adm-th-sort" onClick={() => onSort('email')}>Email{arrow('email')}</button></th>
+                <th aria-sort={ariaSort('access')}><button type="button" className="adm-th-sort" onClick={() => onSort('access')}>Access{arrow('access')}</button></th>
                 <th aria-sort={ariaSort('plan')}><button type="button" className="adm-th-sort" onClick={() => onSort('plan')}>Plan{arrow('plan')}</button></th>
                 <th aria-sort={ariaSort('verified')}><button type="button" className="adm-th-sort" onClick={() => onSort('verified')}>Verified{arrow('verified')}</button></th>
                 <th aria-sort={ariaSort('created')}><button type="button" className="adm-th-sort" onClick={() => onSort('created')}>Created{arrow('created')}</button></th>
@@ -559,7 +587,8 @@ function UsersTab({ onEditOrg }) {
                     <div className="adm-uid">{u.uid}</div>
                   </td>
                   <td>{u.email || <span className="muted">—</span>}</td>
-                  <td><span className={`plan-badge plan-${u.plan.key}`}>{u.plan.label}</span></td>
+                  <td>{u.everyday ? <span className="pill pill-everyday">Everyday</span> : <span className="muted">—</span>}</td>
+                  <td>{u.hasPlan ? <span className={`plan-badge plan-${u.plan.key}`}>{u.plan.label}</span> : <span className="muted">—</span>}</td>
                   <td>
                     {u.verified === true ? <span className="pill pill-ok">Verified</span>
                       : u.verified === false ? <span className="pill pill-warn">Unverified</span>
@@ -569,7 +598,7 @@ function UsersTab({ onEditOrg }) {
                   <td>{u.platformAdmin ? <span className="pill pill-admin">Admin</span> : ''}</td>
                 </tr>
               ))}
-              {sorted.length === 0 && <tr><td colSpan={6} className="muted">No users match.</td></tr>}
+              {sorted.length === 0 && <tr><td colSpan={7} className="muted">No users match.</td></tr>}
             </tbody>
           </table>
         </div>

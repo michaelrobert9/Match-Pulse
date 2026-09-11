@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { SPORTS } from '../lib/sports'
+import { ACTIVATABLE_SPORTS } from '../lib/sports'
 import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
 import { formatRand } from '../lib/payfast'
 import { HOME_GROUND_PRICE } from '../lib/config'
 import { VenueForm } from '../components/VenueManager'
 import { getVenueById, listVenueIndex, setOrgHomeVenue, venueLocality } from '../lib/venues'
 import {
-  ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
+  ORG_TYPES, GENDER_PROFILES, SA_PROVINCES, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
   deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson, addOrgMember,
@@ -489,7 +489,15 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
           </div>
           <div className="field">
             <label htmlFor="o-region">Region</label>
-            <input id="o-region" type="text" value={f.region} onChange={set('region')} placeholder="e.g. KwaZulu-Natal" />
+            <select id="o-region" value={f.region || ''} onChange={set('region')}>
+              <option value="">Select a province…</option>
+              {SA_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+              {/* Preserve any legacy free-text region that isn't one of the nine
+                  provinces, so editing an older org doesn't silently drop it. */}
+              {f.region && !SA_PROVINCES.includes(f.region) && (
+                <option value={f.region}>{f.region}</option>
+              )}
+            </select>
           </div>
           <div className="field">
             <label htmlFor="o-website">Website</label>
@@ -633,14 +641,18 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
             </p>
             {actMsg && <p className={`notice ${actMsg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{actMsg.text}</p>}
             <ul className="org-activate-list">
-              {SPORTS.map(s => {
+              {ACTIVATABLE_SPORTS.map(s => {
                 const on = !!activated[s.key]
                 return (
                   <li key={s.key} style={{ '--hue': s.hue }}>
                     <span className="org-act-dot" style={{ background: s.hue }} />
                     <span className="org-act-name">{s.name}</span>
                     <span className="org-act-actions">
-                    {on ? (
+                    {s.comingSoon ? (
+                      // Built but not launched yet — listed for completeness but
+                      // not activatable until its site goes live.
+                      <span className="org-act-soon">Coming soon</span>
+                    ) : on ? (
                       <>
                         <a className="btn btn-primary btn-sm" href={`${s.host}/manage/orgs/${id}`} target="_blank" rel="noreferrer">
                           Manage on {s.name} ↗

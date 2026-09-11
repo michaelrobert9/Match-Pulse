@@ -535,6 +535,8 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 .pill-ok    { background: #d1fae5; color: #065f46; }
 .pill-warn  { background: #fef3c7; color: #92400e; }
 .pill-admin { background: #e0e7ff; color: #3730a3; }
+.pill-everyday { background: #ccfbf1; color: #0f766e; }
+.pill-muted { background: var(--canvas); color: #6b7580; border: 1px solid var(--line); }
 
 .adm-inline-form { display: flex; gap: 10px; margin-bottom: 18px; }
 .adm-inline-form input {
@@ -1044,6 +1046,11 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 .org-act-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .org-act-name { flex: 1; font-weight: 600; min-width: 90px; }
 .org-act-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.org-act-soon {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #5B6472; background: var(--canvas); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px;
+}
 
 /* ── Danger action ───────────────────────────────────────────────────────── */
 .btn-danger { background: #b91c1c; color: #fff; }
@@ -1356,6 +1363,8 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .adm-ud-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .adm-ud-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
 .adm-ud-card h4 { font-family: 'Space Grotesk', sans-serif; font-size: 14px; margin: 0 0 12px; }
+.adm-plan-state { margin: -4px 0 14px; font-size: 14px; color: #34423A; line-height: 1.5; }
+.adm-plan-state strong { color: var(--ink, #1C2230); }
 .adm-ud-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .adm-ud-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
 .adm-ud-list a { color: var(--pulse-ink); font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1630,6 +1639,19 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .hsport-ask { text-align: center; padding: 44px 24px; background: #F3F6F4; }
 .hsport-ask p { font-size: 17px; color: #34423A; margin: 0; }
 .hsport-ask a { color: #04503A; font-weight: 700; text-decoration: underline; }
+/* Built-but-not-yet-launched sports, shown here (not in the top live strip). */
+.hsport-soon { margin: 0 0 22px; }
+.hsport-soon-label {
+  display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #5B6472; margin-bottom: 12px;
+}
+.hsport-soon-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.hsport-soon-chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+  font-weight: 600; font-size: 14px; color: #34423A;
+}
+.hsport-soon-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 
 /* final CTA */
 .hfinal { text-align: center; }
