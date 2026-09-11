@@ -535,6 +535,8 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 .pill-ok    { background: #d1fae5; color: #065f46; }
 .pill-warn  { background: #fef3c7; color: #92400e; }
 .pill-admin { background: #e0e7ff; color: #3730a3; }
+.pill-everyday { background: #ccfbf1; color: #0f766e; }
+.pill-muted { background: var(--canvas); color: #6b7580; border: 1px solid var(--line); }
 
 .adm-inline-form { display: flex; gap: 10px; margin-bottom: 18px; }
 .adm-inline-form input {
