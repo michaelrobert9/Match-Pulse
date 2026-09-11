@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { SPORTS } from '../lib/sports'
+import { ACTIVATABLE_SPORTS } from '../lib/sports'
 import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from '../lib/orgProfile'
 import { formatRand } from '../lib/payfast'
 import { HOME_GROUND_PRICE } from '../lib/config'
@@ -641,7 +641,7 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
             </p>
             {actMsg && <p className={`notice ${actMsg.kind === 'ok' ? 'notice-ok' : 'notice-err'}`}>{actMsg.text}</p>}
             <ul className="org-activate-list">
-              {SPORTS.map(s => {
+              {ACTIVATABLE_SPORTS.map(s => {
                 const on = !!activated[s.key]
                 return (
                   <li key={s.key} style={{ '--hue': s.hue }}>

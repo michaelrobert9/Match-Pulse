@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { CONTACT_EMAIL } from '../../lib/config'
 import * as C from '../../lib/homeContent'
 import { planPrice } from '../../lib/homeContent'
-import { SPORTS } from '../../lib/sports'
+import { SPORTS, COMING_SOON_SPORTS } from '../../lib/sports'
 
 /* ── shared primitives ─────────────────────────────────────────────────── */
 
@@ -252,6 +252,19 @@ export function SportRequest() {
   const href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Please add our sport to MatchPulse')}`
   return (
     <div className="hsport-ask">
+      {COMING_SOON_SPORTS.length > 0 && (
+        <div className="hsport-soon">
+          <span className="hsport-soon-label">{s.comingSoonLabel}</span>
+          <ul className="hsport-soon-list">
+            {COMING_SOON_SPORTS.map(sp => (
+              <li key={sp.key} className="hsport-soon-chip" style={{ '--hue': sp.hue }}>
+                <span className="hsport-soon-dot" style={{ background: sp.hue }} />
+                {sp.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p>{s.text} <a href={href}>{s.linkLabel}</a> {s.tail}</p>
     </div>
   )

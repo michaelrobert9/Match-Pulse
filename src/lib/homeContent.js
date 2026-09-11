@@ -254,6 +254,7 @@ export const pricing = {
 
 // § 9. Sport request strip. TODO: destination address to confirm (config).
 export const sportRequest = {
+  comingSoonLabel: 'Coming soon',
   text: 'Don’t see your sport on MatchPulse?',
   linkLabel: 'Let us know',
   tail: 'and we’ll consider adding it.',

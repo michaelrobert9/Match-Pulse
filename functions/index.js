@@ -349,11 +349,20 @@ exports.payfastITN = onRequest({ region: REGION }, async (req, res) => {
 // The sport registry here must stay in step with src/lib/sports.js. If a sport's
 // named DB doesn't exist yet the read errors and we quietly report inactive —
 // safer than surfacing a scary error in the admin panel.
+// Each key is BOTH the sport key and its named Firestore database id
+// (sportDbFor: dbId === key). A sport is activatable only once it appears here,
+// so keep this in step with src/lib/sports.js ACTIVATABLE_SPORTS. The named
+// database must already exist in the project for activation to write into it.
 const SPORT_DBS = [
-  { key: 'hockey',    dbId: 'hockey',    collection: 'hockeyProfiles'    },
-  { key: 'netball',   dbId: 'netball',   collection: 'netballProfiles'   },
-  { key: 'rugby',     dbId: 'rugby',     collection: 'rugbyProfiles'     },
-  { key: 'waterpolo', dbId: 'waterpolo', collection: 'waterpoloProfiles' },
+  { key: 'hockey',     dbId: 'hockey',     collection: 'hockeyProfiles'     },
+  { key: 'netball',    dbId: 'netball',    collection: 'netballProfiles'    },
+  { key: 'rugby',      dbId: 'rugby',      collection: 'rugbyProfiles'      },
+  { key: 'waterpolo',  dbId: 'waterpolo',  collection: 'waterpoloProfiles'  },
+  { key: 'soccer',     dbId: 'soccer',     collection: 'soccerProfiles'     },
+  { key: 'basketball', dbId: 'basketball', collection: 'basketballProfiles' },
+  { key: 'cricket',    dbId: 'cricket',    collection: 'cricketProfiles'    },
+  { key: 'sevens',     dbId: 'sevens',     collection: 'sevensProfiles'     },
+  { key: 'touchrugby', dbId: 'touchrugby', collection: 'touchrugbyProfiles' },
 ]
 
 async function callerIsAdmin(request) {
