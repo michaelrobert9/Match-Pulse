@@ -1044,6 +1044,11 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 .org-act-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .org-act-name { flex: 1; font-weight: 600; min-width: 90px; }
 .org-act-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.org-act-soon {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #5B6472; background: var(--canvas); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 12px;
+}
 
 /* ── Danger action ───────────────────────────────────────────────────────── */
 .btn-danger { background: #b91c1c; color: #fff; }

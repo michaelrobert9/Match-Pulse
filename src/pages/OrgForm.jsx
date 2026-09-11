@@ -648,7 +648,11 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
                     <span className="org-act-dot" style={{ background: s.hue }} />
                     <span className="org-act-name">{s.name}</span>
                     <span className="org-act-actions">
-                    {on ? (
+                    {s.comingSoon ? (
+                      // Built but not launched yet — listed for completeness but
+                      // not activatable until its site goes live.
+                      <span className="org-act-soon">Coming soon</span>
+                    ) : on ? (
                       <>
                         <a className="btn btn-primary btn-sm" href={`${s.host}/manage/orgs/${id}`} target="_blank" rel="noreferrer">
                           Manage on {s.name} ↗
