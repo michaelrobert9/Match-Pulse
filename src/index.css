@@ -651,6 +651,15 @@ footer { background: var(--ink); color: #C4CAD3; padding: 64px 0 32px; }
 .sf-name { flex: 1; }
 .sf-go svg { width: 17px; height: 17px; color: var(--hue); transition: transform .2s var(--ease); }
 .sf-card:hover .sf-go svg { transform: translateX(3px); }
+/* Built-but-not-yet-launched sports: shown in the strip, not clickable. */
+.sf-card--soon { cursor: default; background: var(--canvas); }
+.sf-card--soon:hover { transform: none; border-color: var(--line); box-shadow: none; }
+.sf-card--soon .sf-name { color: #5B6472; }
+.sf-soon {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #5B6472; background: var(--card); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px; white-space: nowrap;
+}
 
 /* ── 3. Hero ─────────────────────────────────────────────────────────────── */
 .mp-hero { padding: 64px 0 60px; position: relative; overflow: hidden; }
@@ -1635,19 +1644,6 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .hsport-ask { text-align: center; padding: 44px 24px; background: #F3F6F4; }
 .hsport-ask p { font-size: 17px; color: #34423A; margin: 0; }
 .hsport-ask a { color: #04503A; font-weight: 700; text-decoration: underline; }
-/* Built-but-not-yet-launched sports, shown above the "don't see your sport" ask. */
-.hsport-soon { margin: 0 0 22px; }
-.hsport-soon-label {
-  display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; color: #5B6472; margin-bottom: 12px;
-}
-.hsport-soon-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-.hsport-soon-chip {
-  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
-  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
-  font-weight: 600; font-size: 14px; color: #34423A;
-}
-.hsport-soon-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
 
 /* final CTA */
 .hfinal { text-align: center; }
