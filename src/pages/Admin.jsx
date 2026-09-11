@@ -299,6 +299,13 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
         {/* Plan */}
         <section className="adm-ud-card">
           <h4>Plan</h4>
+          <p className="adm-plan-state">
+            {user.plan.key === 'none'       && 'No plan — this account can’t create competitions.'}
+            {user.plan.key === 'plus'       && <><strong>{user.raw.eventCredits ?? 0}</strong> competition credit{(user.raw.eventCredits ?? 0) === 1 ? '' : 's'} remaining.</>}
+            {user.plan.key === 'plus_spent' && 'Single Competition — no competition credits left.'}
+            {user.plan.key === 'pro'        && <>All-In — unlimited competitions, active until <strong>{fmtDate(user.plan.expiresAt)}</strong>.</>}
+            {user.plan.key === 'expired'    && <>All-In — lapsed on <strong>{fmtDate(user.plan.expiresAt)}</strong>.</>}
+          </p>
           <form className="acct-form" onSubmit={applyPlan}>
             <div className="field">
               <label>Plan to set</label>
@@ -312,7 +319,11 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
               <div className="field"><label>Competition credits</label><input type="number" min="0" max="100" {...bind('credits')} /></div>
             )}
             {form.plan === 'pro' && (
-              <div className="field"><label>Years to add</label><input type="number" min="1" max="5" {...bind('years')} /></div>
+              <div className="field">
+                <label>Calendar years of access</label>
+                <input type="number" min="1" max="5" {...bind('years')} />
+                <p className="adm-field-hint">All-In runs by the calendar: access ends 31 December. 1 = to the end of this year; each extra year adds a full 1 Jan–31 Dec. Mid-year buyers pay full price for the part-year.</p>
+              </div>
             )}
             <div className="field">
               <label>Reason</label>
@@ -388,7 +399,8 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
 
         {/* Competitions */}
         <section className="adm-ud-card">
-          <h4>Competitions</h4>
+          <h4>Competitions{comps ? ` (${comps.length})` : ''}</h4>
+          <p className="adm-field-hint">Every competition this account can manage — ones it owns, and ones reached through an organisation it belongs to. A granted competition shows here once the person is set as its owner or an org manager on the sport site.</p>
           {comps === null ? <p className="adm-loading">Loading…</p>
             : comps.length === 0 ? <p className="muted">None connected.</p>
             : (

@@ -1370,6 +1370,8 @@ a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)
 .adm-ud-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .adm-ud-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
 .adm-ud-card h4 { font-family: 'Space Grotesk', sans-serif; font-size: 14px; margin: 0 0 12px; }
+.adm-plan-state { margin: -4px 0 14px; font-size: 14px; color: #34423A; line-height: 1.5; }
+.adm-plan-state strong { color: var(--ink, #1C2230); }
 .adm-ud-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .adm-ud-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
 .adm-ud-list a { color: var(--pulse-ink); font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

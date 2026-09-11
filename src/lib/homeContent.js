@@ -227,8 +227,8 @@ export const plans = [
   },
   {
     key: 'allin', name: 'All-In',
-    amount: PLANS.pro.amount, per: 'per year',
-    desc: 'Unlimited competitions across every sport and age group, one account.',
+    amount: PLANS.pro.amount, per: 'per calendar year',
+    desc: 'Unlimited competitions across every sport and age group, one account. Runs for the calendar year, to 31 December.',
     for: 'For associations and busy schools',
     cta: { label: 'Choose All-In', plan: 'pro' },
   },
