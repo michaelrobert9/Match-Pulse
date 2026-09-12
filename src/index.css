@@ -1150,23 +1150,30 @@ section[id], [id].products-head { scroll-margin-top: 92px; }
 
 /* Two-column matches / results */
 .op-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.op-col { min-width: 0; }   /* let the track shrink; cards never force overflow */
 .op-col h3 { font-family: 'Space Grotesk', sans-serif; font-size: 15px; letter-spacing: .02em; margin: 0 0 12px; color: var(--ink); }
+/* Card stacks: date (+ link arrow) on top, then the two teams. Fixed to the
+   container width — long names wrap onto a second line rather than pushing the
+   card past the screen edge. */
 .opm-row {
-  display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-bottom: 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  width: 100%; box-sizing: border-box; padding: 11px 14px; margin-bottom: 8px;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   text-decoration: none; color: var(--ink); transition: border-color .2s, transform .2s;
 }
 a.opm-row:hover { border-color: color-mix(in srgb, var(--pulse) 40%, var(--line)); transform: translateX(2px); }
-.opm-date { font-size: 11.5px; line-height: 1.25; color: #8a949e; flex: none; width: 58px; }
-/* Teams stack vertically — home over away — so names never truncate. */
-.opm-teams { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.opm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.opm-date { font-size: 12px; line-height: 1.2; color: #8a949e; }
+/* Teams stack home over away; the score sits in a right-hand column that lines
+   up across both rows. Names take the remaining width and wrap when long. */
+.opm-teams { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .opm-side { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .opm-crest { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
 .opm-crest-mono { display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; background: var(--c, var(--pulse)); border-color: transparent; }
-.opm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
-.opm-sscore { flex: none; font-weight: 700; font-size: 15px; color: #6b7580; min-width: 20px; text-align: right; }
+.opm-name { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: normal; line-height: 1.3; font-weight: 600; font-size: 14px; }
+.opm-sscore { flex: none; font-weight: 700; font-size: 15px; color: #6b7580; min-width: 24px; text-align: right; }
 .opm-sscore.win { color: var(--pulse-ink); }
-.opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; align-self: center; }
+.opm-go { color: var(--pulse-ink); font-weight: 700; flex: none; }
 
 @media (max-width: 640px) {
   .op-lists { grid-template-columns: 1fr; gap: 22px; }
