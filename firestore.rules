@@ -257,6 +257,16 @@ service cloud.firestore {
         allow read:  if isSignedIn();
         allow write: if isPlatformAdmin() || request.auth.uid == orgOwnerUid(orgId);
       }
+
+      // Media library — images an org has uploaded, for re-selection. Registry
+      // only (the images themselves live in Storage). Owner or platform admin
+      // may add/remove; entries are never edited in place.
+      match /media/{mediaId} {
+        allow read:   if isSignedIn();
+        allow create: if isPlatformAdmin() || request.auth.uid == orgOwnerUid(orgId);
+        allow delete: if isPlatformAdmin() || request.auth.uid == orgOwnerUid(orgId);
+        allow update: if false;
+      }
     }
 
     // ── Org slug registry ─────────────────────────────────────────────────────
