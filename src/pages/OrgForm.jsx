@@ -6,6 +6,8 @@ import { orgPublicPath, adminSetProfileSubscription, createProfileInvoice } from
 import { formatRand } from '../lib/payfast'
 import { HOME_GROUND_PRICE } from '../lib/config'
 import { VenueForm } from '../components/VenueManager'
+import MediaLibraryPicker from '../components/MediaLibraryPicker'
+import { registerOrgMedia } from '../lib/mediaLibrary'
 import { getVenueById, listVenueIndex, setOrgHomeVenue, venueLocality } from '../lib/venues'
 import {
   ORG_TYPES, GENDER_PROFILES, SA_PROVINCES, typeHasMatchName, emptyOrg,
@@ -25,6 +27,7 @@ function AssetField({ label, kind, orgId, url, onChange, hint }) {
   const input = useRef(null)
   const [busy, setBusy] = useState(false)
   const [err,  setErr]  = useState('')
+  const [libOpen, setLibOpen] = useState(false)
 
   async function pick(file) {
     if (!file) return
@@ -32,6 +35,9 @@ function AssetField({ label, kind, orgId, url, onChange, hint }) {
     setBusy(true); setErr('')
     try {
       const next = await uploadOrgAsset(kind, orgId, file)
+      // Register into the org's media library so it can be re-selected later.
+      // Best-effort: never blocks the upload the user just made.
+      registerOrgMedia(orgId, { url: next, name: file.name, contentType: file.type, size: file.size })
       onChange(`${next}?t=${Date.now()}`) // cache-bust after re-upload to same path
     } catch (e) {
       setErr(e.message || 'Upload failed.')
@@ -55,9 +61,19 @@ function AssetField({ label, kind, orgId, url, onChange, hint }) {
             onClick={() => input.current?.click()}>
             {busy ? 'Uploading…' : url ? 'Replace' : 'Upload'}
           </button>
+          {orgId && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLibOpen(true)}>
+              Choose from library
+            </button>
+          )}
           {url && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange('')}>Remove</button>}
           <p className="adm-field-hint">{hint}</p>
           {err && <p className="form-err">{err}</p>}
+          {libOpen && orgId && (
+            <MediaLibraryPicker orgId={orgId}
+              onSelect={(u) => onChange(`${u}?t=${Date.now()}`)}
+              onClose={() => setLibOpen(false)} />
+          )}
         </div>
       </div>
     </div>
