@@ -38,7 +38,7 @@ export default function Footer() {
           <div className="foot-col">
             <h5>Support</h5>
             <ul>
-              <li><Link to="/products#faq">Help Centre</Link></li>
+              <li><Link to="/support">Help Centre</Link></li>
               <li><a href={`mailto:${CONTACT_EMAIL}`}>Contact</a></li>
             </ul>
           </div>
