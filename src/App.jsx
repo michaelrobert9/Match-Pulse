@@ -35,6 +35,7 @@ const OrgRedirect = lazyReload(() => import('./pages/OrgRedirect'))
 const OrgDirectory = lazyReload(() => import('./pages/OrgDirectory'))
 const SubscribeProfile = lazyReload(() => import('./pages/SubscribeProfile'))
 const Tournaments = lazyReload(() => import('./pages/Tournaments'))
+const Support = lazyReload(() => import('./pages/Support'))
 const Venue = lazyReload(() => import('./pages/Venue'))
 const Admin = lazyReload(() => import('./pages/Admin'))
 const Terms = lazyReload(() => import('./pages/legal/Terms'))
@@ -125,6 +126,8 @@ export default function App() {
         {/* Public directories (front doors), indexable. */}
         <Route path="/organizations" element={<OrgDirectory />} />
         <Route path="/tournaments"   element={<Tournaments />} />
+        <Route path="/support"       element={<Support />} />
+        <Route path="/help"          element={<Navigate to="/support" replace />} />
         <Route path="/venues/:slug"  element={<Venue />} />
 
         {/* Public, type-prefixed org profiles (free identity + gated matches). */}
