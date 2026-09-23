@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { collection, doc, getDoc, getDocs, orderBy, query, where, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
+import { sendPasswordResetEmail } from 'firebase/auth'
 import { statusOf } from '../lib/billing'
 import { listAllOrgs, listOrgsOwnedBy, ORG_TYPES, linkOrgMemberByUid, removeOrgPerson } from '../lib/orgs'
 import { TYPE_PREFIX } from '../lib/orgProfile'
-import { identityDb, functions } from '../firebase'
+import { identityDb, functions, auth } from '../firebase'
 import { listGuardianshipsForParent, setGuardianshipStatus, deleteGuardianship, SPORT_LABEL } from '../lib/guardianships'
 import { submitOrgApplication, listMyApplications, listAllApplications, withdrawApplication, reviewApplication, APP_STATUS_LABEL } from '../lib/orgApplications'
 import { useAuth } from '../contexts/AuthContext'
@@ -218,6 +219,21 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
     catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not update.' }) }
     finally { setBusy('') }
   }
+  // Firebase can't be asked (via the Admin SDK) to SEND a verification email to
+  // another person — it only sends to a signed-in user. To actually exercise the
+  // SMTP settings, send a password-reset email to this address: Firebase mails it
+  // through the same configured SMTP. If it arrives, sending works; if it never
+  // arrives, the SMTP relay is still failing. (Firebase queues the send, so a
+  // success here just means it was accepted — confirm by checking the inbox.)
+  async function sendTestEmail() {
+    if (!user.email) { setMsg({ kind: 'err', text: 'This account has no email address to send to.' }); return }
+    setBusy('vtest'); setMsg(null)
+    try {
+      await sendPasswordResetEmail(auth, user.email)
+      setMsg({ kind: 'ok', text: `Test email requested: a password-reset email to ${user.email} through the configured SMTP. Check that inbox (and spam). If it never arrives, the SMTP relay is still failing.` })
+    } catch (e) { setMsg({ kind: 'err', text: e.message || 'Could not send the test email.' }) }
+    finally { setBusy('') }
+  }
 
   const bind = (k) => ({ value: form[k], onChange: e => setForm(f => ({ ...f, [k]: e.target.value })) })
 
@@ -357,6 +373,9 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
             {vState !== true
               ? <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'vset'} onClick={() => forceVerify(true)}>Mark verified</button>
               : <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'vset'} onClick={() => forceVerify(false)}>Mark unverified</button>}
+            <button type="button" className="btn btn-ghost btn-sm" disabled={busy === 'vtest' || !user.email} onClick={sendTestEmail}>
+              {busy === 'vtest' ? 'Sending…' : 'Send test email'}
+            </button>
           </div>
           {vlink && (
             <div className="op-invite" style={{ marginTop: 8 }}>
@@ -364,7 +383,7 @@ function UserDetail({ user, orgsById, onBack, onChanged, onEditOrg }) {
               <a className="btn btn-ghost btn-sm" href={`mailto:${encodeURIComponent(user.email || '')}?subject=${encodeURIComponent('Verify your MatchPulse email')}&body=${encodeURIComponent(`Hi,\n\nPlease verify your MatchPulse email address by opening this link:\n\n${vlink}\n\nThanks,\nMatchPulse`)}`}>Email it</a>
             </div>
           )}
-          <p className="adm-field-hint">Firebase only auto-sends its verification email to a person while they're signed in, so here we generate the link for you to send. “Mark verified” confirms the account immediately without any email — use it only when you've confirmed the person another way.</p>
+          <p className="adm-field-hint">Firebase only auto-sends its <em>verification</em> email to a person while they're signed in, so here we generate the link for you to send. <strong>Send test email</strong> sends a real password-reset email to this address through your configured SMTP — the easiest way to check whether email delivery is working (if it arrives, sending works). “Mark verified” confirms the account immediately without any email — use it only when you've confirmed the person another way.</p>
         </section>
 
         <section className="adm-ud-card">

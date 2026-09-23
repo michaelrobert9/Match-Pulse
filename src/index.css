@@ -59,7 +59,9 @@ header { position: sticky; top: 0; z-index: 50; background: rgba(251,251,252,.82
    underneath never bleed through the sticky nav. */
 header.scrolled { background: var(--paper); border-color: var(--line); box-shadow: 0 1px 0 rgba(11,18,32,.02); }
 .nav { display: flex; align-items: center; justify-content: space-between; height: 66px; }
-.nav .wordmark { font-size: 22px; }
+.nav .wordmark { font-size: 22px; display: inline-flex; align-items: center; }
+.nav-logo { height: 26px; width: auto; display: block; }
+@media (max-width: 480px) { .nav-logo { height: 22px; } }
 .nav-links { display: flex; align-items: center; gap: 4px; }
 .nav-links a.link { padding: 8px 12px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--slate); transition: color .15s, background .15s; }
 .nav-links a.link:hover { color: var(--ink); background: rgba(11,18,32,.04); }
