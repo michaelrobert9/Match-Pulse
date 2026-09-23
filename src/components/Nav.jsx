@@ -38,7 +38,7 @@ export default function Nav() {
     <header className={scrolled ? 'scrolled' : ''}>
       <div className="wrap nav">
         <Link to="/" className="wordmark" aria-label="MatchPulse home">
-          <span className="m">Match</span><span className="p">Pulse</span>
+          <img src="/matchpulse-logo.png" alt="MatchPulse" className="nav-logo" width="1147" height="204" />
         </Link>
 
         <nav className="nav-links" aria-label="Primary">
