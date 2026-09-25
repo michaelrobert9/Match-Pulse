@@ -8,10 +8,11 @@ import { HOME_GROUND_PRICE } from '../lib/config'
 import { VenueForm } from '../components/VenueManager'
 import { getVenueById, listVenueIndex, setOrgHomeVenue, venueLocality } from '../lib/venues'
 import {
-  ORG_TYPES, GENDER_PROFILES, typeHasMatchName, emptyOrg,
+  ORG_TYPES, GENDER_PROFILES, ASSOCIATION_KINDS, typeHasMatchName, emptyOrg,
   slugify, generateUniqueOrgSlug, slugIsFree,
   createOrg, updateOrg, uploadOrgAsset, getOrg, activateOrgInSport,
   deactivateOrgInSport, deleteOrg, adminChangeSlug, findOrgsByName, getOrgPeople, removeOrgPerson, addOrgMember,
+  listAllOrgs,
 } from '../lib/orgs'
 
 const SOCIALS = [
@@ -204,6 +205,18 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
   const set   = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }))
   const setSoc = (k) => (e) => setF(s => ({ ...s, socialLinks: { ...s.socialLinks, [k]: e.target.value } }))
   const showMatchName = typeHasMatchName(f.type)
+
+  // Franchise (private) associations, for linking a club as one of their
+  // exclusive franchise clubs. Loaded when editing/creating a club.
+  const [franchiseAssocs, setFranchiseAssocs] = useState([])
+  useEffect(() => {
+    if (f.type !== 'club') return
+    let alive = true
+    listAllOrgs()
+      .then(list => { if (alive) setFranchiseAssocs((list || []).filter(o => o.type === 'association' && o.associationKind === 'franchise')) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [f.type])
 
   async function submit(e, force = false) {
     e?.preventDefault?.()
@@ -429,6 +442,31 @@ export default function OrgForm({ orgId: orgIdProp, onExit } = {}) {
               {ORG_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
           </div>
+
+          {f.type === 'association' && (
+            <div className="field">
+              <label htmlFor="o-assockind">Association kind</label>
+              <select id="o-assockind" value={f.associationKind || 'federation'} onChange={set('associationKind')}>
+                {ASSOCIATION_KINDS.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}
+              </select>
+              <p className="adm-field-hint">
+                {(f.associationKind || 'federation') === 'franchise'
+                  ? ASSOCIATION_KINDS[0].hint
+                  : ASSOCIATION_KINDS[1].hint}
+              </p>
+            </div>
+          )}
+
+          {f.type === 'club' && (
+            <div className="field">
+              <label htmlFor="o-franchise">Franchise of <span className="opt">optional — its private association</span></label>
+              <select id="o-franchise" value={f.franchiseOf || ''} onChange={set('franchiseOf')}>
+                <option value="">— independent club —</option>
+                {franchiseAssocs.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <p className="adm-field-hint">A franchise club is exclusive to its private association — it can only play in that association's competitions.</p>
+            </div>
+          )}
 
           {showMatchName && (
             <div className="field">

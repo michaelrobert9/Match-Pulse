@@ -1182,6 +1182,10 @@ const ORG_IDENTITY_FIELDS = [
   'name', 'matchName', 'type', 'slug', 'logoUrl', 'genderProfile',
   'primaryColor', 'secondaryColor', 'bio', 'region', 'website',
   'contactEmail', 'phone', 'socialLinks',
+  // Association subtype (franchise/federation) and a club's private-association
+  // link. The sport apps read these to enforce franchise exclusivity and to
+  // branch the association pages, so they MUST sync down.
+  'associationKind', 'franchiseOf',
   // homeVenueId is part of the org identity that syncs down to every sport DB:
   // the sport apps read it locally to float a host org's own ground to the top
   // of the venue picker. It MUST be in this list or that sync silently drops it.
