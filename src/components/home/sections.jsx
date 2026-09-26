@@ -82,8 +82,11 @@ export function SportFinder() {
         {/* A styled <p>, not a heading: this strip precedes the page's h1 (the
             hero), and a heading here would put the document outline out of order. */}
         <p id="find-h" className="sf-heading">{f.heading}</p>
+        {/* Live sports only — this strip links straight to a sport's own site,
+            so a sport with no live site yet (coming soon) does NOT belong here.
+            Those are shown by the sport-request strip lower down the page. */}
         <div className="sf-grid">
-          {sports.map(s => s.host && !s.comingSoon ? (
+          {sports.filter(s => s.host && !s.comingSoon).map(s => (
             <a key={s.key} className="sf-card" style={{ '--hue': s.hue }} href={s.host}>
               <span className="sf-dot" style={{ background: s.hue }} />
               <span className="sf-name">{s.name}</span>
@@ -91,12 +94,6 @@ export function SportFinder() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
               </span>
             </a>
-          ) : (
-            <div key={s.key} className="sf-card sf-card--soon" style={{ '--hue': s.hue }} aria-disabled="true">
-              <span className="sf-dot" style={{ background: s.hue }} />
-              <span className="sf-name">{s.name}</span>
-              <span className="sf-soon">Coming soon</span>
-            </div>
           ))}
         </div>
       </div>
@@ -256,9 +253,23 @@ export function PricingSection() {
 /* ── 9. Sport request strip ────────────────────────────────────────────── */
 export function SportRequest() {
   const s = C.sportRequest
+  const soon = useHubSports().filter(sp => sp.comingSoon)
   const href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Please add our sport to MatchPulse')}`
   return (
     <div className="hsport-ask">
+      {soon.length > 0 && (
+        <div className="hsport-soon">
+          <span className="hsport-soon-label">Coming soon</span>
+          <ul className="hsport-soon-list">
+            {soon.map(sp => (
+              <li key={sp.key} className="hsport-soon-chip" style={{ '--hue': sp.hue }}>
+                <span className="hsport-soon-dot" style={{ background: sp.hue }} />
+                {sp.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p>{s.text} <a href={href}>{s.linkLabel}</a> {s.tail}</p>
     </div>
   )

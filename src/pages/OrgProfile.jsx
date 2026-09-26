@@ -67,12 +67,14 @@ function MatchRow({ m, result }) {
   const scored = result && typeof hs === 'number' && typeof as === 'number'
   const inner = (
     <>
-      <span className="opm-date">{fmtDate(m.matchDate)}</span>
+      <div className="opm-head">
+        <span className="opm-date">{fmtDate(m.matchDate)}</span>
+        {m.url && <span className="opm-go" aria-hidden="true">→</span>}
+      </div>
       <div className="opm-teams">
         <Side logo={m.homeLogoUrl} name={m.homeDisplay || 'Home'} color={m.homeColor} score={hs} showScore={result} win={scored && hs > as} />
         <Side logo={m.awayLogoUrl} name={m.awayDisplay || 'Away'} color={m.awayColor} score={as} showScore={result} win={scored && as > hs} />
       </div>
-      {m.url && <span className="opm-go" aria-hidden="true">→</span>}
     </>
   )
   return m.url

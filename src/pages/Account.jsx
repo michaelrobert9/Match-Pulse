@@ -363,7 +363,7 @@ export default function Account() {
             <div>
               <span className={`plan-badge plan-${plan.key}`}>{plan.label}</span>
               {plan.key === 'plus'    && <p className="plan-meta">{plan.credits} event credit{plan.credits === 1 ? '' : 's'} remaining.</p>}
-              {plan.key === 'pro'     && <p className="plan-meta">Renews {plan.expiresAt?.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>}
+              {plan.key === 'pro'     && <p className="plan-meta">Active until {plan.expiresAt?.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })}. All-In runs for the calendar year, to 31 December.</p>}
               {plan.key === 'expired' && <p className="plan-meta">Your All-In subscription has lapsed. Renew to unlock unlimited competitions again.</p>}
               {plan.key === 'none'    && <p className="plan-meta">You have a MatchPulse account. Add a plan when you need to run a competition.</p>}
             </div>
