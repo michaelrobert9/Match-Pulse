@@ -26,6 +26,18 @@ export const ORG_TYPES = [
 ]
 export const typeHasMatchName = (type) => ORG_TYPES.find(t => t.key === type)?.hasMatchName === true
 
+// An association is one of two kinds. A FRANCHISE (private) association runs
+// competitions and owns exclusive franchise clubs; it owns no teams itself. A
+// FEDERATION (governing body) runs leagues for independent clubs and owns its
+// own representative teams. Unset resolves to 'federation' (safe default: it
+// keeps owning teams until an admin classifies it).
+export const ASSOCIATION_KINDS = [
+  { key: 'franchise',  label: 'Franchise / Private Association',
+    hint: 'Runs competitions and owns exclusive franchise clubs. Owns no teams itself.' },
+  { key: 'federation', label: 'Federation / Governing Body',
+    hint: 'Runs leagues for independent clubs and owns its own representative teams.' },
+]
+
 // The nine South African provinces, for the org Region field. Stored as the
 // plain province name (what the school import already wrote), so existing
 // records keep matching. Kept in one place so every form uses the same spelling.
@@ -56,6 +68,8 @@ export const emptyOrg = () => ({
   name:           '',
   matchName:      '',
   type:           'school',
+  associationKind: 'federation',  // only meaningful when type === 'association'
+  franchiseOf:     '',            // only meaningful when type === 'club' (its private association)
   genderProfile:  'coed',
   logoUrl:        '',
   bannerUrl:      '',
@@ -108,6 +122,10 @@ function normalise(fields) {
     name:           clean(fields.name),
     matchName:      typeHasMatchName(t) ? (clean(fields.matchName) || clean(fields.name)) : null,
     type:           t,
+    // Association subtype (franchise/federation) — only for associations.
+    associationKind: t === 'association' ? (fields.associationKind === 'franchise' ? 'franchise' : 'federation') : null,
+    // A club's private (franchise) association, if any — only for clubs.
+    franchiseOf:    t === 'club' ? (clean(fields.franchiseOf) || null) : null,
     genderProfile:  fields.genderProfile,
     logoUrl:        clean(fields.logoUrl) || null,
     bannerUrl:      clean(fields.bannerUrl) || null,
